@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>暑假成长积分银行</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="暑假成长积分银行">
+<meta name="theme-color" content="#ff7043">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-512.png">
+<style>
+:root {
+  --ink: #2d1f0e;
+  --muted: #8a7b6e;
+  --leaf: #ff7043;
+  --leaf-dark: #e64a19;
+  --mint: #fff3e0;
+  --cream: #fffbf5;
+  --paper: rgba(255, 253, 248, 0.96);
+  --gold: #ffca28;
+  --rose: #ec407a;
+  --red: #ef5350;
+  --sky: #29b6f6;
+  --lime: #66bb6a;
+  --purple: #ab47bc;
+  --shadow: 0 8px 32px rgba(200, 100, 50, 0.13);
+  --radius: 14px;
+  --font: "Nunito","Avenir Next","PingFang SC","Microsoft YaHei",sans-serif;
+}
+*,::before,::after{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;min-height:100vh;color:var(--ink);font-family:var(--font);background:linear-gradient(160deg,#fff8f0 0%,#fce4ec 30%,#e3f2fd 62%,#f9fbe7 100%);-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.18;background-image:radial-gradient(circle,rgba(255,112,67,.18) 1px,transparent 1px),radial-gradient(circle,rgba(41,182,246,.12) 1px,transparent 1px);background-size:28px 28px,42px 42px;background-position:0 0,14px 14px}
+button,input,textarea,select{font:inherit}
+button{border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+
+.app{max-width:860px;margin:0 auto;min-height:100vh;padding:0 16px 40px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0;position:sticky;top:0;z-index:20;background:rgba(255,251,245,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.brand{display:flex;align-items:center;gap:8px}
+.brand-mark{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#ffca28,#ff7043);border:2.5px solid #fff;box-shadow:0 3px 12px rgba(255,112,67,.35);position:relative;flex-shrink:0;font-size:20px}
+.brand-mark::before,.brand-mark::after{content:"";position:absolute;border-radius:999px}
+.brand-mark::before{width:0;height:0}
+.brand-mark::after{width:0;height:0}
+.brand h1{margin:0;font-size:20px;line-height:1.15}
+.brand p{margin:2px 0 0;color:var(--muted);font-size:11px}
+.points-pill{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:linear-gradient(90deg,#fff3e0,#fce4ec);box-shadow:0 2px 10px rgba(255,112,67,.18),inset 0 0 0 1.5px rgba(255,112,67,.2);font-weight:800;white-space:nowrap;font-size:15px}
+.points-pill .coin{width:26px;height:26px;display:inline-grid;place-items:center;border-radius:50%;color:#fff;background:linear-gradient(135deg,#ffca28,#ff7043);border:2px solid rgba(255,255,255,.6);box-shadow:0 2px 8px rgba(255,112,67,.3);font-size:12px;font-weight:900}
+
+.section-title{display:flex;align-items:center;gap:8px;margin:0 0 16px;font-size:22px}
+.section-title .icon{width:30px;height:30px;display:inline-grid;place-items:center;border-radius:8px;color:#fff;background:linear-gradient(135deg,var(--leaf),var(--rose));border:none;box-shadow:0 3px 10px rgba(255,112,67,.28);font-size:14px}
+
+/* Calendar */
+.calendar-panel{background:var(--paper);border-radius:var(--radius);border:none;box-shadow:0 8px 32px rgba(255,112,67,.13),0 2px 8px rgba(41,182,246,.1);overflow:hidden;margin-bottom:18px}
+.cal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:linear-gradient(135deg,rgba(255,202,40,.15),rgba(255,112,67,.12),rgba(41,182,246,.1))}
+.cal-header h2{margin:0;font-size:20px;color:var(--leaf-dark);font-weight:900}
+.cal-nav{display:flex;gap:6px}
+.cal-nav button{width:38px;height:38px;border-radius:50%;background:#fff;border:1.5px solid rgba(255,112,67,.25);color:var(--leaf);font-size:16px;display:grid;place-items:center;transition:.15s;box-shadow:0 2px 8px rgba(255,112,67,.1)}
+.cal-nav button:active{background:#fff3e0}
+.cal-nav button:disabled{opacity:.3;cursor:default}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;padding:8px 10px 14px}
+.cal-day-header{text-align:center;font-size:12px;color:var(--muted);font-weight:800;padding:6px 0}
+.cal-day-header.weekend{color:var(--rose)}
+.cal-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;transition:.12s;position:relative;user-select:none;-webkit-user-select:none;min-height:52px}
+.cal-cell:hover:not(.future):not(.past-locked){background:rgba(255,112,67,.08)}
+.cal-cell.future{color:#d0ccc8;cursor:default;pointer-events:none}
+.cal-cell.past-locked{color:#c8c4c0;cursor:default}
+.cal-cell.has-pts{background:rgba(102,187,106,.12)}
+.cal-cell.today{background:linear-gradient(135deg,rgba(255,112,67,.15),rgba(255,202,40,.15));box-shadow:inset 0 0 0 2.5px var(--leaf)}
+.cal-cell.yesterday{background:rgba(41,182,246,.1);box-shadow:inset 0 0 0 2px var(--sky)}
+.cal-cell.active{background:linear-gradient(135deg,var(--leaf),var(--rose));color:#fff;box-shadow:0 4px 14px rgba(255,112,67,.35)}
+.cal-cell .day-num{font-size:16px;line-height:1}
+.cal-cell .day-pts{font-size:10px;color:var(--lime);font-weight:800;margin-top:1px;line-height:1}
+.cal-cell.active .day-pts{color:#fff;opacity:.9}
+.cal-cell.future .day-pts,.cal-cell.past-locked .day-pts{color:#d0ccc8}
+.cal-legend{display:flex;gap:14px;padding:8px 18px 14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.cal-legend span{display:flex;align-items:center;gap:4px}
+.cal-legend .dot{width:10px;height:10px;border-radius:50%}
+.cal-legend .dot.today-dot{background:var(--leaf)}
+.cal-legend .dot.yday-dot{background:var(--sky)}
+.cal-legend .dot.done-dot{background:var(--lime)}
+
+/* Selected date info */
+.date-info{display:flex;align-items:center;gap:8px;padding:4px 0 12px;font-size:15px;color:var(--muted)}
+.date-info strong{color:var(--ink)}
+.date-info .badge{padding:2px 10px;border-radius:999px;font-size:11px;font-weight:800}
+.date-info .badge.today-badge{background:linear-gradient(90deg,var(--leaf),var(--rose));color:#fff;box-shadow:0 2px 8px rgba(255,112,67,.3)}
+.date-info .badge.yday-badge{background:linear-gradient(90deg,var(--sky),var(--purple));color:#fff;box-shadow:0 2px 8px rgba(41,182,246,.3)}
+
+/* Panels */
+.panel{background:var(--paper);border-radius:var(--radius);border:none;box-shadow:0 6px 24px rgba(255,112,67,.1),0 2px 8px rgba(41,182,246,.07);margin-bottom:18px;overflow:hidden}
+.panel-pad{padding:18px}
+
+/* Category tabs */
+.cat-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.cat-tabs button{padding:8px 14px;border-radius:999px;color:#6d5c50;background:rgba(255,255,255,.8);border:1.5px solid rgba(255,112,67,.18);font-weight:800;font-size:13px;transition:.15s}
+.cat-tabs button.active{color:#fff;background:linear-gradient(90deg,var(--leaf),var(--rose));border-color:transparent;box-shadow:0 4px 12px rgba(255,112,67,.3)}
+
+/* Tasks grid */
+.tasks-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.task-row{display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.85);border:1.5px solid rgba(255,112,67,.1);transition:.15s;cursor:pointer;-webkit-tap-highlight-color:transparent;min-height:56px}
+.task-row:hover{border-color:rgba(255,112,67,.3);transform:translateY(-1px);box-shadow:0 4px 14px rgba(255,112,67,.1)}
+.task-row:active{transform:scale(.98)}
+.task-row.done{background:linear-gradient(135deg,#e8f8e8,#fff9e6);border-color:rgba(102,187,106,.4);box-shadow:0 3px 10px rgba(102,187,106,.12)}
+.task-row input[type=checkbox]{width:22px;height:22px;accent-color:var(--lime);cursor:pointer}
+.task-row strong{display:block;font-size:14px;margin-bottom:2px}
+.task-row .tag{display:inline-flex;padding:2px 7px;border-radius:999px;color:#e64a19;background:#fff3e0;font-size:11px;font-weight:800}
+.task-row .pts{display:inline-flex;align-items:center;gap:3px;color:#e64a19;font-weight:900;white-space:nowrap;font-size:14px}
+.task-empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:24px}
+
+/* Growth map */
+.map-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.map-card{border-radius:var(--radius);padding:16px 14px;background:rgba(255,255,255,.85);border:2px solid rgba(255,202,40,.18);text-align:center;transition:.15s;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.map-card:nth-child(1){border-color:rgba(255,112,67,.25)}
+.map-card:nth-child(2){border-color:rgba(102,187,106,.3)}
+.map-card:nth-child(3){border-color:rgba(41,182,246,.3)}
+.map-card:nth-child(4){border-color:rgba(171,71,188,.25)}
+.map-card:nth-child(5){border-color:rgba(255,202,40,.35)}
+.map-card.has-score{background:linear-gradient(160deg,#fffde7,#fce4ec 60%,#e8f5e9)}
+.map-card .map-num{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;color:#fff;font-weight:900;font-size:13px;margin-bottom:8px}
+.map-card:nth-child(1) .map-num{background:linear-gradient(135deg,#ff7043,#ec407a)}
+.map-card:nth-child(2) .map-num{background:linear-gradient(135deg,#66bb6a,#29b6f6)}
+.map-card:nth-child(3) .map-num{background:linear-gradient(135deg,#29b6f6,#ab47bc)}
+.map-card:nth-child(4) .map-num{background:linear-gradient(135deg,#ab47bc,#ec407a)}
+.map-card:nth-child(5) .map-num{background:linear-gradient(135deg,#ffca28,#ff7043)}
+.map-card strong{display:block;font-size:18px;margin-bottom:4px}
+.map-card small{display:block;color:var(--muted);font-size:11px;line-height:1.35;margin-bottom:6px}
+.map-card .flowers{font-size:18px;min-height:22px;line-height:1}
+.map-card .flowers .empty-flower{color:rgba(180,160,160,.2)}
+
+/* Rewards */
+.reward-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.reward-card{border-radius:var(--radius);padding:16px;background:rgba(255,255,255,.85);border:2px solid transparent;display:grid;gap:10px;align-content:start}
+.reward-card:nth-child(1){border-color:rgba(41,182,246,.3);background:linear-gradient(160deg,rgba(255,255,255,.9),rgba(227,242,253,.5))}
+.reward-card:nth-child(2){border-color:rgba(102,187,106,.35);background:linear-gradient(160deg,rgba(255,255,255,.9),rgba(232,245,233,.5))}
+.reward-card:nth-child(3){border-color:rgba(255,202,40,.4);background:linear-gradient(160deg,rgba(255,255,255,.9),rgba(255,248,225,.5))}
+.reward-level{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.reward-level h3{margin:0;font-size:18px}
+.reward-items{display:grid;gap:6px;margin:2px 0}
+.reward-item-row{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:10px;background:rgba(255,255,255,.8);border:2px solid transparent;cursor:pointer;transition:.15s;user-select:none;-webkit-user-select:none}
+.reward-item-row:hover{border-color:rgba(255,112,67,.28);background:#fff3e0}
+.reward-item-row.selected{border-color:var(--leaf);background:linear-gradient(90deg,#fff3e0,#fce4ec)}
+.reward-item-row input[type=radio]{accent-color:var(--leaf);width:17px;height:17px;flex-shrink:0;cursor:pointer}
+.reward-item-row span{font-size:13px;color:#5c3a28;flex:1;line-height:1.4}
+.reward-card .redeem-btn,.reward-card .disabled-btn{min-height:40px;padding:10px 14px;border-radius:10px;font-weight:800;transition:.15s;width:100%}
+.redeem-btn{color:#fff;background:linear-gradient(90deg,var(--leaf),var(--rose));box-shadow:0 6px 18px rgba(255,112,67,.3)}
+.redeem-btn:active{transform:scale(.97)}
+.disabled-btn{color:#b0a9a4;background:#f5f0ec;cursor:not-allowed}
+.reward-editor{margin-top:2px;padding-top:8px;border-top:1px dashed rgba(255,112,67,.18)}
+.reward-editor summary{display:flex;align-items:center;justify-content:space-between;min-height:34px;padding:6px 10px;border-radius:8px;color:#e64a19;background:#fff3e0;font-weight:900;font-size:13px;cursor:pointer;list-style:none}
+.reward-editor summary::-webkit-details-marker{display:none}
+.reward-editor summary::after{content:"展开";color:#a0704a;font-size:11px}
+.reward-editor[open] summary::after{content:"收起"}
+.reward-editor-body{display:grid;gap:6px;margin-top:8px}
+.reward-editor-body textarea{min-height:80px}
+.reward-editor-body .secondary-btn{min-height:36px;padding:8px 12px;border-radius:8px;color:#e64a19;background:#fff3e0;font-weight:800;border:1px solid rgba(255,112,67,.22)}
+
+/* Redemption list */
+.redemption-list{max-height:200px;overflow:auto;margin-top:12px}
+.redemption-item{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:10px;background:rgba(255,248,225,.8);border:1px solid rgba(255,202,40,.2);margin-bottom:6px;font-size:13px}
+.redemption-item .red-date{color:var(--muted);font-size:11px}
+.redemption-item .red-cost{color:var(--rose);font-weight:800}
+
+/* Review */
+.review-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.review-card{border-radius:var(--radius);padding:16px;background:rgba(255,255,255,.85);border:1.5px solid rgba(171,71,188,.15)}
+.review-card:nth-child(odd){border-color:rgba(41,182,246,.18)}
+.review-card h3{margin:0 0 8px;font-size:16px}
+.review-card textarea{width:100%;min-height:80px;resize:vertical;padding:10px 12px;border-radius:8px;border:1.5px solid rgba(171,71,188,.15);background:rgba(255,255,255,.82);color:var(--ink);outline:none;line-height:1.6;font-size:13px}
+.review-card textarea:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(171,71,188,.1)}
+.review-timeline{max-height:240px;overflow:auto;padding-right:4px}
+.review-timeline .timeline-item{padding:10px 12px;border-radius:10px;background:linear-gradient(135deg,#fce4ec,#e3f2fd);border:none;margin-bottom:6px;font-size:13px}
+.review-timeline .timeline-item time{color:var(--muted);font-size:11px}
+
+/* Works */
+.works-layout{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.work-form{display:grid;gap:10px}
+.work-form select,.work-form input,.work-form textarea{min-height:42px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(41,182,246,.2);background:rgba(255,255,255,.85);color:var(--ink);outline:none}
+.work-form select:focus,.work-form input:focus,.work-form textarea:focus{border-color:var(--sky);box-shadow:0 0 0 3px rgba(41,182,246,.12)}
+.upload-box{padding:12px;border-radius:10px;background:rgba(227,242,253,.5);border:1.5px dashed rgba(41,182,246,.35);display:grid;gap:8px}
+.upload-box small{color:var(--muted);line-height:1.45;font-size:12px}
+.media-preview{display:none;overflow:hidden;border-radius:10px;background:#fce4ec;border:1px solid rgba(236,64,122,.15)}
+.media-preview.show{display:block}
+.media-preview img,.media-preview video{display:block;width:100%;max-height:200px;object-fit:cover}
+.work-media{margin-top:6px;overflow:hidden;border-radius:10px;border:1px solid rgba(41,182,246,.15);background:#e3f2fd}
+.work-media img,.work-media video{display:block;width:100%;max-height:160px;object-fit:cover}
+.work-archive{max-height:380px;overflow:auto;padding-right:4px}
+.work-archive .timeline-item{padding:10px 12px;border-radius:10px;background:linear-gradient(135deg,#e8f5e9,#e3f2fd);border:none;margin-bottom:6px;font-size:13px}
+.work-archive .timeline-item time{color:var(--muted);font-size:11px}
+.empty-state{color:var(--muted);padding:20px;text-align:center;border-radius:10px;background:rgba(255,255,255,.6);border:1.5px dashed rgba(255,112,67,.2);font-size:14px}
+
+/* Buttons */
+.btn-primary,.btn-secondary,.btn-ghost{min-height:42px;padding:10px 16px;border-radius:10px;font-weight:800;transition:.15s;font-size:14px}
+.btn-primary{color:#fff;background:linear-gradient(90deg,var(--leaf),var(--rose));box-shadow:0 6px 18px rgba(255,112,67,.28)}
+.btn-primary:active{transform:scale(.97)}
+.btn-secondary{color:#e64a19;background:#fff3e0;border:1.5px solid rgba(255,112,67,.2)}
+.btn-ghost{color:#6d5c50;background:rgba(255,255,255,.7);border:1.5px solid rgba(255,112,67,.12)}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s}
+.modal-box{background:#fff;border-radius:16px;padding:24px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2);text-align:center}
+.modal-box h3{margin:0 0 8px;font-size:20px}
+.modal-box p{margin:0 0 18px;color:var(--muted);line-height:1.6}
+.modal-actions{display:flex;gap:10px;justify-content:center}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* Toast */
+.toast{position:fixed;left:50%;bottom:30px;z-index:50;transform:translate(-50%,20px);opacity:0;pointer-events:none;max-width:min(480px,calc(100% - 32px));padding:12px 20px;border-radius:999px;color:#fff;background:linear-gradient(90deg,#ff7043,#ec407a);box-shadow:0 12px 32px rgba(255,112,67,.35);transition:.22s;text-align:center;font-weight:800;font-size:14px}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* Enc message */
+.enc-msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:55;pointer-events:none;font-size:22px;font-weight:900;color:#e64a19;background:rgba(255,253,248,.97);padding:16px 28px;border-radius:16px;box-shadow:0 12px 40px rgba(255,112,67,.22);animation:encPop .22s ease-out,encFade 2s .22s forwards;opacity:0}
+@keyframes encPop{0%{opacity:0;transform:translate(-50%,-40%);}100%{opacity:1;transform:translate(-50%,-50%)}}
+@keyframes encFade{0%{opacity:1}80%{opacity:1}100%{opacity:0}}
+
+/* Fireworks */
+.firework-layer{position:fixed;inset:0;z-index:45;pointer-events:none;overflow:hidden}
+.spark{position:absolute;border-radius:50%;animation:spark-pop 780ms ease-out forwards}
+@keyframes spark-pop{0%{opacity:1;transform:translate(-50%,-50%) scale(.3)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.95)}}
+
+/* Tabs nav */
+.tab-nav{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;-webkit-overflow-scrolling:touch}
+.tab-nav button{padding:10px 16px;border-radius:999px;color:#7a6050;background:rgba(255,255,255,.7);border:1.5px solid rgba(255,112,67,.12);font-weight:800;white-space:nowrap;font-size:13px;transition:.15s;flex-shrink:0}
+.tab-nav button.active{color:#fff;background:linear-gradient(90deg,var(--leaf),var(--rose));border-color:transparent;box-shadow:0 5px 16px rgba(255,112,67,.3)}
+
+/* Responsive */
+@media(max-width:640px){
+  .tasks-grid,.map-grid,.reward-grid,.review-grid,.works-layout{grid-template-columns:1fr}
+  .topbar{flex-wrap:wrap}
+  .brand h1{font-size:17px}
+}
+@media(min-width:641px) and (max-width:1024px){
+  .map-grid{grid-template-columns:repeat(3,1fr)}
+  .map-grid .map-card:last-child{grid-column:span 1}
+}
+@media(min-width:1025px){
+  .map-grid{grid-template-columns:repeat(5,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">🐷</div>
+      <div><h1>暑假成长积分银行</h1><p>记录每一点努力，看见每一次成长</p></div>
+    </div>
+    <div class="points-pill"><span class="coin">分</span><span id="topPoints">0</span> 成长分</div>
+  </header>
+
+  <!-- Calendar -->
+  <section class="calendar-panel">
+    <div class="cal-header">
+      <h2 id="calMonthLabel">2026年7月</h2>
+      <div class="cal-nav">
+        <button id="calPrev" title="上月">◀</button>
+        <button id="calToday" title="今天" style="width:auto;padding:0 12px;font-size:12px">今天</button>
+        <button id="calNext" title="下月">▶</button>
+      </div>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-legend">
+      <span><span class="dot today-dot"></span> 今天</span>
+      <span><span class="dot yday-dot"></span> 昨天(可补)</span>
+      <span><span class="dot done-dot"></span> 已打卡</span>
+    </div>
+  </section>
+
+  <!-- Selected Date Info -->
+  <div class="date-info">
+    📅 <strong id="selectedDateLabel">7月1日（周三）</strong>
+    <span class="badge today-badge" id="dateBadge">今天</span>
+  </div>
+
+  <!-- Tasks -->
+  <section class="panel">
+    <div class="panel-pad">
+      <h2 class="section-title"><span class="icon">✓</span>成长任务</h2>
+      <div class="cat-tabs" id="catTabs"></div>
+      <div class="tasks-grid" id="taskGrid"></div>
+      <div id="taskLocked" class="empty-state" style="display:none">📌 只能打卡今天或昨天哦，选择日历中高亮的日期吧。</div>
+    </div>
+  </section>
+
+  <!-- Growth Map -->
+  <section class="panel">
+    <div class="panel-pad">
+      <h2 class="section-title"><span class="icon">🗺</span>成长地图
+        <span style="font-size:13px;color:var(--muted);font-weight:400;margin-left:4px">— 当日维度统计</span>
+      </h2>
+      <div class="map-grid" id="mapGrid"></div>
+    </div>
+  </section>
+
+  <!-- Tab Navigation -->
+  <nav class="tab-nav" id="tabNav">
+    <button class="active" data-tab="rewards">🎁 奖励兑换</button>
+    <button data-tab="review">📝 每周复盘</button>
+    <button data-tab="works">🎨 成长作品</button>
+    <button data-tab="archive">📚 成长档案</button>
+  </nav>
+
+  <!-- Rewards -->
+  <section class="panel tab-content" id="tab-rewards" style="display:block">
+    <div class="panel-pad">
+      <h2 class="section-title"><span class="icon">🎁</span>奖励兑换</h2>
+      <div class="reward-grid" id="rewardGrid"></div>
+      <div style="margin-top:14px;padding:14px;border-radius:12px;background:linear-gradient(135deg,#fff8e1,#fce4ec);border:1.5px solid rgba(255,202,40,.28);color:#6d3c18;line-height:1.7;font-size:13px">
+        <strong>📝 兑换记录</strong>
+        <div class="redemption-list" id="redemptionList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Review -->
+  <section class="panel tab-content" id="tab-review" style="display:none">
+    <div class="panel-pad">
+      <h2 class="section-title"><span class="icon">📝</span>每周家庭复盘</h2>
+      <div class="review-grid">
+        <div class="review-card"><h3>这周我最棒的一件事是</h3><textarea id="revBest" placeholder="写下一个值得被看见的努力"></textarea></div>
+        <div class="review-card"><h3>这周我遇到的困难是</h3><textarea id="revHard" placeholder="困难可以被说出来"></textarea></div>
+        <div class="review-card"><h3>下周我想调整的是</h3><textarea id="revNext" placeholder="选择一个小改变"></textarea></div>
+        <div class="review-card"><h3>家长看见的进步</h3><textarea id="revParent" placeholder="这周我看见孩子的一个进步"></textarea></div>
+        <div class="review-card"><h3>孩子希望的支持</h3><textarea id="revSupport" placeholder="我希望爸爸妈妈继续支持我的是"></textarea></div>
+        <div class="review-card"><h3>复盘记录</h3><div class="review-timeline" id="reviewTimeline"></div></div>
+      </div>
+      <div style="margin-top:12px">
+        <button class="btn-primary" id="saveReview">保存复盘</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Works -->
+  <section class="panel tab-content" id="tab-works" style="display:none">
+    <div class="panel-pad">
+      <h2 class="section-title"><span class="icon">🎨</span>成长作品收集</h2>
+      <div class="works-layout">
+        <div class="work-form">
+          <select id="workTask"><option value="">-- 关联打卡任务 --</option></select>
+          <input id="workTitle" placeholder="作品名称（可选）">
+          <textarea id="workNote" placeholder="写下作品背后的故事（可选）" style="min-height:60px"></textarea>
+          <div class="upload-box">
+            <label for="workMedia" style="font-size:13px;color:var(--muted)">上传图片或视频</label>
+            <input id="workMedia" type="file" accept="image/*,video/*">
+            <small>适合上传孩子的画、做饭照片、实验视频或运动片段。</small>
+            <div class="media-preview" id="mediaPreview"></div>
+          </div>
+          <button class="btn-primary" id="saveWork">存入成长档案</button>
+        </div>
+        <div id="workDateNote" style="font-size:13px;color:var(--muted);margin-bottom:8px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Archive -->
+  <section class="panel tab-content" id="tab-archive" style="display:none">
+    <div class="panel-pad">
+      <h2 class="section-title"><span class="icon">📚</span>暑假成长档案</h2>
+      <div class="work-archive" id="workArchive"></div>
+    </div>
+  </section>
+</div>
+
+<div class="firework-layer" id="fireworkLayer" aria-hidden="true"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ======== DATA MODEL ======== */
+const CATEGORIES = ["学习力","运动力","自控力","探索力","实践力"];
+const TASKS = [
+  {id:"study-task",title:"完成今日学习任务",pts:1,cat:"学习力"},
+  {id:"read-20",title:"阅读20分钟",pts:1,cat:"学习力"},
+  {id:"diary",title:"写日记",pts:2,cat:"学习力"},
+  {id:"handwriting",title:"练字20分钟",pts:1,cat:"学习力"},
+  {id:"poem",title:"背诵一首古诗",pts:1,cat:"学习力"},
+  {id:"words",title:"背诵10个英语单词",pts:1,cat:"学习力"},
+  {id:"mistakes",title:"错题订正复盘",pts:2,cat:"学习力"},
+  {id:"sport-30",title:"运动30分钟",pts:1,cat:"运动力"},
+  {id:"outside-2h",title:"户外活动2小时",pts:2,cat:"运动力"},
+  {id:"screen",title:"屏幕时间不超过2小时",pts:2,cat:"自控力"},
+  {id:"pack",title:"自己准备出行物品",pts:1,cat:"自控力"},
+  {id:"weekly-review-task",title:"每周复盘",pts:2,cat:"自控力"},
+  {id:"homework-time",title:"自己安排作业时间",pts:1,cat:"自控力"},
+  {id:"initiative",title:"主动安排并完成一件事",pts:3,cat:"自控力"},
+  {id:"interest-work",title:"完成一件兴趣作品",pts:2,cat:"探索力"},
+  {id:"explore",title:"参加一次探索活动",pts:2,cat:"探索力"},
+  {id:"emotion",title:"情绪好好表达",pts:1,cat:"探索力"},
+  {id:"talk",title:"亲子沟通一次",pts:1,cat:"探索力"},
+  {id:"chore",title:"帮父母做一次家务",pts:2,cat:"实践力"},
+  {id:"room",title:"整理自己房间",pts:1,cat:"实践力"},
+  {id:"cook",title:"做一道菜",pts:3,cat:"实践力"},
+  {id:"volunteer",title:"做一次志愿者",pts:2,cat:"实践力"},
+  {id:"party",title:"组织一场朋友聚会",pts:2,cat:"实践力"}
+];
+const REWARDS = [
+  {cost:10,title:"10分小奖励",items:["选择一次家庭电影","点播一次睡前故事","选择一次晚餐菜单","多一次亲子游戏时间"]},
+  {cost:30,title:"30分中奖励",items:["买一本喜欢的书","一次朋友聚会","一次亲子外出","一个手工或科学材料包"]},
+  {cost:60,title:"60分大奖励",items:["一次短途旅行","一次主题体验活动","实现一个孩子期待的小愿望"]}
+];
+const ENCOURAGES = [
+  "今天的努力，会在明天开花 🌱","每一小步，都在走向更大的自己",
+  "你比昨天又进步了一点点 ✨","坚持的你，正在闪闪发光",
+  "成长不是一天的事，但你今天做到了","小小的坚持，就是大大的力量",
+  "今天的你，给自己加了一颗星 ⭐","暑假的每一天，你都在悄悄成长",
+  "你的努力，已经被成长银行存起来了","做得很棒！继续保持哦",
+  "又收获了一枚成长金币 🪙","今天的汗水，会变成明天的笑容",
+  "你很了不起，因为你没有放弃","一步一个脚印，走着走着就远了",
+  "看见自己的进步，就是最好的奖励","这个世界上，又多了一个努力的小孩",
+  "每完成一件事，你就变厉害了一点点","你的认真，值得一朵小红花 🌸",
+  "慢慢来，你已经在路上了","今天的付出，都悄悄存进了未来的你"
+];
+const CAT_INTRO = {
+  "学习力":"把学习拆成看得见的小动作，今天从一项开始也很好。",
+  "运动力":"身体动起来，暑假的能量才会越来越满。",
+  "自控力":"把屏幕、时间和计划交还给孩子练习掌舵。",
+  "探索力":"保留好奇、表达感受，也记录一次新的尝试。",
+  "实践力":"在真实生活里做一件事，成长会更有手感。"
+};
+
+/* ======== HELPERS ======== */
+const TODAY = new Date();
+const TODAY_STR = TODAY.toISOString().slice(0,10);
+const YESTERDAY = new Date(TODAY);
+YESTERDAY.setDate(YESTERDAY.getDate()-1);
+const YESTERDAY_STR = YESTERDAY.toISOString().slice(0,10);
+function fmtDate(d){return d.toISOString().slice(0,10)}
+function fmtDisplay(d){const m=d.getMonth()+1;const day=d.getDate();const wd=["日","一","二","三","四","五","六"][d.getDay()];return `${m}月${day}日（周${wd}）`;}
+function esc(s){return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
+
+/* ======== STATE ======== */
+let data = loadData();
+let selCat = "全部";
+let selDate = TODAY_STR;
+let workFile = null;
+let activeTab = "rewards";
+
+function freshState(){return {daily:{},redemptions:[],childName:"",customRewards:{},reviews:[],selectedDate:TODAY_STR};}
+function loadData(){
+  try{const s=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");return {...freshState(),...s,daily:s.daily||{},redemptions:s.redemptions||[],customRewards:s.customRewards||{},reviews:s.reviews||[]};}
+  catch(e){return freshState();}
+}
+function saveData(){try{localStorage.setItem("summerGrowthBankV2",JSON.stringify(data));}catch(e){toast("存储空间不足，请清理旧数据");}}
+function getDay(dateStr){if(!data.daily[dateStr])data.daily[dateStr]={tasks:{},score:0,artworks:[],review:null};return data.daily[dateStr];}
+function calcDayScore(dateStr){const d=getDay(dateStr);let s=0;for(const tid in d.tasks){if(d.tasks[tid].done)s+=d.tasks[tid].pts;}return s;}
+function calcTotalScore(){let total=0;for(const ds in data.daily)total+=calcDayScore(ds);for(const r of data.redemptions)total-=r.cost;return Math.max(0,total);}
+function canCheckIn(dateStr){return dateStr===TODAY_STR||dateStr===YESTERDAY_STR;}
+function isToday(dateStr){return dateStr===TODAY_STR;}
+function isYesterday(dateStr){return dateStr===YESTERDAY_STR;}
+function isFuture(dateStr){return dateStr>TODAY_STR;}
+function isPastLocked(dateStr){return dateStr<TODAY_STR&&dateStr!==YESTERDAY_STR;}
+
+/* ======== MEDIA STORAGE (IndexedDB) ======== */
+function openDB(){return new Promise((rs,rj)=>{const r=indexedDB.open("SummerGrowthBank",1);r.onupgradeneeded=e=>{if(!e.target.result.objectStoreNames.contains("media"))e.target.result.createObjectStore("media",{keyPath:"id"});};r.onsuccess=e=>rs(e.target.result);r.onerror=e=>rj(e.target.error);});}
+async function saveMedia(id,dataUrl){const db=await openDB();return new Promise((rs,rj)=>{const tx=db.transaction("media","readwrite");tx.objectStore("media").put({id,dataUrl});tx.oncomplete=rs;tx.onerror=rj;});}
+async function getMedia(id){try{const db=await openDB();return new Promise((rs,rj)=>{const tx=db.transaction("media","readonly");const r=tx.objectStore("media").get(id);r.onsuccess=()=>rs(r.result?r.result.dataUrl:null);r.onerror=rj;});}catch{return null;}}
+async function removeMedia(id){try{const db=await openDB();return new Promise((rs,rj)=>{const tx=db.transaction("media","readwrite");tx.objectStore("media").delete(id);tx.oncomplete=rs;tx.onerror=rj;});}catch{}}
+
+/* ======== EFFECTS ======== */
+function launchFireworks(x,y){const l=document.getElementById("fireworkLayer");const cols=["#e7ac2c","#2f947f","#ef8f72","#4c88b8","#fff1a8","#e74c3c"];for(let i=0;i<20;i++){const s=document.createElement("span");const a=Math.PI*2*i/20;const d=40+Math.random()*70;s.className="spark";s.style.left=x+"px";s.style.top=y+"px";s.style.setProperty("--dx",Math.cos(a)*d+"px");s.style.setProperty("--dy",Math.sin(a)*d+"px");s.style.background=cols[i%cols.length];s.style.width=(6+Math.random()*6)+"px";s.style.height=s.style.width;l.appendChild(s);setTimeout(()=>s.remove(),850);}}
+function showEncourage(x,y){const m=document.createElement("div");m.className="enc-msg";m.textContent=ENCOURAGES[Math.floor(Math.random()*ENCOURAGES.length)];m.style.left=x+"px";m.style.top=y+"px";document.body.appendChild(m);setTimeout(()=>m.remove(),2400);}
+function toast(txt){const t=document.getElementById("toast");t.textContent=txt;t.classList.add("show");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("show"),2200);}
+
+/* ======== RENDER ======== */
+function renderAll(){renderCalendar();renderDateLabel();renderTasks();renderMap();renderRewards();renderRedemptions();renderReviewTimeline();renderWorksDropdown();renderArchive();renderPoints();}
+
+/* Calendar */
+let calYear=2026,calMonth=7;
+function renderCalendar(){
+  document.getElementById("calMonthLabel").textContent=calYear+"年"+calMonth+"月";
+  const g=document.getElementById("calGrid");
+  const firstDay=new Date(calYear,calMonth-1,1);
+  const lastDate=new Date(calYear,calMonth,0).getDate();
+  const startDow=firstDay.getDay();
+  const daw="一二三四五六日".split("");
+  let h='';
+  for(let i=0;i<7;i++)h+=`<div class="cal-day-header${i>=5?' weekend':''}">${daw[i]}</div>`;
+  for(let i=0;i<startDow;i++)h+='<div class="cal-cell"></div>';
+  for(let d=1;d<=lastDate;d++){
+    const ds=`${calYear}-${String(calMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const score=calcDayScore(ds);
+    let cls="cal-cell";
+    if(isFuture(ds))cls+=" future";
+    else if(isPastLocked(ds))cls+=" past-locked";
+    if(isToday(ds))cls+=" today";
+    if(isYesterday(ds)&&!isPastLocked(ds))cls+=" yesterday";
+    if(ds===selDate)cls+=" active";
+    h+=`<div class="${cls}" data-date="${ds}"><span class="day-num">${d}</span>${score>0?`<span class="day-pts">+${score}</span>`:''}</div>`;
+  }
+  g.innerHTML=h;
+  g.querySelectorAll(".cal-cell[data-date]").forEach(c=>c.addEventListener("click",()=>{const ds=c.dataset.date;if(isFuture(ds)||isPastLocked(ds)){toast(isFuture(ds)?"还不能打卡未来日期哦":"只能补昨天一天的打卡哦");return;}selDate=ds;selCat="全部";renderAll();}));
+  document.getElementById("calPrev").disabled=calMonth<=7;
+  document.getElementById("calNext").disabled=calMonth>=8;
+}
+
+document.getElementById("calPrev").addEventListener("click",()=>{if(calMonth>7){calMonth--;renderAll();}});
+document.getElementById("calNext").addEventListener("click",()=>{if(calMonth<8){calMonth++;renderAll();}});
+document.getElementById("calToday").addEventListener("click",()=>{selDate=TODAY_STR;calMonth=TODAY.getMonth()+1;calYear=TODAY.getFullYear();selCat="全部";renderAll();});
+
+function renderDateLabel(){
+  const d=new Date(selDate+"T00:00:00");
+  document.getElementById("selectedDateLabel").textContent=fmtDisplay(d);
+  const badge=document.getElementById("dateBadge");
+  if(isToday(selDate)){badge.textContent="今天";badge.className="badge today-badge";}
+  else if(isYesterday(selDate)){badge.textContent="昨天(补打卡)";badge.className="badge yday-badge";}
+  else{badge.textContent="";badge.className="badge";}
+}
+
+/* Tasks */
+function renderTasks(){
+  const can=canCheckIn(selDate);
+  document.getElementById("taskGrid").style.display=can?"":"none";
+  document.getElementById("taskLocked").style.display=can?"none":"";
+  document.getElementById("catTabs").style.display=can?"":"none";
+  if(!can)return;
+  renderCatTabs();
+  const day=getDay(selDate);
+  const vis=TASKS.filter(t=>selCat==="全部"||t.cat===selCat);
+  const g=document.getElementById("taskGrid");
+  g.innerHTML=vis.map(t=>{
+    const done=day.tasks[t.id]&&day.tasks[t.id].done;
+    return`<label class="task-row${done?' done':''}">
+      <input type="checkbox" data-tid="${t.id}" ${done?'checked':''}>
+      <span><strong>${t.title}</strong><span class="tag">${t.cat}</span></span>
+      <span class="pts"><span class="coin" style="width:20px;height:20px;font-size:10px">分</span>+${t.pts}</span>
+    </label>`;
+  }).join("");
+  g.querySelectorAll("input").forEach(inp=>inp.addEventListener("change",e=>toggleTask(e.target.dataset.tid,e.target.checked,e)));
+}
+
+function renderCatTabs(){
+  const tabs=document.getElementById("catTabs");
+  const names=["全部",...CATEGORIES];
+  tabs.innerHTML=names.map(n=>`<button class="${selCat===n?'active':''}" data-cat="${n}">${n}</button>`).join("");
+  tabs.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{selCat=b.dataset.cat;renderTasks();renderMap();}));
+}
+
+function toggleTask(tid,checked,event){
+  if(!canCheckIn(selDate))return;
+  const t=TASKS.find(x=>x.id===tid);if(!t)return;
+  const day=getDay(selDate);
+  if(!day.tasks[tid])day.tasks[tid]={done:false,pts:t.pts,cat:t.cat};
+  if(checked&&!day.tasks[tid].done){
+    day.tasks[tid].done=true;
+    day.score=calcDayScore(selDate);
+    saveData();
+    if(event){
+      const r=event.target.getBoundingClientRect();
+      launchFireworks(r.left+r.width/2,r.top+r.height/2);
+      showEncourage(r.left+r.width/2,r.top-40);
+    }
+    toast("太棒了！成长能量已存入 🌟");
+  }else if(!checked&&day.tasks[tid].done){
+    day.tasks[tid].done=false;
+    day.score=calcDayScore(selDate);
+    saveData();
+    toast("已取消打卡，可以重新调整");
+  }
+  renderAll();
+}
+
+/* Growth Map */
+function renderMap(){
+  const day=getDay(selDate);
+  const g=document.getElementById("mapGrid");
+  g.innerHTML=CATEGORIES.map((cat,i)=>{
+    const catTasks=TASKS.filter(t=>t.cat===cat);
+    let pts=0,doneCount=0;
+    catTasks.forEach(t=>{if(day.tasks[t.id]&&day.tasks[t.id].done){pts+=t.pts;doneCount++;}});
+    const flowers=pts>0?'🌸'.repeat(Math.min(pts,15)):'<span class="empty-flower">🌸🌸🌸</span>';
+    return`<div class="map-card${pts>0?' has-score':''}">
+      <div class="map-num">${i+1}</div>
+      <strong>${cat}</strong>
+      <small>${CAT_INTRO[cat]} (${doneCount}/${catTasks.length})</small>
+      <div class="flowers">${flowers}</div>
+    </div>`;
+  }).join("");
+}
+
+/* Rewards */
+function getRewardItems(cost){
+  // returns current item list for a reward tier (custom or default)
+  const r=REWARDS.find(x=>x.cost===cost);
+  return data.customRewards[String(cost)]||r.items;
+}
+
+function renderRewards(){
+  const total=calcTotalScore();
+  const g=document.getElementById("rewardGrid");
+  g.innerHTML=REWARDS.map(r=>{
+    const can=total>=r.cost;
+    const items=getRewardItems(r.cost);
+    const rowsHtml=items.map((it,idx)=>{
+      const rid=`ri_${r.cost}_${idx}`;
+      return`<label class="reward-item-row" for="${rid}">
+        <input type="radio" name="ri_${r.cost}" id="${rid}" value="${esc(it)}" ${!can?'disabled':''}>
+        <span>${esc(it)}</span>
+      </label>`;
+    }).join("");
+    return`<div class="reward-card" data-card-cost="${r.cost}">
+      <div class="reward-level"><h3>${r.title}</h3><span class="points-pill" style="font-size:13px"><span class="coin" style="width:22px;height:22px;font-size:10px">分</span>${r.cost}</span></div>
+      <div class="reward-items">${rowsHtml}</div>
+      <details class="reward-editor"><summary>修改奖励内容</summary>
+        <div class="reward-editor-body">
+          <textarea data-red-edit="${r.cost}" placeholder="每行一个奖励">${items.join("\n")}</textarea>
+          <button class="secondary-btn" data-save-red="${r.cost}">保存修改</button>
+        </div>
+      </details>
+      <button class="${can?'redeem-btn':'disabled-btn'}" data-redeem="${r.cost}" ${can?'':'disabled'}>${can?'兑换所选奖励':'继续存分'}</button>
+    </div>`;
+  }).join("");
+
+  // highlight selected row on click
+  g.querySelectorAll(".reward-item-row input[type=radio]").forEach(inp=>{
+    inp.addEventListener("change",()=>{
+      const cost=inp.name.replace("ri_","");
+      g.querySelectorAll(`[data-card-cost="${cost}"] .reward-item-row`).forEach(row=>row.classList.remove("selected"));
+      if(inp.checked)inp.closest(".reward-item-row").classList.add("selected");
+    });
+  });
+
+  // save edited items
+  g.querySelectorAll("[data-save-red]").forEach(b=>b.addEventListener("click",()=>{
+    const c=b.dataset.saveRed;
+    const ta=g.querySelector(`[data-red-edit="${c}"]`);
+    const items=ta.value.split("\n").map(s=>s.trim()).filter(Boolean);
+    if(!items.length){toast("至少写一条奖励内容");return;}
+    data.customRewards[String(c)]=items;
+    saveData();
+    toast("奖励内容已保存 ✅");
+    renderRewards();
+  }));
+
+  // redeem button
+  g.querySelectorAll("[data-redeem]").forEach(b=>b.addEventListener("click",()=>redeemReward(Number(b.dataset.redeem))));
+}
+
+function redeemReward(cost){
+  const total=calcTotalScore();
+  if(total<cost){toast(`还差 ${cost-total} 分才能兑换这个奖励哦`);return;}
+  // find selected item in this tier
+  const checked=document.querySelector(`input[name="ri_${cost}"]:checked`);
+  if(!checked){toast("请先选择一项具体奖励再兑换哦 👆");return;}
+  const itemName=checked.value;
+  const reward=REWARDS.find(r=>r.cost===cost);
+  showConfirm(`确定用 <b>${cost}</b> 分兑换<br>「<b>${esc(itemName)}</b>」吗？<br><small style="color:#6c7d72">兑换后将从成长账户中扣除对应积分。</small>`,()=>{
+    data.redemptions.unshift({
+      date:new Date().toLocaleDateString("zh-CN"),
+      reward:itemName,
+      level:reward.title,
+      cost
+    });
+    saveData();
+    toast("🎉 奖励已兑换！请和孩子一起庆祝这份努力。");
+    renderAll();
+  });
+}
+
+function showConfirm(msg,cb){
+  const ov=document.createElement("div");ov.className="modal-overlay";
+  ov.innerHTML=`<div class="modal-box"><h3>确认兑换</h3><p>${msg}</p><div class="modal-actions"><button class="btn-ghost" id="modalCancel">取消</button><button class="btn-primary" id="modalOk">确认兑换</button></div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector("#modalCancel").addEventListener("click",()=>ov.remove());
+  ov.querySelector("#modalOk").addEventListener("click",()=>{ov.remove();cb();});
+  ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
+}
+
+function renderRedemptions(){
+  const l=document.getElementById("redemptionList");
+  if(!data.redemptions.length){l.innerHTML='<div style="color:#a5b0aa;padding:8px;font-size:12px">还没有兑换记录。</div>';return;}
+  l.innerHTML=data.redemptions.map(r=>`<div class="redemption-item">
+    <span>
+      <span class="red-date">${r.date}</span>
+      <strong style="display:block;font-size:13px;margin-top:1px">${esc(r.reward)}</strong>
+      <span style="font-size:11px;color:var(--muted)">${esc(r.level||'')}</span>
+    </span>
+    <span class="red-cost">-${r.cost}分</span>
+  </div>`).join("");
+}
+
+/* Review */
+function renderReviewTimeline(){
+  const tl=document.getElementById("reviewTimeline");
+  if(!data.reviews.length){tl.innerHTML='<div class="empty-state">还没有复盘记录。</div>';return;}
+  tl.innerHTML=data.reviews.slice(0,10).map(r=>`<div class="timeline-item"><time>${r.date}</time><strong>${esc(r.best||"本周复盘")}</strong><div style="color:var(--muted);font-size:12px">${esc(r.next||"")}</div></div>`).join("");
+}
+
+document.getElementById("saveReview").addEventListener("click",()=>{
+  const rev={date:new Date().toLocaleDateString("zh-CN"),best:document.getElementById("revBest").value.trim(),hard:document.getElementById("revHard").value.trim(),next:document.getElementById("revNext").value.trim(),parent:document.getElementById("revParent").value.trim(),support:document.getElementById("revSupport").value.trim()};
+  if(!rev.best&&!rev.hard&&!rev.next){toast("请至少填写一项复盘内容");return;}
+  data.reviews.unshift(rev);
+  saveData();
+  ["revBest","revHard","revNext","revParent","revSupport"].forEach(id=>document.getElementById(id).value="");
+  toast("复盘已保存，看见进步就是最好的成长。");
+  renderReviewTimeline();
+});
+
+/* Works */
+function renderWorksDropdown(){
+  const s=document.getElementById("workTask");
+  s.innerHTML='<option value="">-- 关联打卡任务 --</option>'+TASKS.map(t=>`<option value="${t.id}">${t.title} (${t.cat})</option>`).join("");
+}
+
+document.getElementById("workMedia").addEventListener("change",e=>{
+  const f=e.target.files[0];workFile=f||null;
+  const p=document.getElementById("mediaPreview");
+  if(!f){p.classList.remove("show");p.innerHTML="";return;}
+  p.classList.add("show");
+  const url=URL.createObjectURL(f);
+  if(f.type.startsWith("image/"))p.innerHTML=`<img src="${url}" alt="预览">`;
+  else if(f.type.startsWith("video/"))p.innerHTML=`<video src="${url}" controls playsinline></video>`;
+  else p.innerHTML=`<div style="padding:12px">已选择：${esc(f.name)}</div>`;
+});
+
+document.getElementById("saveWork").addEventListener("click",async()=>{
+  const tid=document.getElementById("workTask").value;
+  const title=document.getElementById("workTitle").value.trim();
+  const note=document.getElementById("workNote").value.trim();
+  if(!tid){toast("请先选择关联的打卡任务");return;}
+  const day=getDay(selDate);
+  const artwork={id:"art_"+Date.now()+"_"+Math.random().toString(36).slice(2,8),taskId:tid,taskTitle:(TASKS.find(t=>t.id===tid)||{}).title||tid,title:title||"未命名作品",note,date:selDate,dateDisplay:fmtDisplay(new Date(selDate+"T00:00:00")),hasMedia:!!workFile};
+  if(workFile){try{const dataUrl=await fileToDataURL(workFile);await saveMedia(artwork.id,dataUrl);artwork.mediaKind=workFile.type.startsWith("image/")?"image":"video";artwork.hasMedia=true;}catch(e){toast("媒体保存失败，将只保存文字信息");artwork.hasMedia=false;}}
+  day.artworks.unshift(artwork);
+  saveData();
+  document.getElementById("workTask").value="";document.getElementById("workTitle").value="";document.getElementById("workNote").value="";document.getElementById("workMedia").value="";workFile=null;document.getElementById("mediaPreview").classList.remove("show");document.getElementById("mediaPreview").innerHTML="";
+  toast("作品已存入成长档案 📁");
+  renderAll();
+});
+
+function fileToDataURL(file){return new Promise((rs,rj)=>{const r=new FileReader();r.onload=()=>rs(r.result);r.onerror=rj;r.readAsDataURL(file);});}
+
+/* Archive */
+async function renderArchive(){
+  const c=document.getElementById("workArchive");
+  const all=[];
+  for(const ds in data.daily){const day=data.daily[ds];if(day.artworks)day.artworks.forEach(a=>all.push(a));}
+  all.sort((a,b)=>b.date.localeCompare(a.date));
+  if(!all.length){c.innerHTML='<div class="empty-state">还没有作品。暑假结束后，这里会成为孩子自己的成长档案。</div>';return;}
+  c.innerHTML=all.slice(0,30).map(a=>`<div class="timeline-item" data-artid="${a.id}">
+    <time>${a.dateDisplay} · ${esc(a.taskTitle)}</time>
+    <strong>${esc(a.title)}</strong>
+    <div style="color:var(--muted);font-size:12px;margin-top:2px">${esc(a.note||"")}</div>
+    <div class="art-media-${a.id}"></div>
+  </div>`).join("");
+  for(const a of all.slice(0,30)){if(a.hasMedia){const mc=c.querySelector(`.art-media-${a.id}`);getMedia(a.id).then(url=>{if(url){mc.innerHTML=a.mediaKind==="image"?`<div class="work-media"><img src="${url}" alt="${esc(a.title)}"></div>`:`<div class="work-media"><video src="${url}" controls playsinline></video></div>`;}});}}
+}
+
+/* Points */
+function renderPoints(){
+  const total=calcTotalScore();document.getElementById("topPoints").textContent=total;
+}
+
+/* Tab nav */
+document.querySelectorAll("#tabNav button").forEach(b=>b.addEventListener("click",()=>{
+  activeTab=b.dataset.tab;
+  document.querySelectorAll("#tabNav button").forEach(x=>x.classList.toggle("active",x.dataset.tab===activeTab));
+  document.querySelectorAll(".tab-content").forEach(x=>x.style.display=x.id==="tab-"+activeTab?"block":"none");
+  if(activeTab==="archive")renderArchive();
+}));
+
+/* Init */
+renderAll();
+
+/* PWA Register */
+if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}
+</script>
+</body>
+</html>
