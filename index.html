@@ -404,26 +404,27 @@ body[data-theme="starry"] {
 }
 /* 彩虹光弧 */
 .splash-arc{
-  position:absolute;top:-50%;left:-50%;width:200%;height:200%;
-  background:conic-gradient(from 180deg at 50% 80%,
+  position:absolute;top:-40%;left:-40%;width:180%;height:180%;
+  background:conic-gradient(from 180deg at 50% 75%,
     transparent 0deg,
-    rgba(255,112,67,.0) 60deg,
-    #ffca28 100deg,
-    #ff7043 130deg,
-    #ec407a 160deg,
-    #ab47bc 190deg,
-    #29b6f6 220deg,
-    #66bb6a 250deg,
-    transparent 290deg);
+    rgba(255,255,255,0) 55deg,
+    #ffd54f 80deg,
+    #ff7043 100deg,
+    #ec407a 125deg,
+    #ab47bc 150deg,
+    #29b6f6 175deg,
+    #66bb6a 200deg,
+    rgba(255,255,255,0) 235deg,
+    transparent 260deg);
   border-radius:50%;
-  filter:blur(2px);
   opacity:0;
-  animation:splash-arc 1.1s ease-out forwards;
+  animation:splash-arc 1.2s ease-out forwards;
 }
 @keyframes splash-arc{
-  0%{opacity:0;transform:translateY(40%) scale(.6) rotate(-15deg)}
-  40%{opacity:.85;transform:translateY(0) scale(1) rotate(0deg)}
-  100%{opacity:0;transform:translateY(-15%) scale(1.1) rotate(8deg)}
+  0%{opacity:0;transform:translateY(30%) scale(.7) rotate(-20deg)}
+  35%{opacity:1;transform:translateY(0) scale(1) rotate(0deg)}
+  65%{opacity:.8;transform:translateY(-5%) scale(1.05) rotate(5deg)}
+  100%{opacity:0;transform:translateY(-20%) scale(1.15) rotate(15deg)}
 }
 /* 中心图标 */
 .splash-icon{
