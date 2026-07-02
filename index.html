@@ -843,7 +843,7 @@ async function verifyPassword(pwd){
   return h===data.parentPasswordHash;
 }
 function showPasswordModal(promptText,cb){
-  const ov=document.createElement("div");ov.className="modal-overlay";
+  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="2000";
   ov.innerHTML=`<div class="modal-box"><h3>🔒 家长验证</h3><p style="color:var(--muted);font-size:14px;margin-bottom:18px">${promptText}</p>
     <div style="display:flex;justify-content:center;gap:10px;margin-bottom:22px" id="pinDigits"></div>
     <div class="pin-keypad" id="pinKeypad"></div>
@@ -1705,16 +1705,6 @@ function openTaskManager(){
       </div>`;
     }).join("");
 
-    // Show pending new tasks at bottom
-    if(pendingNewTasks.length > 0){
-      let pendingHtml = '<div style="padding:8px;border-radius:8px;background:rgba(255,202,40,.1);margin-bottom:6px;font-size:12px">';
-      pendingNewTasks.forEach(t=>{
-        pendingHtml += '<span style="display:inline-block;padding:3px 8px;margin:2px;border-radius:4px;background:rgba(255,202,40,.3);font-weight:700">★ 新增: '+t.title+' ('+t.cat+', '+t.pts+'分)</span>';
-      });
-      pendingHtml += '</div>';
-      tc.insertAdjacentHTML("afterbegin", pendingHtml);
-    }
-
     tc.querySelectorAll(".task-del-btn").forEach(b=>{
       b.addEventListener("click",()=>{
         const idx = parseInt(b.dataset.idx);
@@ -1894,9 +1884,13 @@ function openChildrenModal(){
     <button class="btn-ghost" id="pcChildrenClose" style="min-height:36px;padding:8px 24px">关闭</button></div>`;
   document.body.appendChild(ov);
 
+  // Read children from main localStorage (not current data, which might be a child's data)
+  const mainData = (()=>{ try{return JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");}catch(e){return {};}})();
+  const childrenList = mainData.children || [];
+
   function render(){
     const cl=ov.querySelector("#pcChildrenList");
-    if(!data.children||data.children.length===0){
+    if(!childrenList||childrenList.length===0){
       cl.innerHTML='<div style="color:var(--muted);font-size:11px;padding:4px">暂无其他孩子</div>';
       ov.querySelector("#pcAddChildBtn").textContent="添加孩子";
       ov.querySelector("#pcAddChildBtn").disabled=false;
@@ -1904,7 +1898,7 @@ function openChildrenModal(){
     }
     const currentId=data.activeChildId||"default";
     let html='';
-    data.children.forEach(c=>{
+    childrenList.forEach(c=>{
       const isActive=c.id===currentId;
       const emoji=c.gender==='boy'?'👦':'👧';
       html+=`<button class="child-opt" data-cid="${c.id}" style="padding:6px 14px;border-radius:999px;font-size:12px;font-weight:800;border:2px solid ${isActive?'var(--leaf)':'rgba(0,0,0,.1)'};background:${isActive?'var(--mint)':'rgba(255,255,255,.7)'};cursor:pointer;color:${isActive?'var(--leaf-dark)':'var(--ink)'};transition:.15s">${emoji} ${esc(c.name)}${isActive?' ✓':''}</button>`;
@@ -1916,8 +1910,8 @@ function openChildrenModal(){
         switchChildFromParentCenter(b.dataset.cid);
       });
     });
-    ov.querySelector("#pcAddChildBtn").textContent=data.children.length>=3?"已达上限":"+ 添加";
-    ov.querySelector("#pcAddChildBtn").disabled=data.children.length>=3;
+    ov.querySelector("#pcAddChildBtn").textContent=childrenList.length>=3?"已达上限":"+ 添加";
+    ov.querySelector("#pcAddChildBtn").disabled=childrenList.length>=3;
   }
   render();
 
@@ -1938,9 +1932,21 @@ function openChildrenModal(){
       if(!name){toast("请输入名字");return;}
       const doAdd=()=>{
         const id="child_"+Date.now();
+        // Always read and update main localStorage for children
+        try{
+          const m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
+          if(!m.children)m.children=[];
+          m.children.push({id,name,gender:ov2.querySelector("#pcAddGender").value,theme:ov2.querySelector("#pcAddTheme").value});
+          localStorage.setItem("summerGrowthBankV2",JSON.stringify(m));
+        }catch(e){}
+        // Also update current data
         if(!data.children)data.children=[];
         data.children.push({id,name,gender:ov2.querySelector("#pcAddGender").value,theme:ov2.querySelector("#pcAddTheme").value});
-        saveData();render();
+        saveData();
+        // Re-read childrenList from main localStorage
+        Object.assign(mainData, (()=>{ try{return JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");}catch(e){return {};}})());
+        Object.assign(childrenList, mainData.children||[]);
+        render();
         toast(`${name}已添加 👶`);
         ov2.remove();
       };
