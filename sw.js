@@ -1,4 +1,4 @@
-const CACHE_NAME = 'summer-growth-bank-v1';
+const CACHE_NAME = 'summer-growth-bank-v2';
 const ASSETS = [
   '.',
   'index.html',

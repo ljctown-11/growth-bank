@@ -63,7 +63,13 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.18;b
 button,input,textarea,select{font:inherit}
 button{border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 
-.app{max-width:860px;margin:0 auto;min-height:100vh;padding:0 16px 40px}
+.app{max-width:860px;margin:0 auto;min-height:100vh;padding:0 16px 40px;opacity:0;transition:opacity .4s ease-out}
+.app.app-ready{opacity:1}
+
+/* 主导航5个tab */
+.main-tab-nav{display:flex;gap:4px;overflow-x:auto;padding:6px 0 12px;-webkit-overflow-scrolling:touch;position:sticky;top:64px;z-index:18;background:rgba(255,251,245,.95);backdrop-filter:blur(10px)}
+.main-tab-nav button{padding:10px 14px;border-radius:999px;color:#7a6050;background:rgba(255,255,255,.8);border:2px solid rgba(var(--leaf-rgb),.12);font-weight:800;white-space:nowrap;font-size:14px;transition:.15s;flex-shrink:0}
+.main-tab-nav button.active{color:#fff;background:linear-gradient(90deg,var(--leaf),var(--rose));border-color:transparent;box-shadow:0 4px 14px rgba(var(--leaf-rgb),.3)}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0;position:sticky;top:0;z-index:20;background:rgba(255,251,245,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 .brand{display:flex;align-items:center;gap:8px}
 .brand-mark{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--brand-grad);border:2.5px solid #fff;box-shadow:0 3px 12px rgba(var(--leaf-rgb),.35);position:relative;flex-shrink:0;font-size:20px}
@@ -160,7 +166,7 @@ button{border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .map-card .flowers .empty-flower{color:rgba(180,160,160,.2)}
 
 /* Rewards */
-.reward-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.reward-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 .reward-card{border-radius:var(--radius);padding:16px;background:rgba(255,255,255,.85);border:2px solid transparent;display:grid;gap:10px;align-content:start}
 .reward-card:nth-child(1){border-color:rgba(var(--sky-rgb),.3);background:linear-gradient(160deg,rgba(255,255,255,.9),rgba(227,242,253,.5))}
 .reward-card:nth-child(2){border-color:rgba(102,187,106,.35);background:linear-gradient(160deg,rgba(255,255,255,.9),rgba(232,245,233,.5))}
@@ -395,7 +401,6 @@ body[data-theme="starry"] {
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   background:linear-gradient(160deg,#2a1a3e 0%,#1a2845 40%,#2d1b4e 100%);
   overflow:hidden;
-  animation:splash-bg 1.6s cubic-bezier(.4,0,.2,1) forwards;
 }
 @keyframes splash-bg{
   0%{background:linear-gradient(160deg,#2a1a3e 0%,#1a2845 40%,#2d1b4e 100%)}
@@ -418,17 +423,17 @@ body[data-theme="starry"] {
     transparent 260deg);
   border-radius:50%;
   opacity:0;
-  animation:splash-arc 1.2s ease-out forwards;
+  animation:splash-arc 1.6s ease-out forwards;
 }
 @keyframes splash-arc{
   0%{opacity:0;transform:translateY(30%) scale(.7) rotate(-20deg)}
-  35%{opacity:1;transform:translateY(0) scale(1) rotate(0deg)}
-  65%{opacity:.8;transform:translateY(-5%) scale(1.05) rotate(5deg)}
+  30%{opacity:1;transform:translateY(0) scale(1) rotate(0deg)}
+  60%{opacity:.8;transform:translateY(-5%) scale(1.05) rotate(5deg)}
   100%{opacity:0;transform:translateY(-20%) scale(1.15) rotate(15deg)}
 }
 /* 中心图标 */
 .splash-icon{
-  position:relative;z-index:2;
+  position:relative;z-index:3;
   width:96px;height:96px;border-radius:50%;
   display:grid;place-items:center;
   background:linear-gradient(135deg,#ffca28,#ff7043);
@@ -436,36 +441,36 @@ body[data-theme="starry"] {
   box-shadow:0 0 0 6px rgba(255,255,255,.12),0 12px 40px rgba(255,160,80,.5);
   font-size:50px;
   opacity:0;
-  animation:splash-icon 1.1s cubic-bezier(.34,1.56,.64,1) .25s forwards;
+  animation:splash-icon 1.2s cubic-bezier(.34,1.56,.64,1) .3s forwards;
 }
 @keyframes splash-icon{
   0%{opacity:0;transform:scale(0) rotate(-180deg)}
   60%{opacity:1;transform:scale(1.15) rotate(10deg)}
   100%{opacity:1;transform:scale(1) rotate(0deg)}
 }
-/* 散落的花瓣和硬币 */
-.splash-particles{position:absolute;inset:0;z-index:1;pointer-events:none}
+/* 花瓣和硬币从四周飞入存钱罐 */
+.splash-particles{position:absolute;inset:0;z-index:2;pointer-events:none}
 .splash-particles span{
   position:absolute;top:50%;left:50%;
-  font-size:24px;opacity:0;
-  animation:splash-particle 1s ease-out .7s forwards;
+  font-size:26px;opacity:0;
+  animation:splash-particle 1.1s cubic-bezier(.5,-0.2,.7,.6) forwards;
 }
-.splash-particles span:nth-child(1){--dx:-140px;--dy:-120px;--r:-25deg;animation-delay:.65s}
-.splash-particles span:nth-child(2){--dx:130px;--dy:-110px;--r:20deg;animation-delay:.7s;font-size:20px}
-.splash-particles span:nth-child(3){--dx:-160px;--dy:40px;--r:-15deg;animation-delay:.75s}
-.splash-particles span:nth-child(4){--dx:150px;--dy:60px;--r:25deg;animation-delay:.8s;font-size:22px}
-.splash-particles span:nth-child(5){--dx:-90px;--dy:-160px;--r:-30deg;animation-delay:.85s}
-.splash-particles span:nth-child(6){--dx:100px;--dy:-150px;--r:18deg;animation-delay:.9s;font-size:20px}
-.splash-particles span:nth-child(7){--dx:-170px;--dy:-30px;--r:-20deg;animation-delay:.95s}
-.splash-particles span:nth-child(8){--dx:170px;--dy:20px;--r:30deg;animation-delay:1s;font-size:22px}
+.splash-particles span:nth-child(1){--dx:-180px;--dy:-140px;--r:-30deg;animation-delay:1.0s}
+.splash-particles span:nth-child(2){--dx:170px;--dy:-130px;--r:25deg;animation-delay:1.1s;font-size:22px}
+.splash-particles span:nth-child(3){--dx:-200px;--dy:50px;--r:-20deg;animation-delay:1.2s}
+.splash-particles span:nth-child(4){--dx:190px;--dy:70px;--r:30deg;animation-delay:1.3s;font-size:24px}
+.splash-particles span:nth-child(5){--dx:-110px;--dy:-190px;--r:-35deg;animation-delay:1.4s}
+.splash-particles span:nth-child(6){--dx:120px;--dy:-180px;--r:22deg;animation-delay:1.5s;font-size:22px}
+.splash-particles span:nth-child(7){--dx:-210px;--dy:-40px;--r:-25deg;animation-delay:1.6s}
+.splash-particles span:nth-child(8){--dx:210px;--dy:30px;--r:35deg;animation-delay:1.7s;font-size:24px}
 @keyframes splash-particle{
-  0%{opacity:0;transform:translate(-50%,-50%) scale(0) rotate(0deg)}
-  30%{opacity:1;transform:translate(calc(-50% + var(--dx)*.6),calc(-50% + var(--dy)*.6)) scale(1.2) rotate(calc(var(--r)*.5))}
-  100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.6) rotate(var(--r))}
+  0%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1.3) rotate(var(--r))}
+  20%{opacity:1;transform:translate(calc(-50% + var(--dx)*.85),calc(-50% + var(--dy)*.85)) scale(1.2) rotate(calc(var(--r)*.7))}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(0deg)}
 }
 /* 标题逐字浮现 */
 .splash-title{
-  position:relative;z-index:2;
+  position:relative;z-index:3;
   margin-top:24px;font-size:22px;font-weight:900;
   letter-spacing:3px;
   display:flex;gap:1px;
@@ -476,21 +481,22 @@ body[data-theme="starry"] {
   background:linear-gradient(135deg,#ffca28,#ff7043,#ec407a);
   -webkit-background-clip:text;background-clip:text;color:transparent;
 }
-.splash-title span:nth-child(1){animation-delay:1.05s}
-.splash-title span:nth-child(2){animation-delay:1.12s}
-.splash-title span:nth-child(3){animation-delay:1.19s}
-.splash-title span:nth-child(4){animation-delay:1.26s}
-.splash-title span:nth-child(5){animation-delay:1.33s}
-.splash-title span:nth-child(6){animation-delay:1.4s}
-.splash-title span:nth-child(7){animation-delay:1.47s}
+.splash-title span:nth-child(1){animation-delay:2.4s}
+.splash-title span:nth-child(2){animation-delay:2.48s}
+.splash-title span:nth-child(3){animation-delay:2.56s}
+.splash-title span:nth-child(4){animation-delay:2.64s}
+.splash-title span:nth-child(5){animation-delay:2.72s}
+.splash-title span:nth-child(6){animation-delay:2.80s}
+.splash-title span:nth-child(7){animation-delay:2.88s}
 @keyframes splash-char{
   to{opacity:1;transform:translateY(0)}
 }
 @media(prefers-reduced-motion:reduce){
-  .splash-overlay{animation-duration:.3s}
+  .splash-overlay{animation:none}
   .splash-arc,.splash-particles span{animation:none;opacity:0}
   .splash-icon{animation:none;opacity:1;transform:none}
   .splash-title span{animation:none;opacity:1;transform:none}
+  .app{opacity:1;transition:none}
 }
 </style>
 </head>
@@ -516,60 +522,69 @@ body[data-theme="starry"] {
     <div class="points-pill"><span class="baby-name" id="babyName" title="点击设置名字和性别">👧 宝贝</span><span class="coin">分</span><span id="topPoints">0</span> 成长分</div>
   </header>
 
-  <!-- Calendar -->
-  <section class="calendar-panel">
-    <div class="cal-header">
-      <h2 id="calMonthLabel">2026年7月</h2>
-      <div class="cal-nav">
-        <button id="calPrev" title="上月">◀</button>
-        <button id="calToday" title="今天" style="width:auto;padding:0 12px;font-size:12px">今天</button>
-        <button id="calNext" title="下月">▶</button>
+  <!-- 主导航 5个Tab -->
+  <nav class="main-tab-nav" id="mainTabNav">
+    <button class="active" data-maintab="calendar">📅 日历</button>
+    <button data-maintab="checkin">✓ 打卡</button>
+    <button data-maintab="map">🗺 地图</button>
+    <button data-maintab="rewards">🎁 兑换</button>
+    <button data-maintab="archive">📚 档案</button>
+  </nav>
+
+  <!-- Tab: 日历 -->
+  <section class="panel main-tab-content" id="mtab-calendar" style="display:block">
+    <div class="panel-pad">
+      <h2 class="section-title"><span class="icon">📅</span>暑假日历</h2>
+      <div class="cal-header">
+        <h2 id="calMonthLabel" style="margin:0;font-size:18px">2026年7月</h2>
+        <div class="cal-nav">
+          <button id="calPrev" title="上月">◀</button>
+          <button id="calToday" title="今天" style="width:auto;padding:0 12px;font-size:12px">今天</button>
+          <button id="calNext" title="下月">▶</button>
+        </div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-legend">
+        <span><span class="dot today-dot"></span> 今天</span>
+        <span><span class="dot done-dot"></span> 已打卡</span>
+        <span style="color:var(--muted);font-size:11px">点击日期可打卡/补卡</span>
+      </div>
+      <div class="date-info" style="padding-top:8px">
+        📅 <strong id="selectedDateLabel">7月1日（周三）</strong>
+        <span class="badge today-badge" id="dateBadge">今天</span>
       </div>
     </div>
-    <div class="cal-grid" id="calGrid"></div>
-    <div class="cal-legend">
-      <span><span class="dot today-dot"></span> 今天</span>
-      <span><span class="dot yday-dot"></span> 昨天(可补)</span>
-      <span><span class="dot done-dot"></span> 已打卡</span>
-    </div>
   </section>
 
-  <!-- Selected Date Info -->
-  <div class="date-info">
-    📅 <strong id="selectedDateLabel">7月1日（周三）</strong>
-    <span class="badge today-badge" id="dateBadge">今天</span>
-  </div>
-
-  <!-- Tasks -->
-  <section class="panel">
+  <!-- Tab: 今日打卡 -->
+  <section class="panel main-tab-content" id="mtab-checkin" style="display:none">
     <div class="panel-pad">
       <h2 class="section-title"><span class="icon">✓</span>成长任务</h2>
+      <div class="date-info" style="padding:0 0 10px">
+        📅 <strong id="checkinDateLabel">7月1日（周三）</strong>
+        <span class="badge today-badge" id="checkinDateBadge">今天</span>
+      </div>
       <div class="cat-tabs" id="catTabs"></div>
       <div class="tasks-grid" id="taskGrid"></div>
-      <div id="taskLocked" class="empty-state" style="display:none">📌 只能打卡今天或昨天哦，选择日历中高亮的日期吧。</div>
+      <div id="taskLocked" class="empty-state" style="display:none">📌 请从日历选择可打卡的日期。</div>
     </div>
   </section>
 
-  <!-- Growth Map -->
-  <section class="panel">
+  <!-- Tab: 成长地图 -->
+  <section class="panel main-tab-content" id="mtab-map" style="display:none">
     <div class="panel-pad">
       <h2 class="section-title"><span class="icon">🗺</span>成长地图
         <span style="font-size:13px;color:var(--muted);font-weight:400;margin-left:4px">— 当日维度统计</span>
       </h2>
+      <div class="date-info" style="padding:0 0 10px">
+        📅 <strong id="mapDateLabel">7月1日（周三）</strong>
+      </div>
       <div class="map-grid" id="mapGrid"></div>
     </div>
   </section>
 
-  <!-- Tab Navigation -->
-  <nav class="tab-nav" id="tabNav">
-    <button class="active" data-tab="rewards">🎁 奖励兑换</button>
-    <button data-tab="review">📝 每周复盘</button>
-    <button data-tab="works">🎨 成长作品</button>
-    <button data-tab="archive">📚 成长档案</button>
-  </nav>
-
-  <!-- Rewards -->
-  <section class="panel tab-content" id="tab-rewards" style="display:block">
+  <!-- Tab: 奖励兑换 -->
+  <section class="panel main-tab-content" id="mtab-rewards" style="display:none">
     <div class="panel-pad">
       <h2 class="section-title"><span class="icon">🎁</span>奖励兑换</h2>
       <div class="reward-grid" id="rewardGrid"></div>
@@ -580,51 +595,57 @@ body[data-theme="starry"] {
     </div>
   </section>
 
-  <!-- Review -->
-  <section class="panel tab-content" id="tab-review" style="display:none">
+  <!-- Tab: 成长档案（复盘+作品+档案合并） -->
+  <section class="panel main-tab-content" id="mtab-archive" style="display:none">
     <div class="panel-pad">
-      <h2 class="section-title"><span class="icon">📝</span>每周家庭复盘</h2>
-      <div class="review-grid">
-        <div class="review-card"><h3>这周我最棒的一件事是</h3><textarea id="revBest" placeholder="写下一个值得被看见的努力"></textarea></div>
-        <div class="review-card"><h3>这周我遇到的困难是</h3><textarea id="revHard" placeholder="困难可以被说出来"></textarea></div>
-        <div class="review-card"><h3>下周我想调整的是</h3><textarea id="revNext" placeholder="选择一个小改变"></textarea></div>
-        <div class="review-card"><h3>家长看见的进步</h3><textarea id="revParent" placeholder="这周我看见孩子的一个进步"></textarea></div>
-        <div class="review-card"><h3>孩子希望的支持</h3><textarea id="revSupport" placeholder="我希望爸爸妈妈继续支持我的是"></textarea></div>
-        <div class="review-card"><h3>复盘记录</h3><div class="review-timeline" id="reviewTimeline"></div></div>
-      </div>
-      <div style="margin-top:12px">
-        <button class="btn-primary" id="saveReview">保存复盘</button>
-      </div>
-    </div>
-  </section>
+      <h2 class="section-title"><span class="icon">📚</span>成长档案</h2>
 
-  <!-- Works -->
-  <section class="panel tab-content" id="tab-works" style="display:none">
-    <div class="panel-pad">
-      <h2 class="section-title"><span class="icon">🎨</span>成长作品收集</h2>
-      <div class="works-layout">
-        <div class="work-form">
-          <select id="workTask"><option value="">-- 关联打卡任务 --</option></select>
-          <input id="workTitle" placeholder="作品名称（可选）">
-          <textarea id="workNote" placeholder="写下作品背后的故事（可选）" style="min-height:60px"></textarea>
-          <div class="upload-box">
-            <label for="workMedia" style="font-size:13px;color:var(--muted)">上传图片或视频</label>
-            <input id="workMedia" type="file" accept="image/*,video/*">
-            <small>适合上传孩子的画、做饭照片、实验视频或运动片段。</small>
-            <div class="media-preview" id="mediaPreview"></div>
-          </div>
-          <button class="btn-primary" id="saveWork">存入成长档案</button>
+      <!-- 子导航 -->
+      <div class="cat-tabs" id="archiveSubTabs" style="margin-bottom:14px">
+        <button class="active" data-asub="review">📝 每周复盘</button>
+        <button data-asub="works">🎨 成长作品</button>
+        <button data-asub="history">📖 作品档案</button>
+      </div>
+
+      <!-- 子页：每周复盘 -->
+      <div class="archive-sub" id="asub-review" style="display:block">
+        <div class="review-grid">
+          <div class="review-card"><h3>这周我最棒的一件事是</h3><textarea id="revBest" placeholder="写下一个值得被看见的努力"></textarea></div>
+          <div class="review-card"><h3>这周我遇到的困难是</h3><textarea id="revHard" placeholder="困难可以被说出来"></textarea></div>
+          <div class="review-card"><h3>下周我想调整的是</h3><textarea id="revNext" placeholder="选择一个小改变"></textarea></div>
+          <div class="review-card"><h3>家长看见的进步</h3><textarea id="revParent" placeholder="这周我看见孩子的一个进步"></textarea></div>
+          <div class="review-card"><h3>孩子希望的支持</h3><textarea id="revSupport" placeholder="我希望爸爸妈妈继续支持我的是"></textarea></div>
+          <div class="review-card"><h3>复盘记录</h3><div class="review-timeline" id="reviewTimeline"></div></div>
         </div>
-        <div id="workDateNote" style="font-size:13px;color:var(--muted);margin-bottom:8px"></div>
+        <div style="margin-top:12px">
+          <button class="btn-primary" id="saveReview">保存复盘</button>
+        </div>
       </div>
-    </div>
-  </section>
 
-  <!-- Archive -->
-  <section class="panel tab-content" id="tab-archive" style="display:none">
-    <div class="panel-pad">
-      <h2 class="section-title"><span class="icon">📚</span>暑假成长档案</h2>
-      <div class="work-archive" id="workArchive"></div>
+      <!-- 子页：成长作品 -->
+      <div class="archive-sub" id="asub-works" style="display:none">
+        <div class="works-layout">
+          <div class="work-form">
+            <select id="workTask"><option value="">-- 关联打卡任务 --</option></select>
+            <input id="workTitle" placeholder="作品名称（可选）">
+            <textarea id="workNote" placeholder="写下作品背后的故事（可选）" style="min-height:60px"></textarea>
+            <div class="upload-box">
+              <label for="workMedia" style="font-size:13px;color:var(--muted)">上传图片或视频</label>
+              <input id="workMedia" type="file" accept="image/*,video/*">
+              <small>适合上传孩子的画、做饭照片、实验视频或运动片段。</small>
+              <div class="media-preview" id="mediaPreview"></div>
+            </div>
+            <button class="btn-primary" id="saveWork">存入成长档案</button>
+          </div>
+          <div id="workDateNote" style="font-size:13px;color:var(--muted);margin-bottom:8px"></div>
+        </div>
+      </div>
+
+      <!-- 子页：作品档案 -->
+      <div class="archive-sub" id="asub-history" style="display:none">
+        <div class="work-archive" id="workArchive"></div>
+      </div>
+
     </div>
   </section>
 </div>
@@ -643,27 +664,48 @@ const TASKS = [
   {id:"poem",title:"背诵一首古诗",pts:1,cat:"学习力"},
   {id:"words",title:"背诵10个英语单词",pts:1,cat:"学习力"},
   {id:"mistakes",title:"错题订正复盘",pts:2,cat:"学习力"},
+  {id:"math-practice",title:"口算/计算练习15分钟",pts:1,cat:"学习力"},
   {id:"sport-30",title:"运动30分钟",pts:1,cat:"运动力"},
   {id:"outside-2h",title:"户外活动2小时",pts:2,cat:"运动力"},
+  {id:"jump-rope",title:"跳绳100个",pts:1,cat:"运动力"},
+  {id:"swim",title:"游泳/戏水30分钟",pts:2,cat:"运动力"},
+  {id:"cycling",title:"骑行20分钟",pts:1,cat:"运动力"},
+  {id:"ball-game",title:"球类运动（篮球/足球/羽毛球等）",pts:2,cat:"运动力"},
+  {id:"stretch",title:"拉伸放松10分钟",pts:1,cat:"运动力"},
   {id:"screen",title:"屏幕时间不超过2小时",pts:2,cat:"自控力"},
   {id:"pack",title:"自己准备出行物品",pts:1,cat:"自控力"},
   {id:"weekly-review-task",title:"每周复盘",pts:2,cat:"自控力"},
   {id:"homework-time",title:"自己安排作业时间",pts:1,cat:"自控力"},
   {id:"initiative",title:"主动安排并完成一件事",pts:3,cat:"自控力"},
+  {id:"early-sleep",title:"早睡（10点前）",pts:1,cat:"自控力"},
+  {id:"alarm",title:"自己定闹钟并按时起床",pts:1,cat:"自控力"},
+  {id:"organize-bag",title:"整理书包/文具",pts:1,cat:"自控力"},
+  {id:"less-snack",title:"减少零食摄入",pts:1,cat:"自控力"},
   {id:"interest-work",title:"完成一件兴趣作品",pts:2,cat:"探索力"},
   {id:"explore",title:"参加一次探索活动",pts:2,cat:"探索力"},
   {id:"emotion",title:"情绪好好表达",pts:1,cat:"探索力"},
   {id:"talk",title:"亲子沟通一次",pts:1,cat:"探索力"},
+  {id:"observe-nature",title:"观察自然（植物/昆虫/天气）",pts:1,cat:"探索力"},
+  {id:"mini-experiment",title:"做一个小实验",pts:2,cat:"探索力"},
+  {id:"learn-song",title:"学唱一首新歌",pts:1,cat:"探索力"},
+  {id:"visit-museum",title:"参观博物馆/展览",pts:3,cat:"探索力"},
+  {id:"observation-diary",title:"写一篇观察日记",pts:2,cat:"探索力"},
   {id:"chore",title:"帮父母做一次家务",pts:2,cat:"实践力"},
   {id:"room",title:"整理自己房间",pts:1,cat:"实践力"},
   {id:"cook",title:"做一道菜",pts:3,cat:"实践力"},
   {id:"volunteer",title:"做一次志愿者",pts:2,cat:"实践力"},
-  {id:"party",title:"组织一场朋友聚会",pts:2,cat:"实践力"}
+  {id:"party",title:"组织一场朋友聚会",pts:2,cat:"实践力"},
+  {id:"wash-dishes",title:"洗碗",pts:1,cat:"实践力"},
+  {id:"water-plants",title:"浇花/照顾植物",pts:1,cat:"实践力"},
+  {id:"pet-care",title:"照顾宠物（喂食/遛弯）",pts:1,cat:"实践力"},
+  {id:"grocery",title:"帮家长买菜/购物",pts:2,cat:"实践力"},
+  {id:"trash-sort",title:"垃圾分类",pts:1,cat:"实践力"}
 ];
 const REWARDS = [
   {cost:10,title:"10分小奖励",items:["选择一次家庭电影","点播一次睡前故事","选择一次晚餐菜单","多一次亲子游戏时间"]},
   {cost:30,title:"30分中奖励",items:["买一本喜欢的书","一次朋友聚会","一次亲子外出","一个手工或科学材料包"]},
-  {cost:60,title:"60分大奖励",items:["一次短途旅行","一次主题体验活动","实现一个孩子期待的小愿望"]}
+  {cost:60,title:"60分大奖励",items:["一次短途旅行","一次主题体验活动","实现一个孩子期待的小愿望"]},
+  {cost:100,title:"100分终极大奖励",items:["一次远途旅行"]}
 ];
 const ENCOURAGES = [
   "今天的努力，会在明天开花 🌱","每一小步，都在走向更大的自己",
@@ -686,36 +728,58 @@ const CAT_INTRO = {
 };
 
 /* ======== HELPERS ======== */
+function localDateStr(d){const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
 const TODAY = new Date();
-const TODAY_STR = TODAY.toISOString().slice(0,10);
-const YESTERDAY = new Date(TODAY);
-YESTERDAY.setDate(YESTERDAY.getDate()-1);
-const YESTERDAY_STR = YESTERDAY.toISOString().slice(0,10);
-function fmtDate(d){return d.toISOString().slice(0,10)}
+const TODAY_STR = localDateStr(TODAY);
+function fmtDate(d){return localDateStr(d)}
 function fmtDisplay(d){const m=d.getMonth()+1;const day=d.getDate();const wd=["日","一","二","三","四","五","六"][d.getDay()];return `${m}月${day}日（周${wd}）`;}
 function esc(s){return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;")}
+function getMonthKey(dateStr){return dateStr.slice(0,7);}
 
 /* ======== STATE ======== */
 let data = loadData();
 let selCat = "全部";
 let selDate = TODAY_STR;
 let workFile = null;
-let activeTab = "rewards";
+let activeMainTab = "calendar";
 
-function freshState(){return {daily:{},redemptions:[],childName:"",childGender:"girl",theme:"sakura",customRewards:{},reviews:[],selectedDate:TODAY_STR};}
+function freshState(){return {daily:{},redemptions:[],childName:"",childGender:"girl",theme:"sakura",customRewards:{},reviews:[],selectedDate:TODAY_STR,makeupUsed:{}};}
 function loadData(){
-  try{const s=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");return {...freshState(),...s,daily:s.daily||{},redemptions:s.redemptions||[],customRewards:s.customRewards||{},reviews:s.reviews||[]};}
+  try{const s=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");return {...freshState(),...s,daily:s.daily||{},redemptions:s.redemptions||[],customRewards:s.customRewards||{},reviews:s.reviews||[],makeupUsed:s.makeupUsed||{}};}
   catch(e){return freshState();}
 }
 function saveData(){try{localStorage.setItem("summerGrowthBankV2",JSON.stringify(data));}catch(e){toast("存储空间不足，请清理旧数据");}}
 function getDay(dateStr){if(!data.daily[dateStr])data.daily[dateStr]={tasks:{},score:0,artworks:[],review:null};return data.daily[dateStr];}
 function calcDayScore(dateStr){const d=getDay(dateStr);let s=0;for(const tid in d.tasks){if(d.tasks[tid].done)s+=d.tasks[tid].pts;}return s;}
 function calcTotalScore(){let total=0;for(const ds in data.daily)total+=calcDayScore(ds);for(const r of data.redemptions)total-=r.cost;return Math.max(0,total);}
-function canCheckIn(dateStr){return dateStr===TODAY_STR||dateStr===YESTERDAY_STR;}
+
+/* ======== 补卡规则 ======== */
 function isToday(dateStr){return dateStr===TODAY_STR;}
-function isYesterday(dateStr){return dateStr===YESTERDAY_STR;}
 function isFuture(dateStr){return dateStr>TODAY_STR;}
-function isPastLocked(dateStr){return dateStr<TODAY_STR&&dateStr!==YESTERDAY_STR;}
+function isSameMonth(dateStr){return getMonthKey(dateStr)===getMonthKey(TODAY_STR);}
+function canMakeupDate(dateStr){return dateStr<TODAY_STR&&isSameMonth(dateStr);}
+function getMakeupUsed(monthKey){return data.makeupUsed[monthKey]||0;}
+function getMakeupCost(dateStr){
+  if(isToday(dateStr))return {allowed:true,cost:0,reason:"今天"};
+  if(isFuture(dateStr))return {allowed:false,cost:0,reason:"未来日期"};
+  if(!isSameMonth(dateStr))return {allowed:false,cost:0,reason:"非当月"};
+  const used=getMakeupUsed(getMonthKey(dateStr));
+  if(used>=4)return {allowed:false,cost:0,reason:"本月补卡次数已用完"};
+  if(used<2)return {allowed:true,cost:0,reason:"免费补卡"};
+  if(used===2)return {allowed:true,cost:10,reason:"第3次补卡扣10分"};
+  if(used===3)return {allowed:true,cost:20,reason:"第4次补卡扣20分"};
+  return {allowed:false,cost:0,reason:"不可补卡"};
+}
+function canCheckIn(dateStr){
+  if(isToday(dateStr))return true;
+  const mc=getMakeupCost(dateStr);
+  return mc.allowed;
+}
+function isPastLocked(dateStr){
+  if(isFuture(dateStr))return false;
+  if(isToday(dateStr))return false;
+  return !canCheckIn(dateStr);
+}
 
 /* ======== MEDIA STORAGE (IndexedDB) ======== */
 function openDB(){return new Promise((rs,rj)=>{const r=indexedDB.open("SummerGrowthBank",1);r.onupgradeneeded=e=>{if(!e.target.result.objectStoreNames.contains("media"))e.target.result.createObjectStore("media",{keyPath:"id"});};r.onsuccess=e=>rs(e.target.result);r.onerror=e=>rj(e.target.error);});}
@@ -729,7 +793,7 @@ function showEncourage(x,y){const m=document.createElement("div");m.className="e
 function toast(txt){const t=document.getElementById("toast");t.textContent=txt;t.classList.add("show");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("show"),2200);}
 
 /* ======== RENDER ======== */
-function renderAll(){renderCalendar();renderDateLabel();renderTasks();renderMap();renderRewards();renderRedemptions();renderReviewTimeline();renderWorksDropdown();renderArchive();renderPoints();renderBabyName();}
+function renderAll(){renderCalendar();renderDateLabel();renderCheckinDateLabel();renderMapDateLabel();renderTasks();renderMap();renderRewards();renderRedemptions();renderReviewTimeline();renderWorksDropdown();renderArchive();renderPoints();renderBabyName();}
 
 /* Calendar */
 let calYear=2026,calMonth=7;
@@ -750,12 +814,11 @@ function renderCalendar(){
     if(isFuture(ds))cls+=" future";
     else if(isPastLocked(ds))cls+=" past-locked";
     if(isToday(ds))cls+=" today";
-    if(isYesterday(ds)&&!isPastLocked(ds))cls+=" yesterday";
     if(ds===selDate)cls+=" active";
     h+=`<div class="${cls}" data-date="${ds}"><span class="day-num">${d}</span>${score>0?`<span class="day-pts">+${score}</span>`:''}</div>`;
   }
   g.innerHTML=h;
-  g.querySelectorAll(".cal-cell[data-date]").forEach(c=>c.addEventListener("click",()=>{const ds=c.dataset.date;if(isFuture(ds)||isPastLocked(ds)){toast(isFuture(ds)?"还不能打卡未来日期哦":"只能补昨天一天的打卡哦");return;}selDate=ds;selCat="全部";renderAll();}));
+  g.querySelectorAll(".cal-cell[data-date]").forEach(c=>c.addEventListener("click",()=>{const ds=c.dataset.date;if(isFuture(ds)){toast("还不能打卡未来日期哦");return;}if(isPastLocked(ds)){const mc=getMakeupCost(ds);toast(mc.reason==="非当月"?"只能补当月的打卡哦":mc.reason==="本月补卡次数已用完"?"本月补卡次数已用完，下月重置":"该日期不可补卡");return;}selDate=ds;selCat="全部";switchMainTab("checkin");renderAll();}));
   document.getElementById("calPrev").disabled=calMonth<=7;
   document.getElementById("calNext").disabled=calMonth>=8;
 }
@@ -769,8 +832,35 @@ function renderDateLabel(){
   document.getElementById("selectedDateLabel").textContent=fmtDisplay(d);
   const badge=document.getElementById("dateBadge");
   if(isToday(selDate)){badge.textContent="今天";badge.className="badge today-badge";}
-  else if(isYesterday(selDate)){badge.textContent="昨天(补打卡)";badge.className="badge yday-badge";}
+  else if(canMakeupDate(selDate)){
+    const mc=getMakeupCost(selDate);
+    if(mc.allowed){
+      badge.textContent=mc.cost>0?`补卡(-${mc.cost}分)`:"补卡(免费)";
+      badge.className="badge yday-badge";
+    }else{badge.textContent=mc.reason;badge.className="badge";}
+  }
   else{badge.textContent="";badge.className="badge";}
+}
+
+function renderCheckinDateLabel(){
+  const el1=document.getElementById("checkinDateLabel");
+  const el2=document.getElementById("checkinDateBadge");
+  if(!el1)return;
+  const d=new Date(selDate+"T00:00:00");
+  el1.textContent=fmtDisplay(d);
+  if(isToday(selDate)){el2.textContent="今天";el2.className="badge today-badge";}
+  else if(canMakeupDate(selDate)){
+    const mc=getMakeupCost(selDate);
+    if(mc.allowed){el2.textContent=mc.cost>0?`补卡(-${mc.cost}分)`:"补卡(免费)";el2.className="badge yday-badge";}
+    else{el2.textContent=mc.reason;el2.className="badge";}
+  }
+  else{el2.textContent="";el2.className="badge";}
+}
+function renderMapDateLabel(){
+  const el=document.getElementById("mapDateLabel");
+  if(!el)return;
+  const d=new Date(selDate+"T00:00:00");
+  el.textContent=fmtDisplay(d);
 }
 
 /* Tasks */
@@ -779,7 +869,11 @@ function renderTasks(){
   document.getElementById("taskGrid").style.display=can?"":"none";
   document.getElementById("taskLocked").style.display=can?"none":"";
   document.getElementById("catTabs").style.display=can?"":"none";
-  if(!can)return;
+  if(!can){
+    const mc=getMakeupCost(selDate);
+    document.getElementById("taskLocked").textContent="📌 "+(mc.reason||"该日期不可打卡")+"。选择日历中可点击的日期吧。";
+    return;
+  }
   renderCatTabs();
   const day=getDay(selDate);
   const vis=TASKS.filter(t=>selCat==="全部"||t.cat===selCat);
@@ -806,6 +900,29 @@ function toggleTask(tid,checked,event){
   if(!canCheckIn(selDate))return;
   const t=TASKS.find(x=>x.id===tid);if(!t)return;
   const day=getDay(selDate);
+  // 补卡时第一次勾选任务，扣分并记录
+  if(checked&&!day.tasks[tid]){
+    if(!isToday(selDate)){
+      const mc=getMakeupCost(selDate);
+      if(mc.allowed&&mc.cost>0){
+        // 检查是否是当天第一次补卡打卡
+        const hasAnyDone=Object.values(day.tasks).some(tk=>tk&&tk.done);
+        if(!hasAnyDone){
+          // 记录补卡使用
+          const mk=getMonthKey(selDate);
+          data.makeupUsed[mk]=(data.makeupUsed[mk]||0)+1;
+          // 扣分记录
+          data.redemptions.unshift({date:new Date().toLocaleDateString("zh-CN"),reward:"补卡扣分("+mc.reason+")",level:"补卡",cost:mc.cost});
+        }
+      }else if(mc.allowed&&mc.cost===0){
+        const hasAnyDone=Object.values(day.tasks).some(tk=>tk&&tk.done);
+        if(!hasAnyDone){
+          const mk=getMonthKey(selDate);
+          data.makeupUsed[mk]=(data.makeupUsed[mk]||0)+1;
+        }
+      }
+    }
+  }
   if(!day.tasks[tid])day.tasks[tid]={done:false,pts:t.pts,cat:t.cat};
   if(checked&&!day.tasks[tid].done){
     day.tasks[tid].done=true;
@@ -1145,29 +1262,46 @@ document.getElementById("babyName").addEventListener("click",()=>{
   ov.querySelector("#babyNameInput").addEventListener("keydown",e=>{if(e.key==="Enter")save();});
 });
 
-/* Tab nav */
-document.querySelectorAll("#tabNav button").forEach(b=>b.addEventListener("click",()=>{
-  activeTab=b.dataset.tab;
-  document.querySelectorAll("#tabNav button").forEach(x=>x.classList.toggle("active",x.dataset.tab===activeTab));
-  document.querySelectorAll(".tab-content").forEach(x=>x.style.display=x.id==="tab-"+activeTab?"block":"none");
-  if(activeTab==="archive")renderArchive();
+/* 主Tab切换 */
+function switchMainTab(tab){
+  activeMainTab=tab;
+  document.querySelectorAll("#mainTabNav button").forEach(b=>b.classList.toggle("active",b.dataset.maintab===tab));
+  document.querySelectorAll(".main-tab-content").forEach(x=>x.style.display=x.id==="mtab-"+tab?"block":"none");
+  if(tab==="archive")renderArchive();
+  if(tab==="checkin")renderCheckinDateLabel();
+  if(tab==="map")renderMapDateLabel();
+}
+document.querySelectorAll("#mainTabNav button").forEach(b=>b.addEventListener("click",()=>switchMainTab(b.dataset.maintab)));
+
+/* 档案子Tab切换 */
+document.querySelectorAll("#archiveSubTabs button").forEach(b=>b.addEventListener("click",()=>{
+  const sub=b.dataset.asub;
+  document.querySelectorAll("#archiveSubTabs button").forEach(x=>x.classList.toggle("active",x.dataset.asub===sub));
+  document.querySelectorAll(".archive-sub").forEach(x=>x.style.display=x.id==="asub-"+sub?"block":"none");
+  if(sub==="history")renderArchive();
 }));
 
 /* Init */
 applyTheme();
 renderAll();
 
-/* 进场动画 — 等主界面渲染完成后揭开 */
+/* 进场动画 — 3秒动画完全结束后，移除overlay，主界面淡入显示 */
 (function(){
   var ov=document.getElementById('splashOverlay');
-  if(!ov)return;
-  // 动画总时长 1.6s，结束后移除 overlay 并恢复滚动
+  var app=document.querySelector('.app');
+  if(!ov||!app)return;
+  // 动画期间锁定滚动
+  document.body.style.overflow='hidden';
+  // 3s 动画播放完毕 → 移除 overlay
   setTimeout(function(){
     if(ov&&ov.parentNode){ov.parentNode.removeChild(ov);}
-    document.body.style.overflow='';
-  },1700);
-  // 动画期间锁定滚动（主界面已加载好，只是被遮住）
-  document.body.style.overflow='hidden';
+    // 主界面淡入
+    requestAnimationFrame(function(){
+      app.classList.add('app-ready');
+      // 淡入完成后恢复滚动
+      setTimeout(function(){document.body.style.overflow='';},450);
+    });
+  },3050);
 })();
 
 /* PWA Register */
