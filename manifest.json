@@ -1,0 +1,17 @@
+{
+  "name": "暑假成长积分银行",
+  "short_name": "成长银行",
+  "description": "记录每一点努力，看见每一次成长",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f7f2df",
+  "theme_color": "#2f947f",
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
