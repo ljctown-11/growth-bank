@@ -219,8 +219,30 @@ button{border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .media-preview{display:none;overflow:hidden;border-radius:10px;background:#fce4ec;border:1px solid rgba(var(--rose-rgb),.15)}
 .media-preview.show{display:block}
 .media-preview img,.media-preview video{display:block;width:100%;max-height:200px;object-fit:cover}
-.work-media{margin-top:6px;overflow:hidden;border-radius:10px;border:1px solid rgba(var(--sky-rgb),.15);background:#e3f2fd}
-.work-media img,.work-media video{display:block;width:100%;max-height:160px;object-fit:cover}
+
+/* 作品档案中的媒体缩略图 */
+.work-media-thumb{margin-top:8px;cursor:pointer;overflow:hidden;border-radius:10px;border:1px solid rgba(var(--sky-rgb),.15);background:var(--mint);position:relative;transition:transform .15s,box-shadow .15s}
+.work-media-thumb:hover{transform:scale(1.02);box-shadow:0 6px 20px rgba(var(--leaf-rgb),.2)}
+.work-media-thumb:active{transform:scale(.98)}
+.work-media-thumb img,.work-media-thumb video{display:block;width:100%;height:140px;object-fit:cover}
+.work-media-thumb audio{display:block;width:100%;padding:8px 10px}
+.work-media-thumb .thumb-audio{display:flex;align-items:center;gap:8px;padding:12px 14px;background:linear-gradient(135deg,#fff8e1,#fce4ec)}
+.work-media-thumb .thumb-audio-icon{font-size:28px}
+.work-media-thumb .thumb-audio-label{font-size:13px;font-weight:700;color:var(--ink)}
+.work-media-thumb .thumb-audio-meta{font-size:11px;color:var(--muted)}
+
+/* 全屏媒体查看器 */
+.media-viewer-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;animation:fadeIn .25s}
+.media-viewer-overlay .close-btn{position:absolute;top:16px;right:16px;z-index:102;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.15);backdrop-filter:blur(10px);color:#fff;font-size:24px;border:none;cursor:pointer;display:grid;place-items:center;transition:background .15s}
+.media-viewer-overlay .close-btn:hover{background:rgba(255,255,255,.3)}
+.media-viewer-overlay .media-wrapper{position:relative;max-width:90%;max-height:85%;display:flex;flex-direction:column;align-items:center;gap:10px}
+.media-viewer-overlay .media-wrapper img{max-width:100%;max-height:80vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.media-viewer-overlay .media-wrapper video{max-width:100%;max-height:75vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.media-viewer-overlay .media-wrapper audio{width:100%;max-width:500px}
+.media-viewer-overlay .viewer-info{color:#fff;font-size:15px;text-align:center;opacity:.9;text-shadow:0 1px 6px rgba(0,0,0,.5);max-width:600px;line-height:1.5}
+.media-viewer-overlay .viewer-info .viewer-title{font-size:18px;font-weight:900;margin-bottom:4px}
+.media-viewer-overlay .viewer-info .viewer-meta{font-size:13px;opacity:.7}
+
 .work-archive{padding-right:4px}
 .work-archive .timeline-item{padding:10px 12px;border-radius:10px;background:linear-gradient(135deg,#e8f5e9,#e3f2fd);border:none;margin-bottom:6px;font-size:13px}
 .work-archive .timeline-item time{color:var(--muted);font-size:11px}
@@ -1089,6 +1111,7 @@ document.getElementById("workMedia").addEventListener("change",e=>{
   const url=URL.createObjectURL(f);
   if(f.type.startsWith("image/"))p.innerHTML=`<img src="${url}" alt="预览">`;
   else if(f.type.startsWith("video/"))p.innerHTML=`<video src="${url}" controls playsinline></video>`;
+  else if(f.type.startsWith("audio/"))p.innerHTML=`<audio src="${url}" controls style="width:100%"></audio>`;
   else p.innerHTML=`<div style="padding:12px">已选择：${esc(f.name)}</div>`;
 });
 
@@ -1099,7 +1122,7 @@ document.getElementById("saveWork").addEventListener("click",async()=>{
   if(!tid){toast("请先选择关联的打卡任务");return;}
   const day=getDay(selDate);
   const artwork={id:"art_"+Date.now()+"_"+Math.random().toString(36).slice(2,8),taskId:tid,taskTitle:(TASKS.find(t=>t.id===tid)||{}).title||tid,title:title||"未命名作品",note,date:selDate,dateDisplay:fmtDisplay(new Date(selDate+"T00:00:00")),hasMedia:!!workFile};
-  if(workFile){try{const dataUrl=await fileToDataURL(workFile);await saveMedia(artwork.id,dataUrl);artwork.mediaKind=workFile.type.startsWith("image/")?"image":"video";artwork.hasMedia=true;}catch(e){toast("媒体保存失败，将只保存文字信息");artwork.hasMedia=false;}}
+  if(workFile){try{const dataUrl=await fileToDataURL(workFile);await saveMedia(artwork.id,dataUrl);const type=workFile.type;artwork.mediaKind=type.startsWith("image/")?"image":type.startsWith("video/")?"video":type.startsWith("audio/")?"audio":"file";artwork.hasMedia=true;}catch(e){toast("媒体保存失败，将只保存文字信息");artwork.hasMedia=false;}}
   day.artworks.unshift(artwork);
   saveData();
   document.getElementById("workTask").value="";document.getElementById("workTitle").value="";document.getElementById("workNote").value="";document.getElementById("workMedia").value="";workFile=null;document.getElementById("mediaPreview").classList.remove("show");document.getElementById("mediaPreview").innerHTML="";
@@ -1122,8 +1145,36 @@ async function renderArchive(){
     <div style="color:var(--muted);font-size:12px;margin-top:2px">${esc(a.note||"")}</div>
     <div class="art-media-${a.id}"></div>
   </div>`).join("");
-  for(const a of all.slice(0,30)){if(a.hasMedia){const mc=c.querySelector(`.art-media-${a.id}`);getMedia(a.id).then(url=>{if(url){mc.innerHTML=a.mediaKind==="image"?`<div class="work-media"><img src="${url}" alt="${esc(a.title)}"></div>`:`<div class="work-media"><video src="${url}" controls playsinline></video></div>`;}});}}
+  for(const a of all.slice(0,30)){if(a.hasMedia){const mc=c.querySelector(`.art-media-${a.id}`);getMedia(a.id).then(url=>{if(!url)return;let thumbHtml="";if(a.mediaKind==="image"){thumbHtml=`<div class="work-media-thumb" onclick="openMediaViewer('${a.id}','image','${esc(a.title)}','${a.dateDisplay}','${esc(a.taskTitle)}')"><img src="${url}" alt="${esc(a.title)}"></div>`;}
+else if(a.mediaKind==="video"){thumbHtml=`<div class="work-media-thumb" onclick="openMediaViewer('${a.id}','video','${esc(a.title)}','${a.dateDisplay}','${esc(a.taskTitle)}')"><video src="${url}" preload="metadata"></video></div>`;}
+else if(a.mediaKind==="audio"){thumbHtml=`<div class="work-media-thumb" onclick="openMediaViewer('${a.id}','audio','${esc(a.title)}','${a.dateDisplay}','${esc(a.taskTitle)}')"><div class="thumb-audio"><span class="thumb-audio-icon">🎵</span><div><div class="thumb-audio-label">${esc(a.title)}</div><div class="thumb-audio-meta">音频 · 点击播放</div></div></div></div>`;}
+mc.innerHTML=thumbHtml;});}}
 }
+
+/* 媒体查看器 */
+function openMediaViewer(artId,kind,title,dateDisplay,taskTitle){
+  getMedia(artId).then(url=>{
+    if(!url){toast("作品加载失败");return;}
+    const ov=document.createElement("div");ov.className="media-viewer-overlay";
+    let mediaHtml="";
+    if(kind==="image")mediaHtml=`<img src="${url}" alt="${esc(title)}">`;
+    else if(kind==="video")mediaHtml=`<video src="${url}" controls autoplay playsinline style="max-width:100%;max-height:75vh;border-radius:12px"></video>`;
+    else if(kind==="audio")mediaHtml=`<audio src="${url}" controls autoplay style="width:100%;max-width:500px"></audio>`;
+    ov.innerHTML=`<button class="close-btn" onclick="closeMediaViewer(this)">✕</button>
+      <div class="media-wrapper">
+        ${mediaHtml}
+        <div class="viewer-info">
+          <div class="viewer-title">${esc(title)}</div>
+          <div class="viewer-meta">${dateDisplay} · ${esc(taskTitle)}</div>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
+  });
+}
+function closeMediaViewer(btn){const ov=btn.closest(".media-viewer-overlay");if(ov)ov.remove();}
+window.openMediaViewer=openMediaViewer;
+window.closeMediaViewer=closeMediaViewer;
 
 /* Points */
 function renderPoints(){
