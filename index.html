@@ -1575,59 +1575,27 @@ function renderBabyName(){
   const display=name==="宝贝"?emoji+" 宝贝":emoji+" "+esc(name)+"宝贝";
   el.innerHTML=display+'<span style="font-size:10px;opacity:.5;margin-left:2px">✎</span>';
 }
-document.getElementById("babyName").addEventListener("click",()=>{
+document.getElementById("babyName").addEventListener("click",function(){
+  if(!data){return;}
   const currentName=data.childName||"";
   const currentGender=data.childGender||"girl";
   const boyChecked=currentGender==="boy"?"checked":"";
   const girlChecked=currentGender==="girl"?"checked":"";
   const curTheme=data.theme||"sakura";
-  const ov=document.createElement("div");ov.className="modal-overlay";
-  ov.innerHTML=`<div class="modal-box" style="max-width:420px"><h3>设置宝贝信息</h3>
-    <div style="text-align:left;margin-bottom:14px">
-      <label style="display:block;margin-bottom:6px;font-weight:800;font-size:14px;color:var(--ink)">名字</label>
-      <input id="babyNameInput" placeholder="输入宝贝的名字" value="${esc(currentName)}" style="width:100%;min-height:42px;padding:10px 12px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:15px;box-sizing:border-box;outline:none" autofocus>
-    </div>
-    <div style="text-align:left;margin-bottom:14px">
-      <label style="display:block;margin-bottom:8px;font-weight:800;font-size:14px;color:var(--ink)">性别</label>
-      <div style="display:flex;gap:16px">
-        <label style="display:flex;align-items:center;gap:6px;padding:10px 18px;border-radius:10px;border:2px solid rgba(0,0,0,.1);cursor:pointer;font-size:15px;font-weight:700;transition:.15s" class="gender-opt" data-gender="boy">
-          <input type="radio" name="babyGender" value="boy" ${boyChecked} style="accent-color:var(--sky);width:18px;height:18px;cursor:pointer">👦 男孩
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;padding:10px 18px;border-radius:10px;border:2px solid rgba(0,0,0,.1);cursor:pointer;font-size:15px;font-weight:700;transition:.15s" class="gender-opt" data-gender="girl">
-          <input type="radio" name="babyGender" value="girl" ${girlChecked} style="accent-color:var(--rose);width:18px;height:18px;cursor:pointer">👧 女孩
-        </label>
-      </div>
-    </div>
-    <div style="text-align:left;margin-bottom:18px">
-      <label style="display:block;margin-bottom:8px;font-weight:800;font-size:14px;color:var(--ink)">配色主题</label>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-        <label class="theme-opt" data-theme="sakura" style="display:flex;align-items:center;gap:6px;padding:10px 12px;border-radius:10px;border:2px solid ${curTheme==='sakura'?'var(--rose)':'rgba(0,0,0,.1)'};cursor:pointer;font-size:13px;font-weight:700;transition:.15s;background:${curTheme==='sakura'?'rgba(var(--rose-rgb),.08)':'transparent'}">
-          <span style="width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#ff7043,#ec407a);flex-shrink:0"></span>🌸 樱花粉
-          <input type="radio" name="babyTheme" value="sakura" ${curTheme==='sakura'?'checked':''} style="display:none">
-        </label>
-        <label class="theme-opt" data-theme="ocean" style="display:flex;align-items:center;gap:6px;padding:10px 12px;border-radius:10px;border:2px solid ${curTheme==='ocean'?'#42a5f5':'rgba(0,0,0,.1)'};cursor:pointer;font-size:13px;font-weight:700;transition:.15s;background:${curTheme==='ocean'?'rgba(66,165,245,.08)':'transparent'}">
-          <span style="width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#42a5f5,#26c6da);flex-shrink:0"></span>🌊 海洋蓝
-          <input type="radio" name="babyTheme" value="ocean" ${curTheme==='ocean'?'checked':''} style="display:none">
-        </label>
-        <label class="theme-opt" data-theme="forest" style="display:flex;align-items:center;gap:6px;padding:10px 12px;border-radius:10px;border:2px solid ${curTheme==='forest'?'#66bb6a':'rgba(0,0,0,.1)'};cursor:pointer;font-size:13px;font-weight:700;transition:.15s;background:${curTheme==='forest'?'rgba(102,187,106,.08)':'transparent'}">
-          <span style="width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#66bb6a,#ffa726);flex-shrink:0"></span>🌿 森林绿
-          <input type="radio" name="babyTheme" value="forest" ${curTheme==='forest'?'checked':''} style="display:none">
-        </label>
-        <label class="theme-opt" data-theme="sunset" style="display:flex;align-items:center;gap:6px;padding:10px 12px;border-radius:10px;border:2px solid ${curTheme==='sunset'?'#ff9800':'rgba(0,0,0,.1)'};cursor:pointer;font-size:13px;font-weight:700;transition:.15s;background:${curTheme==='sunset'?'rgba(255,152,0,.08)':'transparent'}">
-          <span style="width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#ff9800,#ef5350);flex-shrink:0"></span>☀️ 阳光橙
-          <input type="radio" name="babyTheme" value="sunset" ${curTheme==='sunset'?'checked':''} style="display:none">
-        </label>
-        <label class="theme-opt" data-theme="starry" style="display:flex;align-items:center;gap:6px;padding:10px 12px;border-radius:10px;border:2px solid ${curTheme==='starry'?'#7e57c2':'rgba(0,0,0,.1)'};cursor:pointer;font-size:13px;font-weight:700;transition:.15s;background:${curTheme==='starry'?'rgba(126,87,194,.08)':'transparent'}">
-          <span style="width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#7e57c2,#5c6bc0);flex-shrink:0"></span>⭐ 星夜紫
-          <input type="radio" name="babyTheme" value="starry" ${curTheme==='starry'?'checked':''} style="display:none">
-        </label>
-      </div>
-    </div>
-    <div class="modal-actions"><button class="btn-ghost" id="babyModalCancel">取消</button><button class="btn-primary" id="babyModalOk">确认</button></div></div>`;
-  const save=()=>{
-    const name=ov.querySelector("#babyNameInput").value.trim();
-    const gender=ov.querySelector("input[name='babyGender']:checked")?.value||"girl";
-    const theme=ov.querySelector("input[name='babyTheme']:checked")?.value||"sakura";
+  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="1000";
+  ov.innerHTML='<div class="modal-box" style="max-width:420px"><h3>设置宝贝信息</h3>\n    <div style="text-align:left;margin-bottom:14px">\n      <label style="display:block;margin-bottom:6px;font-weight:800;font-size:14px;color:var(--ink)">名字</label>\n      <input id="babyNameInput" placeholder="输入宝贝的名字" value="'+esc(currentName)+'" style="width:100%;min-height:42px;padding:10px 12px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:15px;box-sizing:border-box;outline:none" autofocus>\n    </div>\n    <div style="text-align:left;margin-bottom:14px">\n      <label style="display:block;margin-bottom:8px;font-weight:800;font-size:14px;color:var(--ink)">性别</label>\n      <div style="display:flex;gap:16px">\n        <label style="display:flex;align-items:center;gap:6px;padding:10px 18px;border-radius:10px;border:2px solid rgba(0,0,0,.1);cursor:pointer;font-size:15px;font-weight:700;transition:.15s" class="gender-opt" data-gender="boy">\n          <input type="radio" name="babyGender" value="boy" '+boyChecked+' style="accent-color:var(--sky);width:18px;height:18px;cursor:pointer">👦 男孩\n        </label>\n        <label style="display:flex;align-items:center;gap:6px;padding:10px 18px;border-radius:10px;border:2px solid rgba(0,0,0,.1);cursor:pointer;font-size:15px;font-weight:700;transition:.15s" class="gender-opt" data-gender="girl">\n          <input type="radio" name="babyGender" value="girl" '+girlChecked+' style="accent-color:var(--rose);width:18px;height:18px;cursor:pointer">👧 女孩\n        </label>\n      </div>\n    </div>\n    <div style="text-align:left;margin-bottom:18px">\n      <label style="display:block;margin-bottom:8px;font-weight:800;font-size:14px;color:var(--ink)">配色主题</label>\n      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">\n        <label class="theme-opt" data-theme="sakura" style="display:flex;align-items:center;gap:6px;padding:10px 12px;border-radius:10px;border:2px solid '+(curTheme==="sakura"?"var(--rose)":"rgba(0,0,0,.1)")+';cursor:pointer;font-size:13px;font-weight:700;transition:.15s;background:'+(curTheme==="sakura"?"rgba(var(--rose-rgb),.08)":"transparent")+'">\n          <span style="width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#ff7043,#ec407a);flex-shrink:0"></span>🌸 樱花粉\n          <input type="radio" name="babyTheme" value="sakura" '+(curTheme==="sakura"?"checked":"")+' style="display:none">\n        </label>\n        <label class="theme-opt" data-theme="ocean" style="display:flex;align-items:center;gap:6px;padding:10px 12px;border-radius:10px;border:2px solid '+(curTheme==="ocean"?"#42a5f5":"rgba(0,0,0,.1)")+';cursor:pointer;font-size:13px;font-weight:700;transition:.15s;background:'+(curTheme==="ocean"?"rgba(66,165,245,.08)":"transparent")+'">\n          <span style="width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#42a5f5,#26c6da);flex-shrink:0"></span>🌊 海洋蓝\n          <input type="radio" name="babyTheme" value="ocean" '+(curTheme==="ocean"?"checked":"")+' style="display:none">\n        </label>\n        <label class="theme-opt" data-theme="forest" style="display:flex;align-items:center;gap:6px;padding:10px 12px;border-radius:10px;border:2px solid '+(curTheme==="forest"?"#66bb6a":"rgba(0,0,0,.1)")+';cursor:pointer;font-size:13px;font-weight:700;transition:.15s;background:'+(curTheme==="forest"?"rgba(102,187,106,.08)":"transparent")+'">\n          <span style="width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#66bb6a,#ffa726);flex-shrink:0"></span>🌿 森林绿\n          <input type="radio" name="babyTheme" value="forest" '+(curTheme==="forest"?"checked":"")+' style="display:none">\n        </label>\n        <label class="theme-opt" data-theme="sunset" style="display:flex;align-items:center;gap:6px;padding:10px 12px;border-radius:10px;border:2px solid '+(curTheme==="sunset"?"#ff9800":"rgba(0,0,0,.1)")+';cursor:pointer;font-size:13px;font-weight:700;transition:.15s;background:'+(curTheme==="sunset"?"rgba(255,152,0,.08)":"transparent")+'">\n          <span style="width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#ff9800,#ef5350);flex-shrink:0"></span>☀️ 阳光橙\n          <input type="radio" name="babyTheme" value="sunset" '+(curTheme==="sunset"?"checked":"")+' style="display:none">\n        </label>\n        <label class="theme-opt" data-theme="starry" style="display:flex;align-items:center;gap:6px;padding:10px 12px;border-radius:10px;border:2px solid '+(curTheme==="starry"?"#7e57c2":"rgba(0,0,0,.1)")+';cursor:pointer;font-size:13px;font-weight:700;transition:.15s;background:'+(curTheme==="starry"?"rgba(126,87,194,.08)":"transparent")+'">\n          <span style="width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#7e57c2,#5c6bc0);flex-shrink:0"></span>⭐ 星夜紫\n          <input type="radio" name="babyTheme" value="starry" '+(curTheme==="starry"?"checked":"")+' style="display:none">\n        </label>\n      </div>\n    </div>\n    <div class="modal-actions"><button class="btn-ghost" id="babyModalCancel">取消</button><button class="btn-primary" id="babyModalOk">确认</button></div></div>';
+  document.body.appendChild(ov);
+  // Gender radio selection
+  ov.querySelectorAll(".gender-opt").forEach(l=>l.addEventListener("click",function(){ov.querySelectorAll(".gender-opt").forEach(x=>x.style.borderColor="rgba(0,0,0,.1)");l.style.borderColor="var(--leaf)";l.querySelector("input").checked=true;}));
+  // Theme selection
+  ov.querySelectorAll(".theme-opt").forEach(l=>l.addEventListener("click",function(){ov.querySelectorAll(".theme-opt").forEach(x=>{x.style.borderColor="rgba(0,0,0,.1)";x.style.background="transparent";});l.style.borderColor="var(--leaf)";l.querySelector("input").checked=true;}));
+  // Save handler
+  function save(){
+    var name=ov.querySelector("#babyNameInput").value.trim();
+    var genderEl=ov.querySelector("input[name='babyGender']:checked");
+    var gender=genderEl?genderEl.value:"girl";
+    var themeEl=ov.querySelector("input[name='babyTheme']:checked");
+    var theme=themeEl?themeEl.value:"sakura";
     if(!name){toast("请输入宝贝的名字");return;}
     data.childName=name;
     data.childGender=gender;
@@ -1635,22 +1603,23 @@ document.getElementById("babyName").addEventListener("click",()=>{
     saveData();
     // Sync to children array in main localStorage
     try{
-      const m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
-      if(m.children&&data.activeChildId&&data.activeChildId!=='default'){
-        const idx=m.children.findIndex(c=>c.id===data.activeChildId);
+      var m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
+      if(m.children&&data.activeChildId&&data.activeChildId!=="default"){
+        var idx=-1;
+        for(var i=0;i<m.children.length;i++){if(m.children[i].id===data.activeChildId){idx=i;break;}}
         if(idx>=0){m.children[idx].name=name;m.children[idx].gender=gender;m.children[idx].theme=theme;}
         localStorage.setItem("summerGrowthBankV2",JSON.stringify(m));
       }
     }catch(e){}
     applyTheme();
     renderBabyName();
-    toast(`已更新为：${gender==="boy"?"👦":"👧"} ${name}宝贝`);
+    toast("已更新为："+(gender==="boy"?"👦":"👧")+" "+name+"宝贝");
     ov.remove();
-  };
+  }
   ov.querySelector("#babyModalOk").addEventListener("click",save);
-  ov.querySelector("#babyModalCancel").addEventListener("click",()=>ov.remove());
-  ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
-  ov.querySelector("#babyNameInput").addEventListener("keydown",e=>{if(e.key==="Enter")save();});
+  ov.querySelector("#babyModalCancel").addEventListener("click",function(){ov.remove();});
+  ov.addEventListener("click",function(e){if(e.target===ov)ov.remove();});
+  ov.querySelector("#babyNameInput").addEventListener("keydown",function(e){if(e.key==="Enter")save();});
 });
 
 /* 主Tab切换 */
@@ -2092,8 +2061,13 @@ checkGrowthReportDay();
   },3050);
 })();
 
-/* PWA Register */
-if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}
+/* PWA Register — unregister all old SWs to prevent stale cache */
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.getRegistrations().then(regs=>{
+    regs.forEach(r=>r.unregister());
+  });
+  navigator.serviceWorker.register("sw.js?v=9").catch(()=>{});
+}
 </script>
 </body>
 </html>
