@@ -1403,7 +1403,7 @@ function generateGrowthReport(){
 }
 
 function renderGrowthReport(report){
-  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="100";
+  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="1000";
   const s=report.stats;
   const topPct=s.totalTasks>0?Math.round(s.doneTasks/s.totalTasks*100):0;
   const catBars=Object.entries(s.catScores).map(([cat,pts])=>{
@@ -1601,249 +1601,7 @@ document.getElementById("babyName").addEventListener("click",()=>{
         </label>
       </div>
     </div>
-    <div style="text-align:left;margin-bottom:16px;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(255,248,225,.8),rgba(255,236,210,.5));border:1.5px dashed rgba(255,152,0,.3)">
-      <label style="display:flex;align-items:center;gap:6px;font-weight:900;font-size:14px;color:#e65100;margin-bottom:8px">🔒 家长密码</label>
-      <small style="display:block;color:var(--muted);font-size:12px;margin-bottom:10px;line-height:1.5">设置后，修改奖励内容等操作需要验证。密码为4-6位数字。</small>
-      <div id="pwdStatus" style="font-size:12px;font-weight:800;margin-bottom:8px;color:var(--muted)">${data.parentPasswordHash?"已设置密码 ✓":"未设置密码"}</div>
-      </div>
-      <div style="text-align:left;margin-bottom:14px;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(232,245,233,.5),rgba(227,242,253,.4));border:1.5px dashed rgba(41,182,246,.3)">
-      <label style="display:flex;align-items:center;gap:6px;font-weight:900;font-size:14px;color:#1565c0;margin-bottom:8px">密码设置</label>
-      <div style="display:flex;gap:6px;margin-bottom:8px">
-        <input id="babyPwdInput" type="password" inputmode="numeric" placeholder="4-6位数字密码" maxlength="6" style="flex:1;min-height:34px;padding:6px 10px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:12px;outline:none">
-      </div>
-      <div style="display:flex;gap:6px">
-        <button class="btn-primary" id="babyPwdSet" style="flex:1;min-height:34px;padding:6px 10px;font-size:12px;background:linear-gradient(90deg,var(--leaf),var(--rose))">设置密码</button>
-        <button class="btn-ghost" id="babyPwdReset" style="min-height:34px;padding:6px 14px;font-size:12px;color:var(--red);border-color:rgba(239,83,80,.3)">清除</button>
-      </div>
-    </div>
-    <div style="text-align:left;margin-bottom:14px;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(232,245,233,.5),rgba(227,242,253,.4));border:1.5px dashed rgba(41,182,246,.3)">
-      <label style="display:flex;align-items:center;gap:6px;font-weight:900;font-size:14px;color:#1565c0;margin-bottom:8px">数据备份与恢复</label>
-      <small style="display:block;color:var(--muted);font-size:12px;margin-bottom:10px;line-height:1.5">导出备份到本地，换设备后可一键恢复。导入会覆盖当前数据。</small>
-      <div style="display:flex;gap:6px">
-        <button class="btn-primary" id="babyExportBtn" style="flex:1;min-height:34px;padding:6px 10px;font-size:12px">导出</button>
-        <button class="btn-ghost" id="babyImportBtn" style="min-height:34px;padding:6px 14px;font-size:12px;color:#1565c0;border-color:rgba(41,182,246,.3)">导入</button>
-      </div>
-    </div>
-    <div style="text-align:left;margin-bottom:14px;padding:14px;border-radius:12px;background:linear-gradient(135deg,#fff3e0,rgba(255,248,225,.6));border:1.5px dashed rgba(255,152,0,.3)">
-      <label style="display:flex;align-items:center;gap:6px;font-weight:900;font-size:14px;color:#e65100;margin-bottom:8px">任务管理</label>
-      <small style="display:block;color:var(--muted);font-size:12px;margin-bottom:10px;line-height:1.5">管理所有打卡任务，可新增/编辑/删除任务。</small>
-      <button class="btn-primary" id="babyTaskManageBtn" style="width:100%;min-height:34px;padding:6px 10px;font-size:12px">进入任务管理</button>
-    </div>
-    <div style="text-align:left;margin-bottom:14px;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(232,245,233,.5),rgba(227,242,253,.3));border:1.5px dashed rgba(102,187,106,.3)">
-      <label style="display:flex;align-items:center;gap:6px;font-weight:900;font-size:14px;color:#2e7d32;margin-bottom:8px">多孩子切换</label>
-      <small style="display:block;color:var(--muted);font-size:12px;margin-bottom:10px;line-height:1.5">添加孩子后，各自成长档案完全隔离。最多3个孩子。</small>
-      <div id="childrenList" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;min-height:24px"></div>
-      <button class="btn-primary" id="addChildBtn" style="width:100%;min-height:34px;padding:6px 10px;font-size:12px">+ 添加孩子</button>
-    </div>    <div class="modal-actions"><button class="btn-ghost" id="babyModalCancel">取消</button><button class="btn-primary" id="babyModalOk">确认</button></div></div>`;
-  document.body.appendChild(ov);
-  
-  // gender option visual feedback + auto theme suggestion
-  ov.querySelectorAll(".gender-opt").forEach(lbl=>{
-    const radio=lbl.querySelector("input");
-    const genderVal=lbl.dataset.gender;
-    const activeColor=genderVal==="boy"?"var(--sky)":"var(--rose)";
-    const activeBg=genderVal==="boy"?"rgba(var(--sky-rgb),.08)":"rgba(var(--rose-rgb),.08)";
-    const updateBorder=()=>{
-      ov.querySelectorAll(".gender-opt").forEach(x=>{x.style.borderColor="rgba(0,0,0,.1)";x.style.background="transparent";});
-      if(radio.checked){lbl.style.borderColor=activeColor;lbl.style.background=activeBg;}
-    };
-    radio.addEventListener("change",()=>{
-      updateBorder();
-      // auto-suggest theme: boy→ocean, girl→sakura
-      const sugTheme=genderVal==="boy"?"ocean":"sakura";
-      const themeRadio=ov.querySelector(`input[name="babyTheme"][value="${sugTheme}"]`);
-      if(themeRadio){themeRadio.checked=true;updateThemeOpts();}
-    });
-    updateBorder();
-  });
-
-  // theme option visual feedback
-  function updateThemeOpts(){
-    ov.querySelectorAll(".theme-opt").forEach(tl=>{
-      const tr=tl.querySelector("input");
-      const bc=tl.dataset.theme;
-      const colors={sakura:"var(--rose)",ocean:"#42a5f5",forest:"#66bb6a",sunset:"#ff9800",starry:"#7e57c2"};
-      const bgs={sakura:"rgba(var(--rose-rgb),.08)",ocean:"rgba(66,165,245,.08)",forest:"rgba(102,187,106,.08)",sunset:"rgba(255,152,0,.08)",starry:"rgba(126,87,194,.08)"};
-      if(tr.checked){tl.style.borderColor=colors[bc]||"var(--rose)";tl.style.background=bgs[bc]||"rgba(var(--rose-rgb),.08)";}
-      else{tl.style.borderColor="rgba(0,0,0,.1)";tl.style.background="transparent";}
-    });
-  }
-  ov.querySelectorAll(".theme-opt").forEach(tl=>{
-    tl.addEventListener("click",()=>{
-      const tr=tl.querySelector("input");tr.checked=true;
-      updateThemeOpts();
-    });
-  });
-  updateThemeOpts();
-
-  // password section handlers
-  ov.querySelector("#babyPwdSet").addEventListener("click",async()=>{
-    const pwd=ov.querySelector("#babyPwdInput").value.trim();
-    if(!pwd||pwd.length<4||pwd.length>6||!/^\d+$/.test(pwd)){toast("请输入4-6位纯数字密码");return;}
-    const h=await hashPassword(pwd);
-    data.parentPasswordHash=h;
-    saveData();
-    ov.querySelector("#pwdStatus").textContent="已设置密码 ✓";
-    ov.querySelector("#pwdStatus").style.color="var(--lime)";
-    toast("家长密码已设置 🔒");
-  });
-  ov.querySelector("#babyPwdReset").addEventListener("click",()=>{
-    data.parentPasswordHash="";
-    saveData();
-    ov.querySelector("#pwdStatus").textContent="未设置密码";
-    ov.querySelector("#pwdStatus").style.color="var(--muted)";
-    ov.querySelector("#babyPwdInput").value="";
-    toast("家长密码已清除 🔓");
-  });
-
-  // export/import handlers
-  ov.querySelector("#babyExportBtn").addEventListener("click",()=>{
-    const exportData={version:2,exportedAt:new Date().toISOString(),data:data};
-    const blob=new Blob([JSON.stringify(exportData,null,2)],{type:"application/json"});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");a.href=url;a.download=`成长银行备份_${new Date().toISOString().slice(0,10)}.json`;a.click();
-    URL.revokeObjectURL(url);
-    toast("备份已下载 📦");
-  });
-  ov.querySelector("#babyImportBtn").addEventListener("click",()=>{
-    const fi=document.createElement("input");fi.type="file";fi.accept=".json";
-    fi.onchange=async()=>{
-      const file=fi.files[0];if(!file)return;
-      try{
-        const text=await file.text();
-        const parsed=JSON.parse(text);
-        let impData=parsed.data||parsed;
-        // verify password if needed
-        if(data.parentPasswordHash){
-          await showPasswordModal("导入恢复会替换所有数据，请输入家长密码确认",()=>{
-            // password verified
-          });
-          // password verified above, proceed
-        }
-        // merge: preserve password hash, theme, and child settings
-        impData.parentPasswordHash=data.parentPasswordHash;
-        impData.theme=data.theme;
-        data=loadData(); // reset to defaults
-        data={...freshState(),...impData};
-        saveData();
-        applyTheme();
-        renderAll();
-        toast("数据已恢复，请刷新页面查看 🎉");
-        ov.remove();
-      }catch(e){toast("文件解析失败，请检查备份文件 🚫");}
-    };
-    fi.click();
-  });
-  ov.querySelector("#babyTaskManageBtn").addEventListener("click",()=>{ov.remove();openTaskManager();});
-
-  // multi-child switching
-  function renderChildrenList(){
-    const cl = ov.querySelector("#childrenList");
-    if(!data.children || data.children.length === 0){
-      cl.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:4px">暂无其他孩子</div>';
-      ov.querySelector("#addChildBtn").textContent = "+ 添加孩子";
-      ov.querySelector("#addChildBtn").disabled = false;
-      return;
-    }
-    const currentId = data.activeChildId || "default";
-    let html = '';
-    data.children.forEach(c => {
-      const isActive = c.id === currentId;
-      const emoji = c.gender === 'boy' ? '👦' : '👧';
-      html += `<button class="child-opt" data-cid="${c.id}" style="padding:6px 14px;border-radius:999px;font-size:12px;font-weight:800;border:2px solid ${isActive?'var(--leaf)':'rgba(0,0,0,.1)'};background:${isActive?'var(--mint)':'rgba(255,255,255,.7)'};cursor:pointer;color:${isActive?'var(--leaf-dark)':'var(--ink)'};transition:.15s">${emoji} ${esc(c.name)}${isActive?' ✓':''}</button>`;
-    });
-    cl.innerHTML = html;
-    cl.querySelectorAll(".child-opt").forEach(b => {
-      b.addEventListener("click", () => {
-        switchChild(b.dataset.cid);
-        ov.remove();
-      });
-    });
-    ov.querySelector("#addChildBtn").textContent = data.children.length >= 3 ? "已达上限" : "+ 添加孩子";
-    ov.querySelector("#addChildBtn").disabled = data.children.length >= 3;
-  }
-  function switchChild(id){
-    // Remove modal first, then switch
-    ov.remove();
-    // Switch to child: save current main data, then load child data
-    // Save current main data
-    data.activeChildId = id;
-    localStorage.setItem("summerGrowthBankV2", JSON.stringify(data));
-    // Load child-specific data or create fresh
-    if(id === 'default'){
-      data = loadData();
-    } else {
-      const childKey = "summerGrowthBankV2_child_" + id;
-      const saved = localStorage.getItem(childKey);
-      if(saved){
-        try{
-          const parsed = JSON.parse(saved);
-          data = {...freshState(), ...parsed};
-        }catch(e){ data = loadData(); }
-      } else {
-        // Create fresh child profile
-        const child = data.children.find(c => c.id === id);
-        if(child){
-          data = freshState();
-          data.childName = child.name;
-          data.childGender = child.gender || "girl";
-          data.theme = child.theme || "sakura";
-        } else {
-          data = loadData();
-        }
-      }
-    }
-    applyTheme();
-    renderAll();
-    // Re-trigger init extras
-    clearDailyReminderFlag();
-    requestNotificationPermission();
-    scheduleDailyReminder();
-    checkGrowthReportDay();
-  }
-  function addChildHandler(){
-    const cl = ov.querySelector("#childrenList");
-    if(data.children.length >= 3){ toast("最多支持3个孩子"); return; }
-    const input = document.createElement("input");
-    input.placeholder = "输入孩子的名字";
-    input.style.cssText = "flex:1;min-height:32px;padding:6px 10px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:13px;outline:none";
-    const genderSel = document.createElement("select");
-    genderSel.style.cssText = "flex:1;min-height:32px;padding:6px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:12px";
-    genderSel.innerHTML = '<option value="girl">👧 女孩</option><option value="boy">👦 男孩</option>';
-    const themeSel = document.createElement("select");
-    themeSel.style.cssText = "flex:1;min-height:32px;padding:6px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:12px";
-    themeSel.innerHTML = '<option value="sakura">🌸 樱花粉</option><option value="ocean">🌊 海洋蓝</option><option value="forest">🌿 森林绿</option><option value="sunset">☀️ 阳光橙</option><option value="starry">⭐ 星夜紫</option>';
-    const btn = document.createElement("button");
-    btn.className = "btn-primary";
-    btn.style.cssText = "min-height:32px;padding:6px 12px;font-size:12px";
-    btn.textContent = "添加";
-    const row = document.createElement("div");
-    row.style.cssText = "display:flex;gap:6px;margin-top:6px;flex-wrap:wrap";
-    row.appendChild(input);
-    row.appendChild(genderSel);
-    row.appendChild(themeSel);
-    row.appendChild(btn);
-    cl.appendChild(row);
-    btn.addEventListener("click", () => {
-      const name = input.value.trim();
-      if(!name){ toast("请输入名字"); return; }
-      const doAdd = () => {
-        const id = "child_" + Date.now();
-        if(!data.children) data.children = [];
-        data.children.push({id, name, gender: genderSel.value, theme: themeSel.value});
-        saveData();
-        renderChildrenList();
-        toast(`${name}已添加 👶`);
-      };
-      if(data.parentPasswordHash){
-        showPasswordModal("添加孩子需要家长密码验证", doAdd);
-      } else { doAdd(); }
-    });
-    input.addEventListener("keydown", e => { if(e.key === "Enter") btn.click(); });
-  }
-  ov.querySelector("#addChildBtn").addEventListener("click", addChildHandler);
-  renderChildrenList();
-
+    <div class="modal-actions"><button class="btn-ghost" id="babyModalCancel">取消</button><button class="btn-primary" id="babyModalOk">确认</button></div></div>
   const save=()=>{
     const name=ov.querySelector("#babyNameInput").value.trim();
     const gender=ov.querySelector("input[name='babyGender']:checked")?.value||"girl";
@@ -1892,7 +1650,7 @@ function genTaskId(){return "t_"+Date.now()+"_"+Math.random().toString(36).slice
 
 /* 任务管理弹窗 */
 function openTaskManager(){
-  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="100";
+  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="1000";
   ov.innerHTML=`<div class="modal-box" style="max-width:540px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column"><h3>📋 任务管理</h3>
     <p style="color:var(--muted);font-size:12px;margin-bottom:10px">管理所有打卡任务。所有操作需家长密码。</p>
     <div style="text-align:left;margin-bottom:10px;padding:10px;border-radius:10px;background:rgba(255,255,255,.7);border:1.5px solid rgba(255,202,40,.2)">
@@ -2062,7 +1820,7 @@ if(data.activeChildId && data.activeChildId!=='default'){
 
 /* 家长中心 — 数据备份、任务管理、多孩子切换 */
 function openParentCenter(){
-  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="100";
+  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="1000";
   ov.innerHTML=`<div class="modal-box" style="max-width:420px;max-height:85vh;overflow:auto"><h3>👨‍💼 家长中心</h3>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
       <button class="pc-btn" data-pc="backup" style="padding:14px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,rgba(227,242,253,.5),rgba(232,245,233,.4));cursor:pointer;text-align:left;font-size:14px;font-weight:800;color:var(--ink);transition:.15s;border:1.5px solid rgba(41,182,246,.2)">
@@ -2089,7 +1847,7 @@ document.getElementById("parentCenterBtn").addEventListener("click", openParentC
 
 /* 备份弹窗 */
 function openBackupModal(){
-  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="100";
+  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="1000";
   ov.innerHTML=`<div class="modal-box"><h3>💾 数据备份与恢复</h3>
     <p style="color:var(--muted);font-size:12px;margin-bottom:14px">导出备份到本地，换设备后可一键恢复。导入会覆盖当前数据。</p>
     <div style="display:flex;gap:8px;margin-bottom:14px">
@@ -2126,7 +1884,7 @@ function openBackupModal(){
 
 /* 多孩子管理弹窗 */
 function openChildrenModal(){
-  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="100";
+  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="1000";
   ov.innerHTML=`<div class="modal-box"><h3>👨‍👩‍👧 多孩子切换</h3>
     <p style="color:var(--muted);font-size:12px;margin-bottom:14px">添加孩子后，各自成长档案完全隔离。最多3个孩子。</p>
     <div id="pcChildrenList" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;min-height:30px"></div>
@@ -2196,7 +1954,7 @@ function openChildrenModal(){
 /* Switch child from parent center (outside settings modal) */
 function switchChildFromParentCenter(id){
   if(id==='default'){
-    data=loadData();
+    try{const savedMain=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");data={...freshState(),...savedMain};}catch(e){data=loadData();}
   }else{
     const childKey="summerGrowthBankV2_child_"+id;
     const saved=localStorage.getItem(childKey);
