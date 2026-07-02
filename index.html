@@ -522,16 +522,15 @@ body[data-theme="starry"] {
     <div class="points-pill"><span class="baby-name" id="babyName" title="点击设置名字和性别">👧 宝贝</span><span class="coin">分</span><span id="topPoints">0</span> 成长分</div>
   </header>
 
-  <!-- 主导航 5个Tab -->
+  <!-- 主导航 4个Tab -->
   <nav class="main-tab-nav" id="mainTabNav">
     <button class="active" data-maintab="calendar">📅 日历</button>
     <button data-maintab="checkin">✓ 打卡</button>
-    <button data-maintab="map">🗺 地图</button>
     <button data-maintab="rewards">🎁 兑换</button>
-    <button data-maintab="archive">📚 档案</button>
+    <button data-maintab="archive">📚 成长档案</button>
   </nav>
 
-  <!-- Tab: 日历 -->
+  <!-- Tab: 日历（含成长地图） -->
   <section class="panel main-tab-content" id="mtab-calendar" style="display:block">
     <div class="panel-pad">
       <h2 class="section-title"><span class="icon">📅</span>暑假日历</h2>
@@ -553,6 +552,14 @@ body[data-theme="starry"] {
         📅 <strong id="selectedDateLabel">7月1日（周三）</strong>
         <span class="badge today-badge" id="dateBadge">今天</span>
       </div>
+
+      <!-- 成长地图（嵌在日历下方） -->
+      <div style="margin-top:20px">
+        <h2 class="section-title"><span class="icon">🗺</span>成长地图
+          <span style="font-size:13px;color:var(--muted);font-weight:400;margin-left:4px">— 当日维度统计</span>
+        </h2>
+        <div class="map-grid" id="mapGrid"></div>
+      </div>
     </div>
   </section>
 
@@ -570,19 +577,6 @@ body[data-theme="starry"] {
     </div>
   </section>
 
-  <!-- Tab: 成长地图 -->
-  <section class="panel main-tab-content" id="mtab-map" style="display:none">
-    <div class="panel-pad">
-      <h2 class="section-title"><span class="icon">🗺</span>成长地图
-        <span style="font-size:13px;color:var(--muted);font-weight:400;margin-left:4px">— 当日维度统计</span>
-      </h2>
-      <div class="date-info" style="padding:0 0 10px">
-        📅 <strong id="mapDateLabel">7月1日（周三）</strong>
-      </div>
-      <div class="map-grid" id="mapGrid"></div>
-    </div>
-  </section>
-
   <!-- Tab: 奖励兑换 -->
   <section class="panel main-tab-content" id="mtab-rewards" style="display:none">
     <div class="panel-pad">
@@ -595,19 +589,18 @@ body[data-theme="starry"] {
     </div>
   </section>
 
-  <!-- Tab: 成长档案（复盘+作品+档案合并） -->
+  <!-- Tab: 成长档案（2个页面：每周复盘 / 成长作品） -->
   <section class="panel main-tab-content" id="mtab-archive" style="display:none">
     <div class="panel-pad">
       <h2 class="section-title"><span class="icon">📚</span>成长档案</h2>
 
-      <!-- 子导航 -->
+      <!-- 子导航 2个 -->
       <div class="cat-tabs" id="archiveSubTabs" style="margin-bottom:14px">
         <button class="active" data-asub="review">📝 每周复盘</button>
         <button data-asub="works">🎨 成长作品</button>
-        <button data-asub="history">📖 作品档案</button>
       </div>
 
-      <!-- 子页：每周复盘 -->
+      <!-- 页面：每周复盘 -->
       <div class="archive-sub" id="asub-review" style="display:block">
         <div class="review-grid">
           <div class="review-card"><h3>这周我最棒的一件事是</h3><textarea id="revBest" placeholder="写下一个值得被看见的努力"></textarea></div>
@@ -622,8 +615,9 @@ body[data-theme="starry"] {
         </div>
       </div>
 
-      <!-- 子页：成长作品 -->
+      <!-- 页面：成长作品（收集+档案合并） -->
       <div class="archive-sub" id="asub-works" style="display:none">
+        <!-- 作品收集表单 -->
         <div class="works-layout">
           <div class="work-form">
             <select id="workTask"><option value="">-- 关联打卡任务 --</option></select>
@@ -639,11 +633,12 @@ body[data-theme="starry"] {
           </div>
           <div id="workDateNote" style="font-size:13px;color:var(--muted);margin-bottom:8px"></div>
         </div>
-      </div>
 
-      <!-- 子页：作品档案 -->
-      <div class="archive-sub" id="asub-history" style="display:none">
-        <div class="work-archive" id="workArchive"></div>
+        <!-- 作品档案列表 -->
+        <div style="margin-top:24px">
+          <h3 style="font-size:16px;font-weight:900;margin-bottom:12px;color:var(--ink)">📖 作品档案</h3>
+          <div class="work-archive" id="workArchive"></div>
+        </div>
       </div>
 
     </div>
@@ -677,10 +672,11 @@ const TASKS = [
   {id:"weekly-review-task",title:"每周复盘",pts:2,cat:"自控力"},
   {id:"homework-time",title:"自己安排作业时间",pts:1,cat:"自控力"},
   {id:"initiative",title:"主动安排并完成一件事",pts:3,cat:"自控力"},
-  {id:"early-sleep",title:"早睡（10点前）",pts:1,cat:"自控力"},
+  {id:"early-sleep",title:"早睡（9点30分前）",pts:1,cat:"自控力"},
   {id:"alarm",title:"自己定闹钟并按时起床",pts:1,cat:"自控力"},
   {id:"organize-bag",title:"整理书包/文具",pts:1,cat:"自控力"},
   {id:"less-snack",title:"减少零食摄入",pts:1,cat:"自控力"},
+  {id:"look-far",title:"望远2次，每次20秒",pts:1,cat:"自控力"},
   {id:"interest-work",title:"完成一件兴趣作品",pts:2,cat:"探索力"},
   {id:"explore",title:"参加一次探索活动",pts:2,cat:"探索力"},
   {id:"emotion",title:"情绪好好表达",pts:1,cat:"探索力"},
@@ -1269,16 +1265,15 @@ function switchMainTab(tab){
   document.querySelectorAll(".main-tab-content").forEach(x=>x.style.display=x.id==="mtab-"+tab?"block":"none");
   if(tab==="archive")renderArchive();
   if(tab==="checkin")renderCheckinDateLabel();
-  if(tab==="map")renderMapDateLabel();
 }
 document.querySelectorAll("#mainTabNav button").forEach(b=>b.addEventListener("click",()=>switchMainTab(b.dataset.maintab)));
 
-/* 档案子Tab切换 */
+/* 档案子Tab切换（2个：复盘/作品） */
 document.querySelectorAll("#archiveSubTabs button").forEach(b=>b.addEventListener("click",()=>{
   const sub=b.dataset.asub;
   document.querySelectorAll("#archiveSubTabs button").forEach(x=>x.classList.toggle("active",x.dataset.asub===sub));
   document.querySelectorAll(".archive-sub").forEach(x=>x.style.display=x.id==="asub-"+sub?"block":"none");
-  if(sub==="history")renderArchive();
+  if(sub==="works")renderArchive();
 }));
 
 /* Init */
