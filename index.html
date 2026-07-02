@@ -79,7 +79,7 @@ button{border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .brand h1{margin:0;font-size:20px;line-height:1.15}
 .brand p{margin:2px 0 0;color:var(--muted);font-size:11px}
 .points-pill{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:var(--pill-bg);box-shadow:0 2px 10px rgba(var(--leaf-rgb),.18),inset 0 0 0 1.5px var(--pill-border);font-weight:800;white-space:nowrap;font-size:15px}
-.baby-name{display:inline-flex;align-items:center;gap:4px;padding:2px 10px 2px 6px;border-radius:999px;background:rgba(255,255,255,.6);border:2px dashed var(--baby-name-border);font-size:12px;font-weight:800;color:var(--baby-name-color);cursor:pointer;transition:.2s;white-space:nowrap;margin-right:4px;user-select:none;-webkit-user-select:none}
+.baby-name{display:inline-flex;align-items:center;gap:4px;padding:6px 12px 6px 8px;border-radius:999px;background:rgba(255,255,255,.7);border:2px dashed var(--baby-name-border);font-size:12px;font-weight:800;color:var(--baby-name-color);cursor:pointer;transition:.2s;white-space:nowrap;user-select:none;-webkit-user-select:none}
 .baby-name:hover{border-color:var(--leaf);background:var(--baby-name-hover)}
 .baby-name::after{content:"✎";font-size:10px;opacity:.5;margin-left:2px}
 .points-pill .coin{width:26px;height:26px;display:inline-grid;place-items:center;border-radius:50%;color:#fff;background:var(--coin-grad);border:2px solid rgba(255,255,255,.6);box-shadow:0 2px 8px rgba(var(--leaf-rgb),.3);font-size:12px;font-weight:900}
@@ -553,7 +553,11 @@ body[data-theme="starry"] {
       <div class="brand-mark" aria-hidden="true">🐷</div>
       <div><h1>暑假成长积分银行</h1><p>记录每一点努力，看见每一次成长</p></div>
     </div>
-    <div class="points-pill"><span class="baby-name" id="babyName" title="点击设置名字和性别">👧 宝贝</span><span class="coin">分</span><span id="topPoints">0</span> 成长分</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="baby-name" id="babyName" title="点击设置名字和性别">👧 宝贝</span>
+      <span class="points-pill"><span class="coin">分</span><span id="topPoints">0</span> 成长分</span>
+      <button class="parent-btn" id="parentCenterBtn" title="家长中心" style="padding:8px 14px;border-radius:999px;background:linear-gradient(90deg,#ffca28,#ff7043);color:#fff;font-weight:800;font-size:12px;border:none;cursor:pointer;box-shadow:0 3px 10px rgba(var(--leaf-rgb),.3);transition:.15s">👨‍💼 家长中心</button>
+    </div>
   </header>
 
   <!-- 主导航 4个Tab -->
@@ -878,14 +882,23 @@ function showPasswordModal(promptText,cb){
     if(pin.length>=4){
       ov.querySelectorAll(".pin-key").forEach(b=>b.disabled=true);
       ov.querySelector(".pin-del").disabled=true;
-      verifyPassword(pin).then(ok=>{
-        ov.querySelectorAll(".pin-key").forEach(b=>b.disabled=false);
-        ov.querySelector(".pin-del").disabled=false;
-        if(ok){ov.remove();cb();}
-        else{toast("密码错误，请重试 🚫");pin="";renderDigits();}
-      });
+  /* Fix #3: Ensure password modal always removes itself on success */
+  verifyPassword(pin).then(ok=>{
+    if(ov.parentNode){
+      ov.querySelectorAll(".pin-key").forEach(b=>{try{b.disabled=false;}catch(e){}});
+      try{ov.querySelector(".pin-del").disabled=false;}catch(e){}
     }
+    if(ok){
+      if(ov.parentNode)ov.remove();
+      try{cb&&cb();}catch(e){toast("操作失败，请重试");}
+    }else{
+      if(ov.parentNode){toast("密码错误，请重试 🚫");pin="";renderDigits();}
+    }
+  }).catch(()=>{
+    if(ov.parentNode){ov.querySelectorAll(".pin-key").forEach(b=>{try{b.disabled=false;}catch(e){}});try{ov.querySelector(".pin-del").disabled=false;}catch(e){}}
+    })
   }
+}
   pinKeypad.addEventListener("click",e=>{
     const key=e.target.closest(".pin-key");if(!key)return;
     handleKey(key.dataset.key);
@@ -1150,11 +1163,10 @@ function renderTrendChart(){
     </div>`;
   }).join("");
 
-  // Show labels every 5 days to avoid overcrowding
+  // Show ALL dates with labels
   let labelHtml = "";
   for(let i=0; i<dailyPts.length; i++){
-    const showLabel = (i+1) % 5 === 0 || i === 0 || i === dailyPts.length - 1;
-    labelHtml += `<div style="flex:1;text-align:center;font-size:9px;color:${(i+1)===today?'var(--leaf-dark)':'var(--muted)'};font-weight:${(i+1)===today?'900':'400'}">${showLabel?(i+1):''}</div>`;
+    labelHtml += `<div style="flex:1;text-align:center;font-size:9px;color:${(i+1)===today?'var(--leaf-dark)':'var(--muted)'};font-weight:${(i+1)===today?'900':'400'}">${i+1}</div>`;
   }
   labels.innerHTML = labelHtml;
 }
@@ -1606,37 +1618,6 @@ document.getElementById("babyName").addEventListener("click",()=>{
       <label style="display:flex;align-items:center;gap:6px;font-weight:900;font-size:14px;color:#e65100;margin-bottom:8px">🔒 家长密码</label>
       <small style="display:block;color:var(--muted);font-size:12px;margin-bottom:10px;line-height:1.5">设置后，修改奖励内容等操作需要验证。密码为4-6位数字。</small>
       <div id="pwdStatus" style="font-size:12px;font-weight:800;margin-bottom:8px;color:var(--muted)">${data.parentPasswordHash?"已设置密码 ✓":"未设置密码"}</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input id="babyPwdInput" type="password" inputmode="numeric" maxlength="6" placeholder="输入4-6位数字" value="" style="flex:1;min-height:38px;padding:8px 12px;border-radius:8px;border:1.5px solid rgba(0,0,0,.12);font-size:14px;outline:none;font-weight:700;letter-spacing:3px">
-        <button class="btn-ghost" id="babyPwdSet" style="min-height:38px;padding:8px 14px;font-size:13px;white-space:nowrap">设置密码</button>
-        <button class="btn-ghost" id="babyPwdReset" style="min-height:38px;padding:8px 14px;font-size:13px;white-space:nowrap;background:rgba(239,83,80,.06);color:var(--red);border-color:rgba(239,83,80,.2)">清除</button>
-      </div>
-    </div>
-    <div style="text-align:left;margin-bottom:16px;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(227,242,253,.5),rgba(232,245,233,.4));border:1.5px dashed rgba(41,182,246,.3)">
-      <label style="display:flex;align-items:center;gap:6px;font-weight:900;font-size:14px;color:#1565c0;margin-bottom:8px">💾 数据备份与恢复</label>
-      <small style="display:block;color:var(--muted);font-size:12px;margin-bottom:12px;line-height:1.5">导出备份到本地，换设备/清理缓存后可一键恢复。导入会覆盖当前所有数据。</small>
-      <div style="display:flex;gap:8px">
-        <button class="btn-primary" id="babyExportBtn" style="flex:1;min-height:38px;padding:8px 12px;font-size:13px;background:linear-gradient(90deg,#42a5f5,#66bb6a);box-shadow:0 4px 12px rgba(41,182,246,.3)">📤 导出备份</button>
-        <button class="btn-ghost" id="babyImportBtn" style="flex:1;min-height:38px;padding:8px 12px;font-size:13px;background:rgba(255,255,255,.8);color:#1565c0;border-color:rgba(41,182,246,.3)">📥 导入恢复</button>
-      </div>
-    </div>
-    <div style="text-align:left;margin-bottom:16px;padding:14px;border-radius:12px;background:linear-gradient(135deg,#fff3e0,rgba(255,248,225,.6));border:1.5px dashed rgba(255,152,0,.3)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <label style="font-weight:900;font-size:14px;color:#e65100">📋 任务管理</label>
-        <span style="font-size:11px;color:var(--muted)">${(data.customTasks||[]).length}个自定义</span>
-      </div>
-      <small style="display:block;color:var(--muted);font-size:12px;margin-bottom:10px;line-height:1.5">自定义每日打卡任务，每个孩子情况不同。点击可新增/删除任务。</small>
-      <button class="btn-ghost" id="babyTaskManageBtn" style="width:100%;min-height:38px;padding:8px 12px;font-size:13px;background:rgba(255,248,225,.8);color:#e65100;border-color:rgba(255,152,0,.3)">编辑任务列表</button>
-    </div>
-    <div style="text-align:left;margin-bottom:16px;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(232,245,233,.5),rgba(227,242,253,.3));border:1.5px dashed rgba(102,187,106,.3)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <label style="font-weight:900;font-size:14px;color:#2e7d32">👨‍👩‍👧 多孩子切换</label>
-        <span style="font-size:11px;color:var(--muted)">最多3个孩子</span>
-      </div>
-      <small style="display:block;color:var(--muted);font-size:12px;margin-bottom:10px;line-height:1.5">有两个孩子？添加后即可切换各自的成长档案。数据完全隔离。</small>
-      <div id="childrenList" style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap"></div>
-      <button class="btn-ghost" id="addChildBtn" style="width:100%;min-height:34px;padding:6px 12px;font-size:12px;background:rgba(232,245,233,.8);color:#2e7d32;border-color:rgba(102,187,106,.3)">+ 添加孩子</button>
-    </div>
     <div class="modal-actions"><button class="btn-ghost" id="babyModalCancel">取消</button><button class="btn-primary" id="babyModalOk">确认</button></div></div>`;
   document.body.appendChild(ov);
   
@@ -1766,36 +1747,43 @@ document.getElementById("babyName").addEventListener("click",()=>{
     ov.querySelector("#addChildBtn").disabled = data.children.length >= 3;
   }
   function switchChild(id){
+    // Remove modal first, then switch
+    ov.remove();
+    // Switch to child: save current main data, then load child data
+    // Save current main data
     data.activeChildId = id;
-    saveData();
-    // Load this child's data
-    loadChildData(id);
-  }
-  function loadChildData(id){
+    localStorage.setItem("summerGrowthBankV2", JSON.stringify(data));
+    // Load child-specific data or create fresh
     if(id === 'default'){
-      // Main account
       data = loadData();
     } else {
-      // Load from child-specific storage
-      try{
-        const childKey = "summerGrowthBankV2_child_" + id;
-        const saved = localStorage.getItem(childKey);
-        if(saved){
+      const childKey = "summerGrowthBankV2_child_" + id;
+      const saved = localStorage.getItem(childKey);
+      if(saved){
+        try{
           const parsed = JSON.parse(saved);
           data = {...freshState(), ...parsed};
+        }catch(e){ data = loadData(); }
+      } else {
+        // Create fresh child profile
+        const child = data.children.find(c => c.id === id);
+        if(child){
+          data = freshState();
+          data.childName = child.name;
+          data.childGender = child.gender || "girl";
+          data.theme = child.theme || "sakura";
         } else {
-          // Create new child data
-          const child = data.children.find(c => c.id === id);
-          if(child){
-            data.childName = child.name;
-            data.childGender = child.gender;
-          }
+          data = loadData();
         }
-      }catch(e){ data = loadData(); }
+      }
     }
     applyTheme();
     renderAll();
-    // Reload settings modal with new data
+    // Re-trigger init extras
+    clearDailyReminderFlag();
+    requestNotificationPermission();
+    scheduleDailyReminder();
+    checkGrowthReportDay();
   }
   function addChildHandler(){
     const cl = ov.querySelector("#childrenList");
@@ -1888,28 +1876,30 @@ function genTaskId(){return "t_"+Date.now()+"_"+Math.random().toString(36).slice
 function openTaskManager(){
   const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="100";
   ov.innerHTML=`<div class="modal-box" style="max-width:540px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column"><h3>📋 任务管理</h3>
-    <p style="color:var(--muted);font-size:12px;margin-bottom:14px">管理所有打卡任务。默认任务和自定义任务均可编辑/删除。所有操作需家长密码。</p>
-    <div style="text-align:left;margin-bottom:12px;padding:12px;border-radius:10px;background:rgba(255,255,255,.7);border:1.5px solid rgba(255,202,40,.2)">
-      <h4 style="margin:0 0 8px;font-size:14px">➕ 新增任务</h4>
-      <div style="display:flex;gap:6px;margin-bottom:8px">
-        <input id="newTaskTitle" placeholder="任务名称" style="flex:2;min-height:36px;padding:8px 10px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:13px;outline:none">
-        <select id="newTaskCat" style="flex:1;min-height:36px;padding:8px 6px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:12px">
+    <p style="color:var(--muted);font-size:12px;margin-bottom:10px">管理所有打卡任务。所有操作需家长密码。</p>
+    <div style="text-align:left;margin-bottom:10px;padding:10px;border-radius:10px;background:rgba(255,255,255,.7);border:1.5px solid rgba(255,202,40,.2)">
+      <h4 style="margin:0 0 6px;font-size:13px">➕ 新增任务</h4>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <input id="newTaskTitle" placeholder="任务名称" style="flex:2;min-height:34px;padding:6px 10px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:12px;outline:none">
+        <select id="newTaskCat" style="flex:1;min-height:34px;padding:6px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:11px">
           <option value="学习力">学习力</option><option value="运动力">运动力</option><option value="自控力">自控力</option><option value="探索力">探索力</option><option value="实践力">实践力</option>
         </select>
       </div>
       <div style="display:flex;gap:6px;align-items:center">
-        <label style="font-size:13px;font-weight:800">积分</label>
-        <select id="newTaskPts" style="min-height:36px;padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:13px">
+        <label style="font-size:12px;font-weight:800">积分</label>
+        <select id="newTaskPts" style="min-height:34px;padding:6px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:12px">
           <option value="1">1分</option><option value="2">2分</option><option value="3">3分</option>
         </select>
-        <button class="btn-primary" id="addTaskBtn" style="margin-left:auto;min-height:36px;padding:8px 14px;font-size:13px">添加</button>
+        <button class="btn-primary" id="addTaskBtn" style="margin-left:auto;min-height:34px;padding:6px 14px;font-size:12px">添加</button>
       </div>
+      <div id="newTaskList" style="margin-top:6px;font-size:12px;color:var(--muted)"></div>
     </div>
-    <div id="taskListContainer" style="flex:1;overflow:auto;max-height:380px;margin-bottom:12px"></div>
+    <div id="taskListContainer" style="flex:1;overflow:auto;max-height:360px;margin-bottom:10px"></div>
     <div class="modal-actions"><button class="btn-ghost" id="taskModalCancel">关闭</button><button class="btn-primary" id="taskModalSave">保存并应用</button></div></div>`;
   document.body.appendChild(ov);
 
   let workingDeleteIds = new Set();
+  let pendingNewTasks = []; // pending tasks to add
 
   function renderTasks(){
     const tc = ov.querySelector("#taskListContainer");
@@ -1918,9 +1908,9 @@ function openTaskManager(){
       if(workingDeleteIds.has(i)) return "";
       const isCustom = data.customTasks && data.customTasks.some(ct=>ct.id===t.id);
       return `<div class="task-manage-row" data-idx="${i}">
-        <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;flex-wrap:wrap">
           <span style="width:6px;height:6px;border-radius:50%;background:${isCustom?'var(--gold)':'var(--leaf)'};flex-shrink:0"></span>
-          <strong style="font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.title)}</strong>
+          <input class="task-edit-title" data-idx="${i}" value="${esc(t.title)}" style="font-size:13px;flex:1;min-width:80px;padding:3px 6px;border-radius:6px;border:1px solid rgba(0,0,0,.12);background:rgba(255,255,255,.9);outline:none;font-weight:700">
           <select class="task-edit-cat" data-idx="${i}" style="font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid rgba(0,0,0,.12);background:#fff">
             <option value="学习力" ${t.cat==='学习力'?'selected':''}>学习力</option>
             <option value="运动力" ${t.cat==='运动力'?'selected':''}>运动力</option>
@@ -1941,22 +1931,25 @@ function openTaskManager(){
 
     tc.querySelectorAll(".task-del-btn").forEach(b=>{
       b.addEventListener("click",()=>{
+        const idx = parseInt(b.dataset.idx);
         if(data.parentPasswordHash){
-          showPasswordModal("删除/隐藏任务需要家长密码验证",()=>{
-            workingDeleteIds.add(parseInt(b.dataset.idx));
-            saveWorking();
+          showPasswordModal("删除任务需要家长密码验证",()=>{
+            workingDeleteIds.add(idx);
             renderTasks();
           });
         } else {
-          workingDeleteIds.add(parseInt(b.dataset.idx));
-          saveWorking();
+          workingDeleteIds.add(idx);
           renderTasks();
         }
       });
     });
 
-    tc.querySelectorAll(".task-edit-cat, .task-edit-pts").forEach(sel=>{
-      sel.addEventListener("change",()=>{
+    // Auto-save on inline edits (title, cat, pts)
+    tc.querySelectorAll(".task-edit-title, .task-edit-cat, .task-edit-pts").forEach(el=>{
+      el.addEventListener("change",()=>{
+        saveWorking();
+      });
+      el.addEventListener("blur",()=>{
         saveWorking();
       });
     });
@@ -1969,36 +1962,43 @@ function openTaskManager(){
     allTasks.forEach((t,i)=>{
       if(workingDeleteIds.has(i)) return;
       const isCustom = data.customTasks && data.customTasks.some(ct=>ct.id===t.id);
-      const cat = ov.querySelector(`.task-edit-cat[data-idx="${i}"]`);
-      const pts = ov.querySelector(`.task-edit-pts[data-idx="${i}"]`);
-      const newCat = cat ? cat.value : t.cat;
-      const newPts = pts ? parseInt(pts.value) : t.pts;
-      if(isCustom){
-        newCustoms.push({id:t.id, title:t.title, cat:newCat, pts:newPts});
-      } else {
-        newDefaults.push({id:t.id, title:t.title, cat:newCat, pts:newPts});
-      }
+      const titleEl = ov.querySelector(`.task-edit-title[data-idx="${i}"]`);
+      const catEl = ov.querySelector(`.task-edit-cat[data-idx="${i}"]`);
+      const ptsEl = ov.querySelector(`.task-edit-pts[data-idx="${i}"]`);
+      const newTitle = titleEl ? titleEl.value.trim() : t.title;
+      const newCat = catEl ? catEl.value : t.cat;
+      const newPts = ptsEl ? parseInt(ptsEl.value) : t.pts;
+      if(!newTitle) return; // skip empty titles
+      const task = {id:t.id, title:newTitle, cat:newCat, pts:newPts};
+      if(isCustom){ newCustoms.push(task); }
+      else { newDefaults.push(task); }
     });
-    // Update TASKS in-place (it's const array but elements are mutable)
+    // Update TASKS in-place
     TASKS.length = 0;
     newDefaults.forEach(t => TASKS.push(t));
     data.customTasks = newCustoms;
+    // Add pending new tasks
+    pendingNewTasks.forEach(t => {
+      if(!data.customTasks) data.customTasks = [];
+      data.customTasks.push(t);
+    });
+    pendingNewTasks = [];
     saveData();
   }
 
   renderTasks();
 
+  // Add new custom task (supports adding multiple — each click adds to pending)
   ov.querySelector("#addTaskBtn").addEventListener("click",()=>{
     const title = ov.querySelector("#newTaskTitle").value.trim();
     const cat = ov.querySelector("#newTaskCat").value;
     const pts = parseInt(ov.querySelector("#newTaskPts").value);
     if(!title){toast("请输入任务名称");return;}
     const doAdd = ()=>{
-      if(!data.customTasks) data.customTasks=[];
-      data.customTasks.push({id:genTaskId(), title, pts, cat});
-      saveData(); renderTasks();
+      pendingNewTasks.push({id:genTaskId(), title, pts, cat});
       ov.querySelector("#newTaskTitle").value="";
-      toast("任务已添加 ✅");
+      ov.querySelector("#newTaskList").innerHTML = `<span style="color:var(--lime);font-weight:800">✓ ${esc(title)} (+${pts}分, ${cat})</span> <span style="color:var(--muted);font-size:11px">— 已暂存，保存后生效</span>`;
+      toast(`${title} 已暂存 ✅`);
     };
     if(data.parentPasswordHash){
       showPasswordModal("新增任务需要家长密码验证", doAdd);
@@ -2009,6 +2009,7 @@ function openTaskManager(){
   ov.querySelector("#newTaskTitle").addEventListener("keydown",e=>{if(e.key==="Enter") ov.querySelector("#addTaskBtn").click();});
 
   ov.querySelector("#taskModalSave").addEventListener("click",()=>{
+    saveWorking();
     ov.remove();
     renderAll();
   });
@@ -2035,6 +2036,148 @@ if(data.activeChildId && data.activeChildId!=='default'){
       data = {...freshState(), ...parsed};
     }
   }catch(e){}
+}
+
+/* 家长中心 — 数据备份、任务管理、多孩子切换 */
+function openParentCenter(){
+  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="100";
+  ov.innerHTML=`<div class="modal-box" style="max-width:420px;max-height:85vh;overflow:auto"><h3>👨‍💼 家长中心</h3>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+      <button class="pc-btn" data-pc="backup" style="padding:14px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,rgba(227,242,253,.5),rgba(232,245,233,.4));cursor:pointer;text-align:left;font-size:14px;font-weight:800;color:var(--ink);transition:.15s;border:1.5px solid rgba(41,182,246,.2)">
+        <span style="font-size:18px">💾</span> 数据备份与恢复 <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:4px">— 导出/导入</span>
+      </button>
+      <button class="pc-btn" data-pc="tasks" style="padding:14px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,#fff3e0,rgba(255,248,225,.6));cursor:pointer;text-align:left;font-size:14px;font-weight:800;color:var(--ink);transition:.15s;border:1.5px solid rgba(255,152,0,.3)">
+        <span style="font-size:18px">📋</span> 任务管理 <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:4px">— ${(data.customTasks||[]).length}个自定义</span>
+      </button>
+      <button class="pc-btn" data-pc="children" style="padding:14px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,rgba(232,245,233,.5),rgba(227,242,253,.3));cursor:pointer;text-align:left;font-size:14px;font-weight:800;color:var(--ink);transition:.15s;border:1.5px solid rgba(102,187,106,.3)">
+        <span style="font-size:18px">👨‍👩‍👧</span> 多孩子切换 <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:4px">— ${(data.children||[]).length}个孩子</span>
+      </button>
+    </div>
+    <div style="margin-top:14px;text-align:center"><button class="btn-ghost" id="pcClose" style="min-height:36px;padding:8px 24px">关闭</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+
+  ov.querySelector("[data-pc='backup']").addEventListener("click", ()=>{ ov.remove(); openBackupModal(); });
+  ov.querySelector("[data-pc='tasks']").addEventListener("click", ()=>{ ov.remove(); openTaskManager(); });
+  ov.querySelector("[data-pc='children']").addEventListener("click", ()=>{ ov.remove(); openChildrenModal(); });
+  ov.querySelector("#pcClose").addEventListener("click", ()=>ov.remove());
+  ov.addEventListener("click", e=>{ if(e.target===ov) ov.remove(); });
+}
+document.getElementById("parentCenterBtn").addEventListener("click", openParentCenter);
+
+/* 备份弹窗 */
+function openBackupModal(){
+  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="100";
+  ov.innerHTML=`<div class="modal-box"><h3>💾 数据备份与恢复</h3>
+    <p style="color:var(--muted);font-size:12px;margin-bottom:14px">导出备份到本地，换设备后可一键恢复。导入会覆盖当前数据。</p>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="btn-primary" id="pcExportBtn" style="flex:1;min-height:40px;padding:10px;font-size:13px;background:linear-gradient(90deg,#42a5f5,#66bb6a);box-shadow:0 4px 12px rgba(41,182,246,.3)">📤 导出备份</button>
+      <button class="btn-ghost" id="pcImportBtn" style="flex:1;min-height:40px;padding:10px;font-size:13px;color:#1565c0;border-color:rgba(41,182,246,.3)">📥 导入恢复</button>
+    </div>
+    <button class="btn-ghost" id="pcBackupClose" style="min-height:36px;padding:8px 24px">关闭</button></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector("#pcExportBtn").addEventListener("click", ()=>{
+    const exportData={version:2,exportedAt:new Date().toISOString(),data:data};
+    const blob=new Blob([JSON.stringify(exportData,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`成长银行备份_${new Date().toISOString().slice(0,10)}.json`;a.click();
+    URL.revokeObjectURL(url);toast("备份已下载 📦");
+  });
+  ov.querySelector("#pcImportBtn").addEventListener("click", ()=>{
+    const fi=document.createElement("input");fi.type="file";fi.accept=".json";
+    fi.onchange=async()=>{
+      const file=fi.files[0];if(!file)return;
+      try{
+        const text=await file.text();const parsed=JSON.parse(text);
+        if(data.parentPasswordHash){
+          await showPasswordModal("导入恢复会替换所有数据，请输入家长密码确认",()=>{});
+        }
+        localStorage.setItem("summerGrowthBankV2", JSON.stringify(parsed.data||parsed));
+        toast("数据已恢复，请刷新页面 🎉");
+        ov.remove();
+      }catch(e){toast("文件解析失败 🚫");}
+    };
+    fi.click();
+  });
+  ov.querySelector("#pcBackupClose").addEventListener("click", ()=>ov.remove());
+  ov.addEventListener("click", e=>{ if(e.target===ov) ov.remove(); });
+}
+
+/* 多孩子管理弹窗 */
+function openChildrenModal(){
+  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="100";
+  ov.innerHTML=`<div class="modal-box"><h3>👨‍👩‍👧 多孩子切换</h3>
+    <p style="color:var(--muted);font-size:12px;margin-bottom:14px">添加孩子后，各自成长档案完全隔离。最多3个孩子。</p>
+    <div id="pcChildrenList" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;min-height:30px"></div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <input id="pcChildName" placeholder="输入孩子名字" style="flex:1;min-height:36px;padding:8px 10px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:13px;outline:none">
+      <button class="btn-primary" id="pcAddChildBtn" style="min-height:36px;padding:8px 14px;font-size:13px">添加</button>
+    </div>
+    <button class="btn-ghost" id="pcChildrenClose" style="min-height:36px;padding:8px 24px">关闭</button></div>`;
+  document.body.appendChild(ov);
+
+  function render(){
+    const cl=ov.querySelector("#pcChildrenList");
+    if(!data.children||data.children.length===0){
+      cl.innerHTML='<div style="color:var(--muted);font-size:11px;padding:4px">暂无其他孩子</div>';
+      ov.querySelector("#pcAddChildBtn").textContent="添加孩子";
+      ov.querySelector("#pcAddChildBtn").disabled=false;
+      return;
+    }
+    const currentId=data.activeChildId||"default";
+    let html='';
+    data.children.forEach(c=>{
+      const isActive=c.id===currentId;
+      const emoji=c.gender==='boy'?'👦':'👧';
+      html+=`<button class="child-opt" data-cid="${c.id}" style="padding:6px 14px;border-radius:999px;font-size:12px;font-weight:800;border:2px solid ${isActive?'var(--leaf)':'rgba(0,0,0,.1)'};background:${isActive?'var(--mint)':'rgba(255,255,255,.7)'};cursor:pointer;color:${isActive?'var(--leaf-dark)':'var(--ink)'};transition:.15s">${emoji} ${esc(c.name)}${isActive?' ✓':''}</button>`;
+    });
+    cl.innerHTML=html;
+    cl.querySelectorAll(".child-opt").forEach(b=>{
+      b.addEventListener("click",()=>{
+        ov.remove();
+        switchChildFromParentCenter(b.dataset.cid);
+      });
+    });
+    ov.querySelector("#pcAddChildBtn").textContent=data.children.length>=3?"已达上限":"+ 添加";
+    ov.querySelector("#pcAddChildBtn").disabled=data.children.length>=3;
+  }
+  render();
+
+  ov.querySelector("#pcAddChildBtn").addEventListener("click",()=>{
+    const name=ov.querySelector("#pcChildName").value.trim();
+    if(!name){toast("请输入名字");return;}
+    if(data.children.length>=3){toast("最多支持3个孩子");return;}
+    const doAdd=()=>{
+      const id="child_"+Date.now();
+      if(!data.children)data.children=[];
+      data.children.push({id,name,gender:'girl'});
+      saveData();render();
+      toast(`${name}已添加 👶`);
+    };
+    if(data.parentPasswordHash){showPasswordModal("添加孩子需要家长密码验证",doAdd);}else{doAdd();}
+    ov.querySelector("#pcChildName").value="";
+  });
+  ov.querySelector("#pcChildrenClose").addEventListener("click",()=>ov.remove());
+  ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
+}
+
+/* Switch child from parent center (outside settings modal) */
+function switchChildFromParentCenter(id){
+  if(id==='default'){
+    data=loadData();
+  }else{
+    const childKey="summerGrowthBankV2_child_"+id;
+    const saved=localStorage.getItem(childKey);
+    if(saved){
+      try{const parsed=JSON.parse(saved);data={...freshState(),...parsed};}catch(e){data=loadData();}
+    }else{
+      const child=data.children.find(c=>c.id===id);
+      if(child){data=freshState();data.childName=child.name;data.childGender=child.gender||"girl";data.theme=child.theme||"sakura";}else{data=loadData();}
+    }
+  }
+  data.activeChildId=id;
+  localStorage.setItem("summerGrowthBankV2",JSON.stringify(data));
+  applyTheme();renderAll();
+  clearDailyReminderFlag();requestNotificationPermission();scheduleDailyReminder();checkGrowthReportDay();
 }
 applyTheme();
 renderAll();
