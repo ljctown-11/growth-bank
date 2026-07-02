@@ -532,6 +532,11 @@ body[data-theme="starry"] {
   .splash-title span{animation:none;opacity:1;transform:none}
   .app{opacity:1;transition:none}
 }
+/* CSS fallback: auto-hide splash after 6s if JS fails to remove it */
+.splash-overlay{animation:splashFadeOut .5s ease 6s forwards}
+@keyframes splashFadeOut{to{opacity:0;visibility:hidden}}
+.app{animation:appFallbackIn .5s ease 6s forwards}
+@keyframes appFallbackIn{to{opacity:1}}
 </style>
 </head>
 <body>
