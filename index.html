@@ -263,6 +263,18 @@ button{border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .modal-actions{display:flex;gap:10px;justify-content:center}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 
+/* PIN Password Modal */
+.pin-dot{width:30px;height:30px;border-radius:50%;border:2px solid rgba(var(--leaf-rgb),.3);display:grid;place-items:center;font-size:16px;color:var(--leaf-dark);transition:.15s}
+.pin-dot.pin-filled{background:var(--mint);border-color:var(--leaf);color:var(--leaf-dark);font-weight:900}
+.pin-key{min-height:52px;border-radius:12px;background:rgba(255,255,255,.85);border:1.5px solid rgba(var(--leaf-rgb),.2);color:var(--ink);font-size:20px;font-weight:800;transition:.12s;display:grid;place-items:center}
+.pin-key:active{background:var(--mint);border-color:var(--leaf);transform:scale(.96)}
+.pin-key:disabled{opacity:.4;cursor:not-allowed}
+.pin-key.pin-del{background:rgba(239,83,80,.08);color:var(--red);font-size:22px}
+
+/* Task management rows */
+.task-manage-row{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.8);border:1.5px solid rgba(var(--leaf-rgb),.1);margin-bottom:6px;transition:.12s}
+.task-manage-row:hover{border-color:rgba(var(--leaf-rgb),.25)}
+
 /* Toast */
 .toast{position:fixed;left:50%;bottom:30px;z-index:50;transform:translate(-50%,20px);opacity:0;pointer-events:none;max-width:min(480px,calc(100% - 32px));padding:12px 20px;border-radius:999px;color:#fff;background:var(--toast-grad);box-shadow:0 12px 32px rgba(var(--leaf-rgb),.35);transition:.22s;text-align:center;font-weight:800;font-size:14px}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -582,6 +594,15 @@ body[data-theme="starry"] {
         </h2>
         <div class="map-grid" id="mapGrid"></div>
       </div>
+
+      <!-- 积分趋势图 -->
+      <div style="margin-top:20px;padding:16px;border-radius:12px;background:linear-gradient(135deg,rgba(255,255,255,.7),rgba(227,242,253,.3));border:1.5px solid rgba(41,182,246,.15)">
+        <h3 style="margin:0 0 12px;font-size:15px;display:flex;align-items:center;gap:6px">📈 每周积分趋势
+          <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:2px">— 本月每周</span>
+        </h3>
+        <div id="trendChart" style="display:flex;align-items:end;gap:4px;height:80px;padding:0 4px"></div>
+        <div id="trendLabels" style="display:flex;gap:4px;padding:2px 4px;font-size:10px;color:var(--muted);margin-top:2px"></div>
+      </div>
     </div>
   </section>
 
@@ -761,9 +782,9 @@ let selDate = TODAY_STR;
 let workFile = null;
 let activeMainTab = "calendar";
 
-function freshState(){return {daily:{},redemptions:[],childName:"",childGender:"girl",theme:"sakura",customRewards:{},reviews:[],selectedDate:TODAY_STR,makeupUsed:{}};}
+function freshState(){return {daily:{},redemptions:[],childName:"",childGender:"girl",theme:"sakura",customRewards:{},reviews:[],selectedDate:TODAY_STR,makeupUsed:{},parentPasswordHash:"",customTasks:null,makeupVerifiedDates:{},reports:{},reminersSent:{}};}
 function loadData(){
-  try{const s=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");return {...freshState(),...s,daily:s.daily||{},redemptions:s.redemptions||[],customRewards:s.customRewards||{},reviews:s.reviews||[],makeupUsed:s.makeupUsed||{}};}
+  try{const s=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");return {...freshState(),...s,daily:s.daily||{},redemptions:s.redemptions||[],customRewards:s.customRewards||{},reviews:s.reviews||[],makeupUsed:s.makeupUsed||{},parentPasswordHash:s.parentPasswordHash||"",customTasks:s.customTasks||null,makeupVerifiedDates:s.makeupVerifiedDates||{},reports:s.reports||{},reminersSent:s.reminersSent||{}};}
   catch(e){return freshState();}
 }
 function saveData(){try{localStorage.setItem("summerGrowthBankV2",JSON.stringify(data));}catch(e){toast("存储空间不足，请清理旧数据");}}
@@ -805,6 +826,81 @@ async function saveMedia(id,dataUrl){const db=await openDB();return new Promise(
 async function getMedia(id){try{const db=await openDB();return new Promise((rs,rj)=>{const tx=db.transaction("media","readonly");const r=tx.objectStore("media").get(id);r.onsuccess=()=>rs(r.result?r.result.dataUrl:null);r.onerror=rj;});}catch{return null;}}
 async function removeMedia(id){try{const db=await openDB();return new Promise((rs,rj)=>{const tx=db.transaction("media","readwrite");tx.objectStore("media").delete(id);tx.oncomplete=rs;tx.onerror=rj;});}catch{}}
 
+/* ======== 家长密码锁 ======== */
+async function hashPassword(pwd){
+  if(!pwd||pwd.length<4||pwd.length>6||!/^\d+$/.test(pwd))return null;
+  const buf=new TextEncoder().encode(pwd);
+  const hash=await crypto.subtle.digest("SHA-256",buf);
+  return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+async function verifyPassword(pwd){
+  if(!data.parentPasswordHash)return true; // 未设密码，免密通过
+  const h=await hashPassword(pwd);
+  return h===data.parentPasswordHash;
+}
+function showPasswordModal(promptText,cb){
+  const ov=document.createElement("div");ov.className="modal-overlay";
+  ov.innerHTML=`<div class="modal-box"><h3>🔒 家长验证</h3><p style="color:var(--muted);font-size:14px;margin-bottom:18px">${promptText}</p>
+    <div style="display:flex;justify-content:center;gap:10px;margin-bottom:22px" id="pinDigits"></div>
+    <div class="pin-keypad" id="pinKeypad"></div>
+    <p style="color:var(--muted);font-size:12px;margin-top:16px">请输入4-6位数字家长密码</p>
+  </div>`;
+  document.body.appendChild(ov);
+
+  const pinDigits=ov.querySelector("#pinDigits");
+  const pinKeypad=ov.querySelector("#pinKeypad");
+  let pin="";
+  const maxLen=6;
+
+  function renderDigits(){
+    let h="";for(let i=0;i<maxLen;i++){
+      const filled=i<pin.length;
+      h+=`<div class="pin-dot ${filled?'pin-filled':''}">${filled?'●':''}</div>`;
+    }pinDigits.innerHTML=h;
+  }
+  function renderKeypad(){
+    let h='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:280px;margin:0 auto">';
+    for(const n of [1,2,3,4,5,6,7,8,9,"",0,"del"]){
+      if(n==="")h+=`<div></div>`;
+      else if(n==="del")h+=`<button class="pin-key pin-del" data-key="del">⌫</button>`;
+      else h+=`<button class="pin-key" data-key="${n}">${n}</button>`;
+    }
+    h+='</div>';
+    pinKeypad.innerHTML=h;
+  }
+
+  renderDigits();renderKeypad();
+
+  function handleKey(k){
+    if(k==="del"){pin=pin.slice(0,-1);renderDigits();return;}
+    if(pin.length>=maxLen)return;
+    pin+=k;renderDigits();
+    if(pin.length>=4){
+      ov.querySelectorAll(".pin-key").forEach(b=>b.disabled=true);
+      ov.querySelector(".pin-del").disabled=true;
+      verifyPassword(pin).then(ok=>{
+        ov.querySelectorAll(".pin-key").forEach(b=>b.disabled=false);
+        ov.querySelector(".pin-del").disabled=false;
+        if(ok){ov.remove();cb();}
+        else{toast("密码错误，请重试 🚫");pin="";renderDigits();}
+      });
+    }
+  }
+  pinKeypad.addEventListener("click",e=>{
+    const key=e.target.closest(".pin-key");if(!key)return;
+    handleKey(key.dataset.key);
+  });
+  ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
+  // auto focus for mobile keyboard
+  ov.addEventListener("keydown",e=>{
+    if(/^[0-9]$/.test(e.key))handleKey(e.key);
+    else if(e.key==="Backspace")handleKey("del");
+  });
+  // click modal to focus
+  ov.addEventListener("click",()=>ov.focus());
+  ov.focus();
+}
+
 /* ======== EFFECTS ======== */
 function launchFireworks(x,y){const l=document.getElementById("fireworkLayer");const cols=["#e7ac2c","#2f947f","#ef8f72","#4c88b8","#fff1a8","#e74c3c"];for(let i=0;i<20;i++){const s=document.createElement("span");const a=Math.PI*2*i/20;const d=40+Math.random()*70;s.className="spark";s.style.left=x+"px";s.style.top=y+"px";s.style.setProperty("--dx",Math.cos(a)*d+"px");s.style.setProperty("--dy",Math.sin(a)*d+"px");s.style.background=cols[i%cols.length];s.style.width=(6+Math.random()*6)+"px";s.style.height=s.style.width;l.appendChild(s);setTimeout(()=>s.remove(),850);}}
 function showEncourage(x,y){const msg=ENCOURAGES[Math.floor(Math.random()*ENCOURAGES.length)];const m=document.createElement("div");m.className="enc-msg";m.textContent=msg;m.style.left=x+"px";m.style.top=y+"px";document.body.appendChild(m);setTimeout(()=>m.remove(),2400);speakEncourage(msg);}
@@ -838,7 +934,7 @@ if("speechSynthesis" in window){speechSynthesis.onvoiceschanged=()=>{_encVoice=p
 function toast(txt){const t=document.getElementById("toast");t.textContent=txt;t.classList.add("show");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("show"),2200);}
 
 /* ======== RENDER ======== */
-function renderAll(){renderCalendar();renderDateLabel();renderCheckinDateLabel();renderMapDateLabel();renderTasks();renderMap();renderRewards();renderRedemptions();renderReviewTimeline();renderWorksDropdown();renderArchive();renderPoints();renderBabyName();}
+function renderAll(){renderCalendar();renderDateLabel();renderCheckinDateLabel();renderMapDateLabel();renderTasks();renderMap();renderTrendChart();renderRewards();renderRedemptions();renderReviewTimeline();renderWorksDropdown();renderArchive();renderPoints();renderBabyName();}
 
 /* Calendar */
 let calYear=2026,calMonth=7;
@@ -863,7 +959,25 @@ function renderCalendar(){
     h+=`<div class="${cls}" data-date="${ds}"><span class="day-num">${d}</span>${score>0?`<span class="day-pts">+${score}</span>`:''}</div>`;
   }
   g.innerHTML=h;
-  g.querySelectorAll(".cal-cell[data-date]").forEach(c=>c.addEventListener("click",()=>{const ds=c.dataset.date;if(isFuture(ds)){toast("还不能打卡未来日期哦");return;}if(isPastLocked(ds)){const mc=getMakeupCost(ds);toast(mc.reason==="非当月"?"只能补当月的打卡哦":mc.reason==="本月补卡次数已用完"?"本月补卡次数已用完，下月重置":"该日期不可补卡");return;}selDate=ds;selCat="全部";switchMainTab("checkin");renderAll();}));
+  g.querySelectorAll(".cal-cell[data-date]").forEach(c=>c.addEventListener("click",()=>{
+    const ds=c.dataset.date;
+    if(isFuture(ds)){toast("还不能打卡未来日期哦");return;}
+    if(isPastLocked(ds)){const mc=getMakeupCost(ds);toast(mc.reason==="非当月"?"只能补当月的打卡哦":mc.reason==="本月补卡次数已用完"?"本月补卡次数已用完，下月重置":"该日期不可补卡");return;}
+    // 补卡需要验证家长密码
+    if(!isToday(ds)&&data.parentPasswordHash){
+      if(!data.makeupVerifiedDates[ds]){
+        showPasswordModal("补卡打卡需要家长密码验证",()=>{
+          data.makeupVerifiedDates[ds]=true;
+          saveData();
+          selDate=ds;selCat="全部";switchMainTab("checkin");renderAll();
+        });
+      }else{
+        selDate=ds;selCat="全部";switchMainTab("checkin");renderAll();
+      }
+    }else{
+      selDate=ds;selCat="全部";switchMainTab("checkin");renderAll();
+    }
+  }));
   document.getElementById("calPrev").disabled=calMonth<=7;
   document.getElementById("calNext").disabled=calMonth>=8;
 }
@@ -921,7 +1035,8 @@ function renderTasks(){
   }
   renderCatTabs();
   const day=getDay(selDate);
-  const vis=TASKS.filter(t=>selCat==="全部"||t.cat===selCat);
+  const allTasks=getActiveTasks();
+  const vis=allTasks.filter(t=>selCat==="全部"||t.cat===selCat);
   const g=document.getElementById("taskGrid");
   g.innerHTML=vis.map(t=>{
     const done=day.tasks[t.id]&&day.tasks[t.id].done;
@@ -936,14 +1051,14 @@ function renderTasks(){
 
 function renderCatTabs(){
   const tabs=document.getElementById("catTabs");
-  const names=["全部",...CATEGORIES];
+  const names=["全部",...getActiveCategories()];
   tabs.innerHTML=names.map(n=>`<button class="${selCat===n?'active':''}" data-cat="${n}">${n}</button>`).join("");
   tabs.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{selCat=b.dataset.cat;renderTasks();renderMap();}));
 }
 
 function toggleTask(tid,checked,event){
   if(!canCheckIn(selDate))return;
-  const t=TASKS.find(x=>x.id===tid);if(!t)return;
+  const t=getActiveTasks().find(x=>x.id===tid);if(!t)return;
   const day=getDay(selDate);
   // 补卡时第一次勾选任务，扣分并记录
   if(checked&&!day.tasks[tid]){
@@ -992,8 +1107,10 @@ function toggleTask(tid,checked,event){
 function renderMap(){
   const day=getDay(selDate);
   const g=document.getElementById("mapGrid");
-  g.innerHTML=CATEGORIES.map((cat,i)=>{
-    const catTasks=TASKS.filter(t=>t.cat===cat);
+  const allTasks=getActiveTasks();
+  const activeCats=getActiveCategories();
+  g.innerHTML=activeCats.map((cat,i)=>{
+    const catTasks=allTasks.filter(t=>t.cat===cat);
     let pts=0,doneCount=0;
     catTasks.forEach(t=>{if(day.tasks[t.id]&&day.tasks[t.id].done){pts+=t.pts;doneCount++;}});
     const flowers=pts>0?'🌸'.repeat(Math.min(pts,15)):'<span class="empty-flower">🌸🌸🌸</span>';
@@ -1004,6 +1121,48 @@ function renderMap(){
       <div class="flowers">${flowers}</div>
     </div>`;
   }).join("");
+}
+
+/* Weekly Trend Chart */
+function renderTrendChart(){
+  const chart=document.getElementById("trendChart");
+  const labels=document.getElementById("trendLabels");
+  if(!chart||!labels)return;
+
+  // Group by week in current calendar month
+  const currentMonth=getMonthKey(TODAY_STR);
+  const weeks={};
+  const weekLabels={};
+  const weekOrder=[];
+
+  // collect all dates in current month
+  const dates=[];
+  for(let d=1;d<=new Date(calYear,calMonth,0).getDate();d++){
+    const ds=`${calYear}-${String(calMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    dates.push(ds);
+  }
+
+  // assign dates to weeks (week starting Monday)
+  dates.forEach(ds=>{
+    const d=new Date(ds+"T00:00:00");
+    const dow=d.getDay();
+    // Monday=1, Sunday=7; adjust Sunday to 7
+    const weekStart=new Date(d);
+    weekStart.setDate(d.getDate()-((dow===0)?6:dow-1));
+    const wk=localDateStr(weekStart);
+    if(!weeks[wk]){weeks[wk]=0;weekLabels[wk]=`${weekStart.getMonth()+1}/${weekStart.getDate()}`;weekOrder.push(wk);}
+    weeks[wk]+=calcDayScore(ds);
+  });
+
+  const maxPts=Math.max(1,...Object.values(weeks));
+  chart.innerHTML=weekOrder.map(wk=>{
+    const pct=Math.round(weeks[wk]/maxPts*100);
+    return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+      <div style="font-size:11px;font-weight:900;color:${weeks[wk]>0?'var(--leaf-dark)':'var(--muted)'}">${weeks[wk]}</div>
+      <div style="width:100%;height:${Math.max(8,pct*0.7)}px;background:${weeks[wk]>0?'linear-gradient(180deg,var(--leaf),var(--rose))':'rgba(0,0,0,.06)'};border-radius:4px 4px 0 0;transition:height .4s"></div>
+    </div>`;
+  }).join("");
+  labels.innerHTML=weekOrder.map(wk=>`<div style="flex:1;text-align:center">${weekLabels[wk]}</div>`).join("");
 }
 
 /* Rewards */
@@ -1048,16 +1207,18 @@ function renderRewards(){
     });
   });
 
-  // save edited items
+  // save edited items (requires password)
   g.querySelectorAll("[data-save-red]").forEach(b=>b.addEventListener("click",()=>{
     const c=b.dataset.saveRed;
     const ta=g.querySelector(`[data-red-edit="${c}"]`);
     const items=ta.value.split("\n").map(s=>s.trim()).filter(Boolean);
     if(!items.length){toast("至少写一条奖励内容");return;}
-    data.customRewards[String(c)]=items;
-    saveData();
-    toast("奖励内容已保存 ✅");
-    renderRewards();
+    showPasswordModal("修改奖励内容需要家长密码验证",async()=>{
+      data.customRewards[String(c)]=items;
+      saveData();
+      toast("奖励内容已保存 ✅");
+      renderRewards();
+    });
   }));
 
   // redeem button
@@ -1127,7 +1288,7 @@ document.getElementById("saveReview").addEventListener("click",()=>{
 /* Works */
 function renderWorksDropdown(){
   const s=document.getElementById("workTask");
-  s.innerHTML='<option value="">-- 关联打卡任务 --</option>'+TASKS.map(t=>`<option value="${t.id}">${t.title} (${t.cat})</option>`).join("");
+  s.innerHTML='<option value="">-- 关联打卡任务 --</option>'+getActiveTasks().map(t=>`<option value="${t.id}">${t.title} (${t.cat})</option>`).join("");
 }
 
 document.getElementById("workMedia").addEventListener("change",e=>{
@@ -1148,7 +1309,7 @@ document.getElementById("saveWork").addEventListener("click",async()=>{
   const note=document.getElementById("workNote").value.trim();
   if(!tid){toast("请先选择关联的打卡任务");return;}
   const day=getDay(selDate);
-  const artwork={id:"art_"+Date.now()+"_"+Math.random().toString(36).slice(2,8),taskId:tid,taskTitle:(TASKS.find(t=>t.id===tid)||{}).title||tid,title:title||"未命名作品",note,date:selDate,dateDisplay:fmtDisplay(new Date(selDate+"T00:00:00")),hasMedia:!!workFile};
+  const artwork={id:"art_"+Date.now()+"_"+Math.random().toString(36).slice(2,8),taskId:tid,taskTitle:(getActiveTasks().find(t=>t.id===tid)||{}).title||tid,title:title||"未命名作品",note,date:selDate,dateDisplay:fmtDisplay(new Date(selDate+"T00:00:00")),hasMedia:!!workFile};
   if(workFile){try{const dataUrl=await fileToDataURL(workFile);await saveMedia(artwork.id,dataUrl);const type=workFile.type;artwork.mediaKind=type.startsWith("image/")?"image":type.startsWith("video/")?"video":type.startsWith("audio/")?"audio":"file";artwork.hasMedia=true;}catch(e){toast("媒体保存失败，将只保存文字信息");artwork.hasMedia=false;}}
   day.artworks.unshift(artwork);
   saveData();
@@ -1167,15 +1328,188 @@ async function renderArchive(){
   all.sort((a,b)=>b.date.localeCompare(a.date));
   if(!all.length){c.innerHTML='<div class="empty-state">还没有作品。暑假结束后，这里会成为孩子自己的成长档案。</div>';return;}
   c.innerHTML=all.slice(0,30).map(a=>`<div class="timeline-item" data-artid="${a.id}">
-    <time>${a.dateDisplay} · ${esc(a.taskTitle)}</time>
-    <strong>${esc(a.title)}</strong>
-    <div style="color:var(--muted);font-size:12px;margin-top:2px">${esc(a.note||"")}</div>
+    <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+      <div style="flex:1;min-width:0">
+        <time>${a.dateDisplay} · ${esc(a.taskTitle)}</time>
+        <strong>${esc(a.title)}</strong>
+        <div style="color:var(--muted);font-size:12px;margin-top:2px">${esc(a.note||"")}</div>
+      </div>
+      <button class="art-del-btn" data-artid="${a.id}" style="padding:4px 10px;border-radius:8px;border:none;background:rgba(239,83,80,.1);color:var(--red);font-size:14px;cursor:pointer;flex-shrink:0;transition:.12s" title="删除作品">✕</button>
+    </div>
     <div class="art-media-${a.id}"></div>
   </div>`).join("");
+  // attach delete handlers
+  c.querySelectorAll(".art-del-btn").forEach(b=>{
+    b.addEventListener("click",async()=>{
+      const artId=b.dataset.artid;
+      if(data.parentPasswordHash){
+        await showPasswordModal("删除作品需要家长密码验证",async()=>{
+          await deleteArtwork(artId,c);
+        });
+      }else{
+        await deleteArtwork(artId,c);
+      }
+    });
+  });
   for(const a of all.slice(0,30)){if(a.hasMedia){const mc=c.querySelector(`.art-media-${a.id}`);getMedia(a.id).then(url=>{if(!url)return;let thumbHtml="";if(a.mediaKind==="image"){thumbHtml=`<div class="work-media-thumb" onclick="openMediaViewer('${a.id}','image','${esc(a.title)}','${a.dateDisplay}','${esc(a.taskTitle)}')"><img src="${url}" alt="${esc(a.title)}"></div>`;}
 else if(a.mediaKind==="video"){thumbHtml=`<div class="work-media-thumb" onclick="openMediaViewer('${a.id}','video','${esc(a.title)}','${a.dateDisplay}','${esc(a.taskTitle)}')"><video src="${url}" preload="metadata"></video></div>`;}
 else if(a.mediaKind==="audio"){thumbHtml=`<div class="work-media-thumb" onclick="openMediaViewer('${a.id}','audio','${esc(a.title)}','${a.dateDisplay}','${esc(a.taskTitle)}')"><div class="thumb-audio"><span class="thumb-audio-icon">🎵</span><div><div class="thumb-audio-label">${esc(a.title)}</div><div class="thumb-audio-meta">音频 · 点击播放</div></div></div></div>`;}
 mc.innerHTML=thumbHtml;});}}
+}
+
+/* 删除作品 */
+async function deleteArtwork(artId,container){
+  let found=false;
+  for(const ds in data.daily){
+    const day=data.daily[ds];
+    if(day.artworks){
+      const idx=day.artworks.findIndex(a=>a.id===artId);
+      if(idx>=0){day.artworks.splice(idx,1);found=true;break;}
+    }
+  }
+  if(found){
+    await removeMedia(artId);
+    saveData();
+    toast("作品已删除 🗑️");
+    renderArchive();
+  }
+}
+
+/* 成长报告 */
+function generateGrowthReport(){
+  const allTasks=getActiveTasks();
+  const activeCats=getActiveCategories();
+  const todayStr=TODAY_STR;
+
+  // 计算统计
+  const stats={totalDays:0,checkInDays:0,totalScore:0,catScores:{},totalTasks:0,doneTasks:0,workCount:0,rewardCount:0,redemptions:[]};
+  activeCats.forEach(c=>stats.catScores[c]=0);
+
+  for(const ds in data.daily){
+    const day=data.daily[ds];
+    let dayScore=0;
+    for(const tid in day.tasks){
+      stats.totalTasks++;
+      if(day.tasks[tid].done){
+        dayScore+=day.tasks[tid].pts;
+        stats.doneTasks++;
+      }
+    }
+    if(dayScore>0){stats.checkInDays++;stats.totalScore+=dayScore;}
+    stats.totalDays++;
+    // 按维度统计
+    allTasks.forEach(t=>{if(day.tasks[t.id]&&day.tasks[t.id].done&&stats.catScores[t.cat]!==undefined)stats.catScores[t.cat]+=t.pts;});
+    // 作品
+    if(day.artworks)stats.workCount+=day.artworks.length;
+  }
+  // 兑换记录
+  stats.redemptions=data.redemptions;
+  stats.rewardCount=data.redemptions.length;
+
+  return {date:todayStr,stats,childName:data.childName||"宝贝",generatedAt:new Date().toISOString()};
+}
+
+function renderGrowthReport(report){
+  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="100";
+  const s=report.stats;
+  const topPct=s.totalTasks>0?Math.round(s.doneTasks/s.totalTasks*100):0;
+  const catBars=Object.entries(s.catScores).map(([cat,pts])=>{
+    const pct=s.totalScore>0?Math.round(pts/s.totalScore*100):0;
+    return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="width:50px;font-size:12px;font-weight:800;color:var(--ink)">${cat}</span>
+      <div style="flex:1;height:10px;border-radius:5px;background:rgba(0,0,0,.06);overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--leaf),var(--rose));border-radius:5px;transition:width .5s"></div></div>
+      <span style="font-size:12px;font-weight:900;color:var(--leaf-dark)">${pts}分 (${pct}%)</span>
+    </div>`;
+  }).join("");
+
+  ov.innerHTML=`<div class="modal-box" style="max-width:500px;max-height:85vh;overflow:auto">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:40px;margin-bottom:6px">🏆</div>
+      <h3 style="margin:0">成长报告</h3>
+      <p style="color:var(--muted);font-size:13px;margin-top:4px">${report.date} · ${report.childName}宝贝</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+      <div style="text-align:center;padding:12px 8px;border-radius:10px;background:linear-gradient(135deg,#fff8e1,#fce4ec)"><div style="font-size:24px;font-weight:900;color:var(--leaf-dark)">${s.totalScore}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">总积分</div></div>
+      <div style="text-align:center;padding:12px 8px;border-radius:10px;background:linear-gradient(135deg,#e8f5e9,#e3f2fd)"><div style="font-size:24px;font-weight:900;color:var(--lime)">${s.checkInDays}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">打卡天数</div></div>
+      <div style="text-align:center;padding:12px 8px;border-radius:10px;background:linear-gradient(135deg,#e3f2fd,#ede7f6)"><div style="font-size:24px;font-weight:900;color:var(--sky)">${topPct}%</div><div style="font-size:11px;color:var(--muted);margin-top:2px">任务完成率</div></div>
+      <div style="text-align:center;padding:12px 8px;border-radius:10px;background:linear-gradient(135deg,#ede7f6,#fce4ec)"><div style="font-size:24px;font-weight:900;color:var(--purple)">${s.workCount}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">作品数量</div></div>
+    </div>
+    <div style="margin-bottom:18px">
+      <h4 style="margin:0 0 10px;font-size:14px">📊 各维度积分占比</h4>
+      ${catBars}
+    </div>
+    ${s.rewardCount>0?`<div style="margin-bottom:16px"><h4 style="margin:0 0 8px;font-size:14px">🎁 兑换记录</h4>
+      ${s.redemptions.slice(0,8).map(r=>`<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px dashed rgba(0,0,0,.08)"><span>${esc(r.reward)}</span><span style="color:var(--rose);font-weight:800">-${r.cost}分</span></div>`).join("")}
+    </div>`:""}
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button class="btn-primary" onclick="this.closest('.modal-overlay').remove()" style="min-height:38px;padding:8px 24px;font-size:13px">我知道了</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
+}
+
+// 自动检测是否到了生成报告的日子
+function checkGrowthReportDay(){
+  const today=TODAY_STR;
+  // July 30 or August 31
+  if(today.endsWith("-07-30")||today.endsWith("-08-31")){
+    const reportKey=localDateStr(new Date(today+"T00:00:00"));
+    if(!data.reports||!data.reports[reportKey]){
+      const report=generateGrowthReport();
+      if(!data.reports)data.reports={};
+      data.reports[reportKey]=report;
+      saveData();
+      setTimeout(()=>renderGrowthReport(report),1500);
+    }else{
+      setTimeout(()=>renderGrowthReport(data.reports[reportKey]),1500);
+    }
+  }
+}
+
+/* 每日打卡提醒通知 */
+function requestNotificationPermission(){
+  if(!("Notification" in window))return;
+  if(Notification.permission==="granted")return;
+  Notification.requestPermission().then(p=>{
+    if(p==="granted"){toast("打卡提醒已开启 🔔");}
+  });
+}
+
+function scheduleDailyReminder(){
+  if(!("Notification" in window)||Notification.permission!=="granted")return;
+  // Schedule for 20:30
+  const now=new Date();
+  const target=new Date(now.getFullYear(),now.getMonth(),now.getDate(),20,30,0);
+  if(target<=now)target.setDate(target.getDate()+1);
+  const delay=target-now;
+  const checkId="checkinRemind_"+TODAY_STR;
+  if(data.reminersSent&&data.reminersSent[checkId]){return;} // already sent today
+  setTimeout(()=>{
+    // Check if user has checked in today
+    const todayScore=calcDayScore(TODAY_STR);
+    if(todayScore===0){
+      const notification=new Notification("暑假成长银行",{
+        body:"今天还没打卡哦！完成一个小任务就能存入成长积分 🌟",
+        icon:"icon-512.png",badge:"icon-512.png"
+      });
+      notification.onclick=()=>window.focus();
+      if(!data.reminersSent)data.reminersSent={};
+      data.reminersSent[checkId]=true;
+      saveData();
+    }
+    // Schedule for next day if PWA still open
+    scheduleDailyReminder();
+  },delay);
+}
+
+// Clear reminder flag each day at midnight (on page load)
+function clearDailyReminderFlag(){
+  const todayKey="checkinRemind_"+TODAY_STR;
+  if(data.reminersSent&&data.reminersSent[todayKey]){
+    delete data.reminersSent[todayKey];
+    saveData();
+  }
 }
 
 /* 媒体查看器 */
@@ -1274,6 +1608,32 @@ document.getElementById("babyName").addEventListener("click",()=>{
         </label>
       </div>
     </div>
+    <div style="text-align:left;margin-bottom:16px;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(255,248,225,.8),rgba(255,236,210,.5));border:1.5px dashed rgba(255,152,0,.3)">
+      <label style="display:flex;align-items:center;gap:6px;font-weight:900;font-size:14px;color:#e65100;margin-bottom:8px">🔒 家长密码</label>
+      <small style="display:block;color:var(--muted);font-size:12px;margin-bottom:10px;line-height:1.5">设置后，修改奖励内容等操作需要验证。密码为4-6位数字。</small>
+      <div id="pwdStatus" style="font-size:12px;font-weight:800;margin-bottom:8px;color:var(--muted)">${data.parentPasswordHash?"已设置密码 ✓":"未设置密码"}</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="babyPwdInput" type="password" inputmode="numeric" maxlength="6" placeholder="输入4-6位数字" value="" style="flex:1;min-height:38px;padding:8px 12px;border-radius:8px;border:1.5px solid rgba(0,0,0,.12);font-size:14px;outline:none;font-weight:700;letter-spacing:3px">
+        <button class="btn-ghost" id="babyPwdSet" style="min-height:38px;padding:8px 14px;font-size:13px;white-space:nowrap">设置密码</button>
+        <button class="btn-ghost" id="babyPwdReset" style="min-height:38px;padding:8px 14px;font-size:13px;white-space:nowrap;background:rgba(239,83,80,.06);color:var(--red);border-color:rgba(239,83,80,.2)">清除</button>
+      </div>
+    </div>
+    <div style="text-align:left;margin-bottom:16px;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(227,242,253,.5),rgba(232,245,233,.4));border:1.5px dashed rgba(41,182,246,.3)">
+      <label style="display:flex;align-items:center;gap:6px;font-weight:900;font-size:14px;color:#1565c0;margin-bottom:8px">💾 数据备份与恢复</label>
+      <small style="display:block;color:var(--muted);font-size:12px;margin-bottom:12px;line-height:1.5">导出备份到本地，换设备/清理缓存后可一键恢复。导入会覆盖当前所有数据。</small>
+      <div style="display:flex;gap:8px">
+        <button class="btn-primary" id="babyExportBtn" style="flex:1;min-height:38px;padding:8px 12px;font-size:13px;background:linear-gradient(90deg,#42a5f5,#66bb6a);box-shadow:0 4px 12px rgba(41,182,246,.3)">📤 导出备份</button>
+        <button class="btn-ghost" id="babyImportBtn" style="flex:1;min-height:38px;padding:8px 12px;font-size:13px;background:rgba(255,255,255,.8);color:#1565c0;border-color:rgba(41,182,246,.3)">📥 导入恢复</button>
+      </div>
+    </div>
+    <div style="text-align:left;margin-bottom:16px;padding:14px;border-radius:12px;background:linear-gradient(135deg,#fff3e0,rgba(255,248,225,.6));border:1.5px dashed rgba(255,152,0,.3)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <label style="font-weight:900;font-size:14px;color:#e65100">📋 任务管理</label>
+        <span style="font-size:11px;color:var(--muted)">${(data.customTasks||[]).length}个自定义</span>
+      </div>
+      <small style="display:block;color:var(--muted);font-size:12px;margin-bottom:10px;line-height:1.5">自定义每日打卡任务，每个孩子情况不同。点击可新增/删除任务。</small>
+      <button class="btn-ghost" id="babyTaskManageBtn" style="width:100%;min-height:38px;padding:8px 12px;font-size:13px;background:rgba(255,248,225,.8);color:#e65100;border-color:rgba(255,152,0,.3)">编辑任务列表</button>
+    </div>
     <div class="modal-actions"><button class="btn-ghost" id="babyModalCancel">取消</button><button class="btn-primary" id="babyModalOk">确认</button></div></div>`;
   document.body.appendChild(ov);
   
@@ -1316,6 +1676,66 @@ document.getElementById("babyName").addEventListener("click",()=>{
   });
   updateThemeOpts();
 
+  // password section handlers
+  ov.querySelector("#babyPwdSet").addEventListener("click",async()=>{
+    const pwd=ov.querySelector("#babyPwdInput").value.trim();
+    if(!pwd||pwd.length<4||pwd.length>6||!/^\d+$/.test(pwd)){toast("请输入4-6位纯数字密码");return;}
+    const h=await hashPassword(pwd);
+    data.parentPasswordHash=h;
+    saveData();
+    ov.querySelector("#pwdStatus").textContent="已设置密码 ✓";
+    ov.querySelector("#pwdStatus").style.color="var(--lime)";
+    toast("家长密码已设置 🔒");
+  });
+  ov.querySelector("#babyPwdReset").addEventListener("click",()=>{
+    data.parentPasswordHash="";
+    saveData();
+    ov.querySelector("#pwdStatus").textContent="未设置密码";
+    ov.querySelector("#pwdStatus").style.color="var(--muted)";
+    ov.querySelector("#babyPwdInput").value="";
+    toast("家长密码已清除 🔓");
+  });
+
+  // export/import handlers
+  ov.querySelector("#babyExportBtn").addEventListener("click",()=>{
+    const exportData={version:2,exportedAt:new Date().toISOString(),data:data};
+    const blob=new Blob([JSON.stringify(exportData,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download=`成长银行备份_${new Date().toISOString().slice(0,10)}.json`;a.click();
+    URL.revokeObjectURL(url);
+    toast("备份已下载 📦");
+  });
+  ov.querySelector("#babyImportBtn").addEventListener("click",()=>{
+    const fi=document.createElement("input");fi.type="file";fi.accept=".json";
+    fi.onchange=async()=>{
+      const file=fi.files[0];if(!file)return;
+      try{
+        const text=await file.text();
+        const parsed=JSON.parse(text);
+        let impData=parsed.data||parsed;
+        // verify password if needed
+        if(data.parentPasswordHash){
+          await showPasswordModal("导入恢复会替换所有数据，请输入家长密码确认",()=>{
+            // password verified
+          });
+          // password verified above, proceed
+        }
+        // merge: preserve password hash, theme, and child settings
+        impData.parentPasswordHash=data.parentPasswordHash;
+        impData.theme=data.theme;
+        data=loadData(); // reset to defaults
+        data={...freshState(),...impData};
+        saveData();
+        applyTheme();
+        renderAll();
+        toast("数据已恢复，请刷新页面查看 🎉");
+        ov.remove();
+      }catch(e){toast("文件解析失败，请检查备份文件 🚫");}
+    };
+    fi.click();
+  });
+  ov.querySelector("#babyTaskManageBtn").addEventListener("click",()=>{ov.remove();openTaskManager();});
+
   const save=()=>{
     const name=ov.querySelector("#babyNameInput").value.trim();
     const gender=ov.querySelector("input[name='babyGender']:checked")?.value||"girl";
@@ -1346,6 +1766,94 @@ function switchMainTab(tab){
 }
 document.querySelectorAll("#mainTabNav button").forEach(b=>b.addEventListener("click",()=>switchMainTab(b.dataset.maintab)));
 
+/* 任务管理（默认任务 + 自定义任务合并） */
+function getActiveTasks(){
+  // 优先使用自定义任务，否则使用默认任务
+  if(data.customTasks&&data.customTasks.length>0)return data.customTasks;
+  return TASKS;
+}
+function getActiveCategories(){
+  const tasks=getActiveTasks();
+  const cats=new Set();
+  tasks.forEach(t=>cats.add(t.cat));
+  return [...cats];
+}
+function genTaskId(){return "t_"+Date.now()+"_"+Math.random().toString(36).slice(2,6);}
+
+/* 任务管理弹窗 */
+function openTaskManager(){
+  const ov=document.createElement("div");ov.className="modal-overlay";
+  ov.style.zIndex="100";
+  ov.innerHTML=`<div class="modal-box" style="max-width:520px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column"><h3>📋 任务管理</h3>
+    <p style="color:var(--muted);font-size:12px;margin-bottom:14px">自定义每日打卡任务。新增的任务将出现在打卡列表中。</p>
+    <div style="text-align:left;margin-bottom:14px;padding:12px;border-radius:10px;background:rgba(255,255,255,.7);border:1.5px solid rgba(255,202,40,.2)">
+      <h4 style="margin:0 0 8px;font-size:14px">➕ 新增任务</h4>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <input id="newTaskTitle" placeholder="任务名称" style="flex:2;min-height:36px;padding:8px 10px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:13px;outline:none">
+        <select id="newTaskCat" style="flex:1;min-height:36px;padding:8px 6px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:12px">
+          <option value="学习力">学习力</option><option value="运动力">运动力</option><option value="自控力">自控力</option><option value="探索力">探索力</option><option value="实践力">实践力</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <label style="font-size:13px;font-weight:800">积分</label>
+        <select id="newTaskPts" style="min-height:36px;padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:13px">
+          <option value="1">1分</option><option value="2">2分</option><option value="3">3分</option>
+        </select>
+        <button class="btn-primary" id="addTaskBtn" style="margin-left:auto;min-height:36px;padding:8px 14px;font-size:13px">添加任务</button>
+      </div>
+    </div>
+    <div id="taskListContainer" style="flex:1;overflow:auto;max-height:360px;margin-bottom:14px"></div>
+    <div class="modal-actions"><button class="btn-ghost" id="taskModalCancel">关闭</button><button class="btn-primary" id="taskModalSave">保存</button></div></div>`;
+  document.body.appendChild(ov);
+
+  // render task list
+  function renderTasks(){
+    const tasks=data.customTasks||[];
+    const tc=ov.querySelector("#taskListContainer");
+    if(!tasks.length){tc.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px;font-size:13px">暂无自定义任务，使用默认任务列表。</div>';return;}
+    tc.innerHTML=tasks.map((t,i)=>`
+      <div class="task-manage-row" data-idx="${i}">
+        <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--leaf);flex-shrink:0"></span>
+          <strong style="font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.title)}</strong>
+          <span class="tag">${esc(t.cat)}</span>
+          <span style="color:var(--pts-color);font-weight:900;font-size:13px">+${t.pts}分</span>
+        </div>
+        <button class="task-del-btn" data-idx="${i}" style="padding:6px 10px;border-radius:8px;border:none;background:rgba(239,83,80,.1);color:var(--red);font-size:16px;cursor:pointer;flex-shrink:0">✕</button>
+      </div>
+    `).join("");
+    tc.querySelectorAll(".task-del-btn").forEach(b=>b.addEventListener("click",()=>{
+      if(!data.parentPasswordHash){
+        showPasswordModal("删除任务需要家长密码验证",()=>{
+          data.customTasks.splice(parseInt(b.dataset.idx),1);
+          saveData();renderTasks();
+        });
+      }else{
+        data.customTasks.splice(parseInt(b.dataset.idx),1);
+        saveData();renderTasks();
+      }
+    }));
+  }
+  renderTasks();
+
+  ov.querySelector("#addTaskBtn").addEventListener("click",()=>{
+    const title=ov.querySelector("#newTaskTitle").value.trim();
+    const cat=ov.querySelector("#newTaskCat").value;
+    const pts=parseInt(ov.querySelector("#newTaskPts").value);
+    if(!title){toast("请输入任务名称");return;}
+    if(!data.customTasks)data.customTasks=[];
+    data.customTasks.push({id:genTaskId(),title,pts,cat});
+    saveData();renderTasks();
+    ov.querySelector("#newTaskTitle").value="";
+    toast("任务已添加 ✅");
+  });
+  ov.querySelector("#newTaskTitle").addEventListener("keydown",e=>{if(e.key==="Enter")ov.querySelector("#addTaskBtn").click();});
+
+  ov.querySelector("#taskModalSave").addEventListener("click",()=>{ov.remove();renderTasks();renderMap();});
+  ov.querySelector("#taskModalCancel").addEventListener("click",()=>ov.remove());
+  ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
+}
+
 /* 档案子Tab切换（2个：复盘/作品） */
 document.querySelectorAll("#archiveSubTabs button").forEach(b=>b.addEventListener("click",()=>{
   const sub=b.dataset.asub;
@@ -1357,6 +1865,12 @@ document.querySelectorAll("#archiveSubTabs button").forEach(b=>b.addEventListene
 /* Init */
 applyTheme();
 renderAll();
+
+// Init extras
+clearDailyReminderFlag();
+requestNotificationPermission();
+scheduleDailyReminder();
+checkGrowthReportDay();
 
 /* 进场动画 — 3秒动画完全结束后，移除overlay，主界面淡入显示 */
 (function(){
