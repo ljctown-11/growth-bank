@@ -787,7 +787,7 @@ function loadData(){
   try{const s=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");return {...freshState(),...s,daily:s.daily||{},redemptions:s.redemptions||[],customRewards:s.customRewards||{},reviews:s.reviews||[],makeupUsed:s.makeupUsed||{},parentPasswordHash:s.parentPasswordHash||"",customTasks:s.customTasks||null,makeupVerifiedDates:s.makeupVerifiedDates||{},reports:s.reports||{},reminersSent:s.reminersSent||{},children:s.children||[],activeChildId:s.activeChildId||null};}
   catch(e){return freshState();}
 }
-function saveData(){try{localStorage.setItem("summerGrowthBankV2",JSON.stringify(data));}catch(e){toast("存储空间不足，请清理旧数据");}}
+function saveData(){try{localStorage.setItem("summerGrowthBankV2",JSON.stringify(data));if(data.activeChildId && data.activeChildId!=='default'){localStorage.setItem("summerGrowthBankV2_child_"+data.activeChildId,JSON.stringify(data));}}catch(e){toast("存储空间不足，请清理旧数据");}}
 function getDay(dateStr){if(!data.daily[dateStr])data.daily[dateStr]={tasks:{},score:0,artworks:[],review:null};return data.daily[dateStr];}
 function calcDayScore(dateStr){const d=getDay(dateStr);let s=0;for(const tid in d.tasks){if(d.tasks[tid].done)s+=d.tasks[tid].pts;}return s;}
 function calcTotalScore(){let total=0;for(const ds in data.daily)total+=calcDayScore(ds);for(const r of data.redemptions)total-=r.cost;return Math.max(0,total);}
@@ -1123,46 +1123,40 @@ function renderMap(){
   }).join("");
 }
 
-/* Weekly Trend Chart */
+/* Daily Trend Chart */
 function renderTrendChart(){
   const chart=document.getElementById("trendChart");
   const labels=document.getElementById("trendLabels");
   if(!chart||!labels)return;
 
-  // Group by week in current calendar month
-  const currentMonth=getMonthKey(TODAY_STR);
-  const weeks={};
-  const weekLabels={};
-  const weekOrder=[];
-
-  // collect all dates in current month
-  const dates=[];
-  for(let d=1;d<=new Date(calYear,calMonth,0).getDate();d++){
-    const ds=`${calYear}-${String(calMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    dates.push(ds);
+  // Show all days in current calendar month with daily scores
+  const lastDate = new Date(calYear, calMonth, 0).getDate();
+  const dailyPts = [];
+  for(let d=1; d<=lastDate; d++){
+    const ds = `${calYear}-${String(calMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    dailyPts.push(calcDayScore(ds));
   }
 
-  // assign dates to weeks (week starting Monday)
-  dates.forEach(ds=>{
-    const d=new Date(ds+"T00:00:00");
-    const dow=d.getDay();
-    // Monday=1, Sunday=7; adjust Sunday to 7
-    const weekStart=new Date(d);
-    weekStart.setDate(d.getDate()-((dow===0)?6:dow-1));
-    const wk=localDateStr(weekStart);
-    if(!weeks[wk]){weeks[wk]=0;weekLabels[wk]=`${weekStart.getMonth()+1}/${weekStart.getDate()}`;weekOrder.push(wk);}
-    weeks[wk]+=calcDayScore(ds);
-  });
+  const maxPts = Math.max(1, ...dailyPts);
+  const today = TODAY.getDate();
 
-  const maxPts=Math.max(1,...Object.values(weeks));
-  chart.innerHTML=weekOrder.map(wk=>{
-    const pct=Math.round(weeks[wk]/maxPts*100);
-    return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-      <div style="font-size:11px;font-weight:900;color:${weeks[wk]>0?'var(--leaf-dark)':'var(--muted)'}">${weeks[wk]}</div>
-      <div style="width:100%;height:${Math.max(8,pct*0.7)}px;background:${weeks[wk]>0?'linear-gradient(180deg,var(--leaf),var(--rose))':'rgba(0,0,0,.06)'};border-radius:4px 4px 0 0;transition:height .4s"></div>
+  chart.innerHTML = dailyPts.map((pts, i) => {
+    const dayNum = i + 1;
+    const pct = Math.round(pts / maxPts * 100);
+    const isFuture = dayNum > today;
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0">
+      <div style="font-size:9px;font-weight:900;color:${pts>0?'var(--leaf-dark)':'var(--muted)'}">${pts}</div>
+      <div style="width:100%;height:${Math.max(4, pct*0.8)}px;background:${pts>0 && !isFuture?'linear-gradient(180deg,var(--leaf),var(--rose))':isFuture?'rgba(0,0,0,.04)':'rgba(0,0,0,.08)'};border-radius:3px 3px 0 0;transition:height .4s"></div>
     </div>`;
   }).join("");
-  labels.innerHTML=weekOrder.map(wk=>`<div style="flex:1;text-align:center">${weekLabels[wk]}</div>`).join("");
+
+  // Show labels every 5 days to avoid overcrowding
+  let labelHtml = "";
+  for(let i=0; i<dailyPts.length; i++){
+    const showLabel = (i+1) % 5 === 0 || i === 0 || i === dailyPts.length - 1;
+    labelHtml += `<div style="flex:1;text-align:center;font-size:9px;color:${(i+1)===today?'var(--leaf-dark)':'var(--muted)'};font-weight:${(i+1)===today?'900':'400'}">${showLabel?(i+1):''}</div>`;
+  }
+  labels.innerHTML = labelHtml;
 }
 
 /* Rewards */
@@ -1634,6 +1628,15 @@ document.getElementById("babyName").addEventListener("click",()=>{
       <small style="display:block;color:var(--muted);font-size:12px;margin-bottom:10px;line-height:1.5">自定义每日打卡任务，每个孩子情况不同。点击可新增/删除任务。</small>
       <button class="btn-ghost" id="babyTaskManageBtn" style="width:100%;min-height:38px;padding:8px 12px;font-size:13px;background:rgba(255,248,225,.8);color:#e65100;border-color:rgba(255,152,0,.3)">编辑任务列表</button>
     </div>
+    <div style="text-align:left;margin-bottom:16px;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(232,245,233,.5),rgba(227,242,253,.3));border:1.5px dashed rgba(102,187,106,.3)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <label style="font-weight:900;font-size:14px;color:#2e7d32">👨‍👩‍👧 多孩子切换</label>
+        <span style="font-size:11px;color:var(--muted)">最多3个孩子</span>
+      </div>
+      <small style="display:block;color:var(--muted);font-size:12px;margin-bottom:10px;line-height:1.5">有两个孩子？添加后即可切换各自的成长档案。数据完全隔离。</small>
+      <div id="childrenList" style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap"></div>
+      <button class="btn-ghost" id="addChildBtn" style="width:100%;min-height:34px;padding:6px 12px;font-size:12px;background:rgba(232,245,233,.8);color:#2e7d32;border-color:rgba(102,187,106,.3)">+ 添加孩子</button>
+    </div>
     <div class="modal-actions"><button class="btn-ghost" id="babyModalCancel">取消</button><button class="btn-primary" id="babyModalOk">确认</button></div></div>`;
   document.body.appendChild(ov);
   
@@ -1736,6 +1739,105 @@ document.getElementById("babyName").addEventListener("click",()=>{
   });
   ov.querySelector("#babyTaskManageBtn").addEventListener("click",()=>{ov.remove();openTaskManager();});
 
+  // multi-child switching
+  function renderChildrenList(){
+    const cl = ov.querySelector("#childrenList");
+    if(!data.children || data.children.length === 0){
+      cl.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:4px">暂无其他孩子</div>';
+      ov.querySelector("#addChildBtn").textContent = "+ 添加孩子";
+      ov.querySelector("#addChildBtn").disabled = false;
+      return;
+    }
+    const currentId = data.activeChildId || "default";
+    let html = '';
+    data.children.forEach(c => {
+      const isActive = c.id === currentId;
+      const emoji = c.gender === 'boy' ? '👦' : '👧';
+      html += `<button class="child-opt" data-cid="${c.id}" style="padding:6px 14px;border-radius:999px;font-size:12px;font-weight:800;border:2px solid ${isActive?'var(--leaf)':'rgba(0,0,0,.1)'};background:${isActive?'var(--mint)':'rgba(255,255,255,.7)'};cursor:pointer;color:${isActive?'var(--leaf-dark)':'var(--ink)'};transition:.15s">${emoji} ${esc(c.name)}${isActive?' ✓':''}</button>`;
+    });
+    cl.innerHTML = html;
+    cl.querySelectorAll(".child-opt").forEach(b => {
+      b.addEventListener("click", () => {
+        switchChild(b.dataset.cid);
+        ov.remove();
+      });
+    });
+    ov.querySelector("#addChildBtn").textContent = data.children.length >= 3 ? "已达上限" : "+ 添加孩子";
+    ov.querySelector("#addChildBtn").disabled = data.children.length >= 3;
+  }
+  function switchChild(id){
+    data.activeChildId = id;
+    saveData();
+    // Load this child's data
+    loadChildData(id);
+  }
+  function loadChildData(id){
+    if(id === 'default'){
+      // Main account
+      data = loadData();
+    } else {
+      // Load from child-specific storage
+      try{
+        const childKey = "summerGrowthBankV2_child_" + id;
+        const saved = localStorage.getItem(childKey);
+        if(saved){
+          const parsed = JSON.parse(saved);
+          data = {...freshState(), ...parsed};
+        } else {
+          // Create new child data
+          const child = data.children.find(c => c.id === id);
+          if(child){
+            data.childName = child.name;
+            data.childGender = child.gender;
+          }
+        }
+      }catch(e){ data = loadData(); }
+    }
+    applyTheme();
+    renderAll();
+    // Reload settings modal with new data
+  }
+  function addChildHandler(){
+    const cl = ov.querySelector("#childrenList");
+    if(data.children.length >= 3){ toast("最多支持3个孩子"); return; }
+    const input = document.createElement("input");
+    input.placeholder = "输入孩子的名字";
+    input.style.cssText = "flex:1;min-height:32px;padding:6px 10px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:13px;outline:none";
+    const btn = document.createElement("button");
+    btn.className = "btn-primary";
+    btn.style.cssText = "min-height:32px;padding:6px 12px;font-size:12px";
+    btn.textContent = "添加";
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:6px;margin-top:6px";
+    row.appendChild(input);
+    row.appendChild(btn);
+    cl.appendChild(row);
+    btn.addEventListener("click", () => {
+      const name = input.value.trim();
+      if(!name){ toast("请输入名字"); return; }
+      if(data.parentPasswordHash){
+        showPasswordModal("添加孩子需要家长密码验证", ()=>{
+          const id = "child_" + Date.now();
+          if(!data.children) data.children = [];
+          data.children.push({id, name, gender: 'girl'});
+          saveData();
+          renderChildrenList();
+          toast(`${name}已添加 👶`);
+        });
+      } else {
+        const id = "child_" + Date.now();
+        if(!data.children) data.children = [];
+        data.children.push({id, name, gender: 'girl'});
+        saveData();
+        renderChildrenList();
+        toast(`${name}已添加 👶`);
+      }
+    });
+    input.addEventListener("keydown", e => { if(e.key === "Enter") btn.click(); });
+  }
+  ov.querySelector("#addChildBtn").addEventListener("click", addChildHandler);
+  renderChildrenList();
+
   const save=()=>{
     const name=ov.querySelector("#babyNameInput").value.trim();
     const gender=ov.querySelector("input[name='babyGender']:checked")?.value||"girl";
@@ -1768,9 +1870,11 @@ document.querySelectorAll("#mainTabNav button").forEach(b=>b.addEventListener("c
 
 /* 任务管理（默认任务 + 自定义任务合并） */
 function getActiveTasks(){
-  // 优先使用自定义任务，否则使用默认任务
-  if(data.customTasks&&data.customTasks.length>0)return data.customTasks;
-  return TASKS;
+  const base = [...TASKS];
+  if(data.customTasks && data.customTasks.length > 0) {
+    base.push(...data.customTasks);
+  }
+  return base;
 }
 function getActiveCategories(){
   const tasks=getActiveTasks();
@@ -1782,11 +1886,10 @@ function genTaskId(){return "t_"+Date.now()+"_"+Math.random().toString(36).slice
 
 /* 任务管理弹窗 */
 function openTaskManager(){
-  const ov=document.createElement("div");ov.className="modal-overlay";
-  ov.style.zIndex="100";
-  ov.innerHTML=`<div class="modal-box" style="max-width:520px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column"><h3>📋 任务管理</h3>
-    <p style="color:var(--muted);font-size:12px;margin-bottom:14px">自定义每日打卡任务。新增的任务将出现在打卡列表中。</p>
-    <div style="text-align:left;margin-bottom:14px;padding:12px;border-radius:10px;background:rgba(255,255,255,.7);border:1.5px solid rgba(255,202,40,.2)">
+  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="100";
+  ov.innerHTML=`<div class="modal-box" style="max-width:540px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column"><h3>📋 任务管理</h3>
+    <p style="color:var(--muted);font-size:12px;margin-bottom:14px">管理所有打卡任务。默认任务和自定义任务均可编辑/删除。所有操作需家长密码。</p>
+    <div style="text-align:left;margin-bottom:12px;padding:12px;border-radius:10px;background:rgba(255,255,255,.7);border:1.5px solid rgba(255,202,40,.2)">
       <h4 style="margin:0 0 8px;font-size:14px">➕ 新增任务</h4>
       <div style="display:flex;gap:6px;margin-bottom:8px">
         <input id="newTaskTitle" placeholder="任务名称" style="flex:2;min-height:36px;padding:8px 10px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:13px;outline:none">
@@ -1799,59 +1902,118 @@ function openTaskManager(){
         <select id="newTaskPts" style="min-height:36px;padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:13px">
           <option value="1">1分</option><option value="2">2分</option><option value="3">3分</option>
         </select>
-        <button class="btn-primary" id="addTaskBtn" style="margin-left:auto;min-height:36px;padding:8px 14px;font-size:13px">添加任务</button>
+        <button class="btn-primary" id="addTaskBtn" style="margin-left:auto;min-height:36px;padding:8px 14px;font-size:13px">添加</button>
       </div>
     </div>
-    <div id="taskListContainer" style="flex:1;overflow:auto;max-height:360px;margin-bottom:14px"></div>
-    <div class="modal-actions"><button class="btn-ghost" id="taskModalCancel">关闭</button><button class="btn-primary" id="taskModalSave">保存</button></div></div>`;
+    <div id="taskListContainer" style="flex:1;overflow:auto;max-height:380px;margin-bottom:12px"></div>
+    <div class="modal-actions"><button class="btn-ghost" id="taskModalCancel">关闭</button><button class="btn-primary" id="taskModalSave">保存并应用</button></div></div>`;
   document.body.appendChild(ov);
 
-  // render task list
+  let workingDeleteIds = new Set();
+
   function renderTasks(){
-    const tasks=data.customTasks||[];
-    const tc=ov.querySelector("#taskListContainer");
-    if(!tasks.length){tc.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px;font-size:13px">暂无自定义任务，使用默认任务列表。</div>';return;}
-    tc.innerHTML=tasks.map((t,i)=>`
-      <div class="task-manage-row" data-idx="${i}">
+    const tc = ov.querySelector("#taskListContainer");
+    const allTasks = getActiveTasks();
+    tc.innerHTML = allTasks.map((t,i)=>{
+      if(workingDeleteIds.has(i)) return "";
+      const isCustom = data.customTasks && data.customTasks.some(ct=>ct.id===t.id);
+      return `<div class="task-manage-row" data-idx="${i}">
         <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">
-          <span style="width:6px;height:6px;border-radius:50%;background:var(--leaf);flex-shrink:0"></span>
-          <strong style="font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.title)}</strong>
-          <span class="tag">${esc(t.cat)}</span>
-          <span style="color:var(--pts-color);font-weight:900;font-size:13px">+${t.pts}分</span>
+          <span style="width:6px;height:6px;border-radius:50%;background:${isCustom?'var(--gold)':'var(--leaf)'};flex-shrink:0"></span>
+          <strong style="font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.title)}</strong>
+          <select class="task-edit-cat" data-idx="${i}" style="font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid rgba(0,0,0,.12);background:#fff">
+            <option value="学习力" ${t.cat==='学习力'?'selected':''}>学习力</option>
+            <option value="运动力" ${t.cat==='运动力'?'selected':''}>运动力</option>
+            <option value="自控力" ${t.cat==='自控力'?'selected':''}>自控力</option>
+            <option value="探索力" ${t.cat==='探索力'?'selected':''}>探索力</option>
+            <option value="实践力" ${t.cat==='实践力'?'selected':''}>实践力</option>
+          </select>
+          <select class="task-edit-pts" data-idx="${i}" style="font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid rgba(0,0,0,.12);width:48px;background:#fff">
+            <option value="1" ${t.pts===1?'selected':''}>1分</option>
+            <option value="2" ${t.pts===2?'selected':''}>2分</option>
+            <option value="3" ${t.pts===3?'selected':''}>3分</option>
+          </select>
+          <span style="color:var(--muted);font-size:10px">${isCustom?'自定义':'默认'}</span>
         </div>
-        <button class="task-del-btn" data-idx="${i}" style="padding:6px 10px;border-radius:8px;border:none;background:rgba(239,83,80,.1);color:var(--red);font-size:16px;cursor:pointer;flex-shrink:0">✕</button>
-      </div>
-    `).join("");
-    tc.querySelectorAll(".task-del-btn").forEach(b=>b.addEventListener("click",()=>{
-      if(!data.parentPasswordHash){
-        showPasswordModal("删除任务需要家长密码验证",()=>{
-          data.customTasks.splice(parseInt(b.dataset.idx),1);
-          saveData();renderTasks();
-        });
-      }else{
-        data.customTasks.splice(parseInt(b.dataset.idx),1);
-        saveData();renderTasks();
-      }
-    }));
+        <button class="task-del-btn" data-idx="${i}" style="padding:5px 10px;border-radius:8px;border:none;background:rgba(239,83,80,.1);color:var(--red);font-size:14px;cursor:pointer;flex-shrink:0">✕</button>
+      </div>`;
+    }).join("");
+
+    tc.querySelectorAll(".task-del-btn").forEach(b=>{
+      b.addEventListener("click",()=>{
+        if(data.parentPasswordHash){
+          showPasswordModal("删除/隐藏任务需要家长密码验证",()=>{
+            workingDeleteIds.add(parseInt(b.dataset.idx));
+            saveWorking();
+            renderTasks();
+          });
+        } else {
+          workingDeleteIds.add(parseInt(b.dataset.idx));
+          saveWorking();
+          renderTasks();
+        }
+      });
+    });
+
+    tc.querySelectorAll(".task-edit-cat, .task-edit-pts").forEach(sel=>{
+      sel.addEventListener("change",()=>{
+        saveWorking();
+      });
+    });
   }
+
+  function saveWorking(){
+    const allTasks = getActiveTasks();
+    const newDefaults = [];
+    const newCustoms = [];
+    allTasks.forEach((t,i)=>{
+      if(workingDeleteIds.has(i)) return;
+      const isCustom = data.customTasks && data.customTasks.some(ct=>ct.id===t.id);
+      const cat = ov.querySelector(`.task-edit-cat[data-idx="${i}"]`);
+      const pts = ov.querySelector(`.task-edit-pts[data-idx="${i}"]`);
+      const newCat = cat ? cat.value : t.cat;
+      const newPts = pts ? parseInt(pts.value) : t.pts;
+      if(isCustom){
+        newCustoms.push({id:t.id, title:t.title, cat:newCat, pts:newPts});
+      } else {
+        newDefaults.push({id:t.id, title:t.title, cat:newCat, pts:newPts});
+      }
+    });
+    // Update TASKS in-place (it's const array but elements are mutable)
+    TASKS.length = 0;
+    newDefaults.forEach(t => TASKS.push(t));
+    data.customTasks = newCustoms;
+    saveData();
+  }
+
   renderTasks();
 
   ov.querySelector("#addTaskBtn").addEventListener("click",()=>{
-    const title=ov.querySelector("#newTaskTitle").value.trim();
-    const cat=ov.querySelector("#newTaskCat").value;
-    const pts=parseInt(ov.querySelector("#newTaskPts").value);
+    const title = ov.querySelector("#newTaskTitle").value.trim();
+    const cat = ov.querySelector("#newTaskCat").value;
+    const pts = parseInt(ov.querySelector("#newTaskPts").value);
     if(!title){toast("请输入任务名称");return;}
-    if(!data.customTasks)data.customTasks=[];
-    data.customTasks.push({id:genTaskId(),title,pts,cat});
-    saveData();renderTasks();
-    ov.querySelector("#newTaskTitle").value="";
-    toast("任务已添加 ✅");
+    const doAdd = ()=>{
+      if(!data.customTasks) data.customTasks=[];
+      data.customTasks.push({id:genTaskId(), title, pts, cat});
+      saveData(); renderTasks();
+      ov.querySelector("#newTaskTitle").value="";
+      toast("任务已添加 ✅");
+    };
+    if(data.parentPasswordHash){
+      showPasswordModal("新增任务需要家长密码验证", doAdd);
+    } else {
+      doAdd();
+    }
   });
-  ov.querySelector("#newTaskTitle").addEventListener("keydown",e=>{if(e.key==="Enter")ov.querySelector("#addTaskBtn").click();});
+  ov.querySelector("#newTaskTitle").addEventListener("keydown",e=>{if(e.key==="Enter") ov.querySelector("#addTaskBtn").click();});
 
-  ov.querySelector("#taskModalSave").addEventListener("click",()=>{ov.remove();renderTasks();renderMap();});
+  ov.querySelector("#taskModalSave").addEventListener("click",()=>{
+    ov.remove();
+    renderAll();
+  });
   ov.querySelector("#taskModalCancel").addEventListener("click",()=>ov.remove());
-  ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
+  ov.addEventListener("click",e=>{if(e.target===ov) ov.remove();});
 }
 
 /* 档案子Tab切换（2个：复盘/作品） */
@@ -1863,6 +2025,17 @@ document.querySelectorAll("#archiveSubTabs button").forEach(b=>b.addEventListene
 }));
 
 /* Init */
+/* Load active child data on init */
+if(data.activeChildId && data.activeChildId!=='default'){
+  try{
+    const childKey = "summerGrowthBankV2_child_"+data.activeChildId;
+    const saved = localStorage.getItem(childKey);
+    if(saved){
+      const parsed = JSON.parse(saved);
+      data = {...freshState(), ...parsed};
+    }
+  }catch(e){}
+}
 applyTheme();
 renderAll();
 
