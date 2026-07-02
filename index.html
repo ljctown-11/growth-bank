@@ -782,9 +782,9 @@ let selDate = TODAY_STR;
 let workFile = null;
 let activeMainTab = "calendar";
 
-function freshState(){return {daily:{},redemptions:[],childName:"",childGender:"girl",theme:"sakura",customRewards:{},reviews:[],selectedDate:TODAY_STR,makeupUsed:{},parentPasswordHash:"",customTasks:null,makeupVerifiedDates:{},reports:{},reminersSent:{}};}
+function freshState(){return {daily:{},redemptions:[],childName:"",childGender:"girl",theme:"sakura",customRewards:{},reviews:[],selectedDate:TODAY_STR,makeupUsed:{},parentPasswordHash:"",customTasks:null,makeupVerifiedDates:{},reports:{},reminersSent:{},children:[],activeChildId:null};}
 function loadData(){
-  try{const s=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");return {...freshState(),...s,daily:s.daily||{},redemptions:s.redemptions||[],customRewards:s.customRewards||{},reviews:s.reviews||[],makeupUsed:s.makeupUsed||{},parentPasswordHash:s.parentPasswordHash||"",customTasks:s.customTasks||null,makeupVerifiedDates:s.makeupVerifiedDates||{},reports:s.reports||{},reminersSent:s.reminersSent||{}};}
+  try{const s=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");return {...freshState(),...s,daily:s.daily||{},redemptions:s.redemptions||[],customRewards:s.customRewards||{},reviews:s.reviews||[],makeupUsed:s.makeupUsed||{},parentPasswordHash:s.parentPasswordHash||"",customTasks:s.customTasks||null,makeupVerifiedDates:s.makeupVerifiedDates||{},reports:s.reports||{},reminersSent:s.reminersSent||{},children:s.children||[],activeChildId:s.activeChildId||null};}
   catch(e){return freshState();}
 }
 function saveData(){try{localStorage.setItem("summerGrowthBankV2",JSON.stringify(data));}catch(e){toast("存储空间不足，请清理旧数据");}}
