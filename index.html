@@ -1633,6 +1633,15 @@ document.getElementById("babyName").addEventListener("click",()=>{
     data.childGender=gender;
     data.theme=theme;
     saveData();
+    // Sync to children array in main localStorage
+    try{
+      const m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
+      if(m.children&&data.activeChildId&&data.activeChildId!=='default'){
+        const idx=m.children.findIndex(c=>c.id===data.activeChildId);
+        if(idx>=0){m.children[idx].name=name;m.children[idx].gender=gender;m.children[idx].theme=theme;}
+        localStorage.setItem("summerGrowthBankV2",JSON.stringify(m));
+      }
+    }catch(e){}
     applyTheme();
     renderBabyName();
     toast(`已更新为：${gender==="boy"?"👦":"👧"} ${name}宝贝`);
@@ -1830,11 +1839,15 @@ if(data.activeChildId && data.activeChildId!=='default'){
   }catch(e){}
 }
 
-/* 家长中心 — 数据备份、任务管理、多孩子切换 */
+/* 家长中心 — 数据备份、任务管理、多孩子切换、密码设置 */
 function openParentCenter(){
   const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="1000";
+  const hasPwd=data.parentPasswordHash?"已设置":"未设置";
   ov.innerHTML=`<div class="modal-box" style="max-width:420px;max-height:85vh;overflow:auto"><h3>👨‍💼 家长中心</h3>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+      <button class="pc-btn" data-pc="password" style="padding:14px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,rgba(255,243,224,.6),rgba(255,224,178,.4));cursor:pointer;text-align:left;font-size:14px;font-weight:800;color:var(--ink);transition:.15s;border:1.5px solid rgba(255,152,0,.3)">
+        <span style="font-size:18px">🔒</span> 家长密码 <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:4px">— ${hasPwd}</span>
+      </button>
       <button class="pc-btn" data-pc="backup" style="padding:14px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,rgba(227,242,253,.5),rgba(232,245,233,.4));cursor:pointer;text-align:left;font-size:14px;font-weight:800;color:var(--ink);transition:.15s;border:1.5px solid rgba(41,182,246,.2)">
         <span style="font-size:18px">💾</span> 数据备份与恢复 <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:4px">— 导出/导入</span>
       </button>
@@ -1849,6 +1862,7 @@ function openParentCenter(){
   </div>`;
   document.body.appendChild(ov);
 
+  ov.querySelector("[data-pc='password']").addEventListener("click", ()=>{ ov.remove(); openPasswordModal(); });
   ov.querySelector("[data-pc='backup']").addEventListener("click", ()=>{ ov.remove(); openBackupModal(); });
   ov.querySelector("[data-pc='tasks']").addEventListener("click", ()=>{ ov.remove(); openTaskManager(); });
   ov.querySelector("[data-pc='children']").addEventListener("click", ()=>{ ov.remove(); openChildrenModal(); });
@@ -1856,6 +1870,48 @@ function openParentCenter(){
   ov.addEventListener("click", e=>{ if(e.target===ov) ov.remove(); });
 }
 document.getElementById("parentCenterBtn").addEventListener("click", openParentCenter);
+
+/* 密码设置弹窗 */
+function openPasswordModal(){
+  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="1000";
+  const hasPwd=!!data.parentPasswordHash;
+  ov.innerHTML=`<div class="modal-box" style="max-width:380px"><h3>🔒 家长密码</h3>
+    <p style="color:var(--muted);font-size:12px;margin-bottom:14px">${hasPwd?"已设置家长密码。输入新密码可修改，留空点清除可取消密码。":"设置4-6位数字密码，保护敏感操作。"}</p>
+    <div style="margin-bottom:14px">
+      <label style="display:block;margin-bottom:6px;font-weight:800;font-size:13px">${hasPwd?"新密码（留空不变）":"设置密码"}</label>
+      <input id="pcPwdInput" type="password" placeholder="4-6位数字" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="width:100%;min-height:38px;padding:8px 12px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:15px;box-sizing:border-box;outline:none">
+    </div>
+    <div class="modal-actions">
+      ${hasPwd?'<button class="btn-ghost" id="pcPwdClear" style="color:var(--red)">清除密码</button>':''}
+      <button class="btn-ghost" id="pcPwdCancel">取消</button>
+      <button class="btn-primary" id="pcPwdSave">保存</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector("#pcPwdCancel").addEventListener("click",()=>ov.remove());
+  ov.querySelector("#pcPwdSave").addEventListener("click",async()=>{
+    const pwd=ov.querySelector("#pcPwdInput").value.trim();
+    if(!pwd){
+      if(hasPwd){toast("如需清除密码请点\"清除密码\"");return;}
+      toast("请输入密码");return;
+    }
+    if(!/^\d{4,6}$/.test(pwd)){toast("密码需4-6位数字");return;}
+    const h=await hashPassword(pwd);
+    if(!h){toast("密码格式错误");return;}
+    data.parentPasswordHash=h;
+    saveData();
+    toast("家长密码已设置 🔒");
+    ov.remove();
+  });
+  if(hasPwd){
+    ov.querySelector("#pcPwdClear").addEventListener("click",()=>{
+      data.parentPasswordHash="";
+      saveData();
+      toast("家长密码已清除");
+      ov.remove();
+    });
+  }
+  ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
+}
 
 /* 备份弹窗 */
 function openBackupModal(){
