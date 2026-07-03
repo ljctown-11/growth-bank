@@ -537,6 +537,7 @@ body[data-theme="starry"] {
 @keyframes splashFadeOut{to{opacity:0;visibility:hidden}}
 .app{animation:appFallbackIn .5s ease 6s forwards}
 @keyframes appFallbackIn{to{opacity:1}}
+@keyframes fadeInOut{0%{opacity:0;transform:translate(-50%,-50%) scale(.9)}10%{opacity:1;transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}
 </style>
 </head>
 <body>
@@ -791,21 +792,53 @@ let selDate = TODAY_STR;
 let workFile = null;
 let activeMainTab = "calendar";
 
-function freshState(){return {daily:{},redemptions:[],childName:"",childGender:"girl",theme:"sakura",customRewards:{},reviews:[],selectedDate:TODAY_STR,makeupUsed:{},parentPasswordHash:"",customTasks:null,makeupVerifiedDates:{},reports:{},reminersSent:{},children:[],activeChildId:null,modifiedDefaultTasks:null};}
+function freshState(){return {daily:{},redemptions:[],childName:"",childGender:"girl",theme:"sakura",customRewards:{},reviews:[],selectedDate:TODAY_STR,makeupUsed:{},parentPasswordHash:"",customTasks:null,makeupVerifiedDates:{},reports:{},reminersSent:{},children:[],activeChildId:null,modifiedDefaultTasks:null,dataVersion:1};}
 function loadData(){
-  try{const s=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");return {...freshState(),...s,daily:s.daily||{},redemptions:s.redemptions||[],customRewards:s.customRewards||{},reviews:s.reviews||[],makeupUsed:s.makeupUsed||{},parentPasswordHash:s.parentPasswordHash||"",customTasks:s.customTasks||null,makeupVerifiedDates:s.makeupVerifiedDates||{},reports:s.reports||{},reminersSent:s.reminersSent||{},children:s.children||[],activeChildId:s.activeChildId||null,modifiedDefaultTasks:s.modifiedDefaultTasks||null};}
-  catch(e){return freshState();}
+  try{
+    // Try multiple localStorage keys for backward compatibility
+    let raw = localStorage.getItem("summerGrowthBankV2") || localStorage.getItem("summerGrowthBankV1") || localStorage.getItem("summerGrowthBank") || "{}";
+    const s = JSON.parse(raw);
+    return {
+      ...freshState(),
+      ...s,
+      daily: s.daily || {},
+      redemptions: s.redemptions || [],
+      customRewards: s.customRewards || {},
+      reviews: s.reviews || [],
+      makeupUsed: s.makeupUsed || {},
+      parentPasswordHash: s.parentPasswordHash || "",
+      customTasks: s.customTasks || null,
+      makeupVerifiedDates: s.makeupVerifiedDates || {},
+      reports: s.reports || {},
+      reminersSent: s.reminersSent || {},
+      children: s.children || [],
+      activeChildId: s.activeChildId || null,
+      modifiedDefaultTasks: s.modifiedDefaultTasks || null,
+      dataVersion: s.dataVersion || 1
+    };
+  }catch(e){
+    // JSON parse failed: try to recover by trying different keys
+    try{
+      let raw = localStorage.getItem("summerGrowthBankV1") || localStorage.getItem("summerGrowthBank") || "{}";
+      const s = JSON.parse(raw);
+      return { ...freshState(), ...s, dataVersion: 1 };
+    }catch(e2){
+      return freshState();
+    }
+  }
 }
 function saveData(){
   try{
     if(data.activeChildId && data.activeChildId!=='default'){
-      // Child mode: save to child key only, preserve main key's children array
+      // Child mode: save to child key only
       localStorage.setItem("summerGrowthBankV2_child_"+data.activeChildId,JSON.stringify(data));
-      // Update main key's children array without overwriting other data
+      // Sync parentPasswordHash and activeChildId to main key
       try{
         const m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
-        if(data.children)m.children=data.children;
-        if(data.activeChildId!==null)m.activeChildId=data.activeChildId;
+        if(data.parentPasswordHash !== undefined){
+          m.parentPasswordHash = data.parentPasswordHash;
+        }
+        m.activeChildId = data.activeChildId;
         localStorage.setItem("summerGrowthBankV2",JSON.stringify(m));
       }catch(e){}
     }else{
@@ -860,9 +893,14 @@ async function hashPassword(pwd){
   return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
 async function verifyPassword(pwd){
-  if(!data.parentPasswordHash)return true; // 未设密码，免密通过
+  // Check both current data and main localStorage (in case in child mode)
+  let pwdHash = data.parentPasswordHash || "";
+  if(!pwdHash){
+    try{const m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");pwdHash=m.parentPasswordHash||"";}catch(e){}
+  }
+  if(!pwdHash)return true; // 未设密码，免密通过
   const h=await hashPassword(pwd);
-  return h===data.parentPasswordHash;
+  return h===pwdHash;
 }
 function showPasswordModal(promptText,cb){
   const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="2000";
@@ -914,7 +952,7 @@ function showPasswordModal(promptText,cb){
       if(ov.parentNode)ov.remove();
       try{cb&&cb();}catch(e){toast("操作失败，请重试");}
     }else{
-      if(ov.parentNode){toast("密码错误，请重试 🚫");pin="";renderDigits();}
+      if(ov.parentNode){showPasswordError("密码错误，请重试");pin="";renderDigits();}
     }
   }).catch(()=>{
     if(ov.parentNode){ov.querySelectorAll(".pin-key").forEach(b=>{try{b.disabled=false;}catch(e){}});try{ov.querySelector(".pin-del").disabled=false;}catch(e){}}
@@ -998,7 +1036,7 @@ function renderCalendar(){
     const ds=c.dataset.date;
     if(isFuture(ds)){toast("还不能打卡未来日期哦");return;}
     if(isPastLocked(ds)){const mc=getMakeupCost(ds);toast(mc.reason==="非当月"?"只能补当月的打卡哦":mc.reason==="本月补卡次数已用完"?"本月补卡次数已用完，下月重置":"该日期不可补卡");return;}
-    selDate=ds;selCat="全部";switchMainTab("checkin");renderAll();
+    selDate=ds;switchMainTab("checkin");renderAll();
   }));
   document.getElementById("calPrev").disabled=calMonth<=7;
   document.getElementById("calNext").disabled=calMonth>=8;
@@ -1073,7 +1111,7 @@ function renderTasks(){
 
 function renderCatTabs(){
   const tabs=document.getElementById("catTabs");
-  const names=["全部",...getActiveCategories()];
+  const names=[...getActiveCategories(),"全部"];
   tabs.innerHTML=names.map(n=>`<button class="${selCat===n?'active':''}" data-cat="${n}">${n}</button>`).join("");
   tabs.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{selCat=b.dataset.cat;renderTasks();renderMap();}));
 }
@@ -1083,24 +1121,24 @@ function toggleTask(tid,checked,event){
   const t=getActiveTasks().find(x=>x.id===tid);if(!t)return;
   const day=getDay(selDate);
   // 补卡时第一次勾选任务，扣分并记录
+  // 用 makeupVerifiedDates 标记已扣过分的日期，避免取消打卡后重新打卡再次扣费
   if(checked&&!day.tasks[tid]){
     if(!isToday(selDate)){
-      const mc=getMakeupCost(selDate);
-      if(mc.allowed&&mc.cost>0){
-        // 检查是否是当天第一次补卡打卡
-        const hasAnyDone=Object.values(day.tasks).some(tk=>tk&&tk.done);
-        if(!hasAnyDone){
-          // 记录补卡使用
+      // 如果这一天已经扣过费（免费或付费），不再重复扣费
+      if(data.makeupVerifiedDates && data.makeupVerifiedDates[selDate]){
+        // 已验证过的日期，直接跳过扣费逻辑，只记录补卡次数（如果还没记录的话）
+      } else {
+        const mc=getMakeupCost(selDate);
+        if(mc.allowed){
           const mk=getMonthKey(selDate);
           data.makeupUsed[mk]=(data.makeupUsed[mk]||0)+1;
-          // 扣分记录
-          data.redemptions.unshift({date:new Date().toLocaleDateString("zh-CN"),reward:"补卡扣分("+mc.reason+")",level:"补卡",cost:mc.cost});
-        }
-      }else if(mc.allowed&&mc.cost===0){
-        const hasAnyDone=Object.values(day.tasks).some(tk=>tk&&tk.done);
-        if(!hasAnyDone){
-          const mk=getMonthKey(selDate);
-          data.makeupUsed[mk]=(data.makeupUsed[mk]||0)+1;
+          if(mc.cost>0){
+            // 扣分
+            data.redemptions.unshift({date:new Date().toLocaleDateString("zh-CN"),reward:"补卡扣分("+mc.reason+")",level:"补卡",cost:mc.cost});
+          }
+          // 标记该日期已验证（已扣费或免费补卡）
+          if(!data.makeupVerifiedDates)data.makeupVerifiedDates={};
+          data.makeupVerifiedDates[selDate]=true;
         }
       }
     }
@@ -1527,7 +1565,14 @@ function clearDailyReminderFlag(){
   }
 }
 
-/* 媒体查看器 */
+/* 密码错误居中提示 */
+function showPasswordError(msg){
+  const el=document.createElement("div");
+  el.style.cssText="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;padding:16px 32px;border-radius:12px;background:rgba(239,83,80,.95);color:#fff;font-size:18px;font-weight:900;letter-spacing:1px;text-align:center;box-shadow:0 8px 32px rgba(239,83,80,.4);animation:fadeInOut 2s forwards";
+  el.textContent=msg;
+  document.body.appendChild(el);
+  setTimeout(()=>{if(el.parentNode)el.remove();},2000);
+}
 function openMediaViewer(artId,kind,title,dateDisplay,taskTitle){
   getMedia(artId).then(url=>{
     if(!url){toast("作品加载失败");return;}
@@ -1601,15 +1646,33 @@ document.getElementById("babyName").addEventListener("click",function(){
     data.childGender=gender;
     data.theme=theme;
     saveData();
-    // Sync to children array in main localStorage
+    // Sync to children array in main localStorage (always, even for default mode)
     try{
       var m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
-      if(m.children&&data.activeChildId&&data.activeChildId!=="default"){
+      if(!m.children)m.children=[];
+      // If current child is in children list, update it
+      if(data.activeChildId && data.activeChildId!=="default"){
         var idx=-1;
         for(var i=0;i<m.children.length;i++){if(m.children[i].id===data.activeChildId){idx=i;break;}}
-        if(idx>=0){m.children[idx].name=name;m.children[idx].gender=gender;m.children[idx].theme=theme;}
-        localStorage.setItem("summerGrowthBankV2",JSON.stringify(m));
+        if(idx>=0){
+          m.children[idx].name=name;m.children[idx].gender=gender;m.children[idx].theme=theme;
+          m.activeChildId=data.activeChildId;
+        }
+      } else {
+        // Default mode: sync to children list
+        // If a child already exists in the list, update the first one
+        if(m.children.length>0){
+          m.children[0].name=name;m.children[0].gender=gender;m.children[0].theme=theme;
+          m.activeChildId=m.children[0].id;
+          data.activeChildId=m.children[0].id;
+        } else {
+          // No children yet — create a new child entry
+          m.children.push({id:"child_"+Date.now(),name:name,gender:gender,theme:theme});
+          m.activeChildId=m.children[0].id;
+          data.activeChildId=m.children[0].id;
+        }
       }
+      localStorage.setItem("summerGrowthBankV2",JSON.stringify(m));
     }catch(e){}
     applyTheme();
     renderBabyName();
@@ -1628,7 +1691,7 @@ function switchMainTab(tab){
   document.querySelectorAll("#mainTabNav button").forEach(b=>b.classList.toggle("active",b.dataset.maintab===tab));
   document.querySelectorAll(".main-tab-content").forEach(x=>x.style.display=x.id==="mtab-"+tab?"block":"none");
   if(tab==="archive")renderArchive();
-  if(tab==="checkin")renderCheckinDateLabel();
+  if(tab==="checkin"){selCat="学习力";renderCheckinDateLabel();}
 }
 document.querySelectorAll("#mainTabNav button").forEach(b=>b.addEventListener("click",()=>switchMainTab(b.dataset.maintab)));
 
@@ -1804,8 +1867,19 @@ if(data.activeChildId && data.activeChildId!=='default'){
     if(saved){
       const parsed = JSON.parse(saved);
       data = {...freshState(), ...parsed};
+    } else {
+      // Child key doesn't exist (upgrade from old version) — fallback to main data
+      // Reload from main key and clear activeChildId
+      const mainData = loadData();
+      mainData.activeChildId = null;
+      data = mainData;
     }
-  }catch(e){}
+  }catch(e){
+    // JSON parse failed — fallback to main data, clear activeChildId
+    const mainData = loadData();
+    mainData.activeChildId = null;
+    data = mainData;
+  }
 }
 
 /* 家长中心 — 数据备份、任务管理、多孩子切换、密码设置 */
@@ -1824,7 +1898,7 @@ function openParentCenter(){
         <span style="font-size:18px">📋</span> 任务管理 <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:4px">— ${(data.customTasks||[]).length}个自定义</span>
       </button>
       <button class="pc-btn" data-pc="children" style="padding:14px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,rgba(232,245,233,.5),rgba(227,242,253,.3));cursor:pointer;text-align:left;font-size:14px;font-weight:800;color:var(--ink);transition:.15s;border:1.5px solid rgba(102,187,106,.3)">
-        <span style="font-size:18px">👨‍👩‍👧</span> 多孩子切换 <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:4px">— ${(data.children||[]).length}个孩子</span>
+        <span style="font-size:18px">👨‍👩‍👧</span> 好多宝宝切换 <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:4px">— ${(data.children||[]).length}个宝宝</span>
       </button>
     </div>
     <div style="margin-top:14px;text-align:center"><button class="btn-ghost" id="pcClose" style="min-height:36px;padding:8px 24px">关闭</button></div>
@@ -1843,12 +1917,13 @@ document.getElementById("parentCenterBtn").addEventListener("click", openParentC
 /* 密码设置弹窗 */
 function openPasswordModal(){
   const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="1000";
-  const hasPwd=!!data.parentPasswordHash;
+  const hasPwd=(()=>{try{let h=data.parentPasswordHash||"";if(!h){const m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");h=m.parentPasswordHash||"";}return !!h;}catch(e){return false;}})();
   ov.innerHTML=`<div class="modal-box" style="max-width:380px"><h3>🔒 家长密码</h3>
-    <p style="color:var(--muted);font-size:12px;margin-bottom:14px">${hasPwd?"已设置家长密码。输入新密码可修改，留空点清除可取消密码。":"设置4-6位数字密码，保护敏感操作。"}</p>
+    <p style="color:var(--muted);font-size:12px;margin-bottom:14px">${hasPwd?"已设置家长密码。修改或清除需验证旧密码。":"设置4-6位数字密码，保护敏感操作。"}</p>
+    ${hasPwd?'<div style="margin-bottom:14px"><label style="display:block;margin-bottom:6px;font-weight:800;font-size:13px">旧密码（验证）</label><input id="pcPwdOld" type="password" placeholder="4-6位数字" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="width:100%;min-height:38px;padding:8px 12px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:15px;box-sizing:border-box;outline:none"></div>':''}
     <div style="margin-bottom:14px">
       <label style="display:block;margin-bottom:6px;font-weight:800;font-size:13px">${hasPwd?"新密码（留空不变）":"设置密码"}</label>
-      <input id="pcPwdInput" type="password" placeholder="4-6位数字" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="width:100%;min-height:38px;padding:8px 12px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:15px;box-sizing:border-box;outline:none">
+      <input id="pcPwdNew" type="password" placeholder="4-6位数字" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="width:100%;min-height:38px;padding:8px 12px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:15px;box-sizing:border-box;outline:none">
     </div>
     <div class="modal-actions">
       ${hasPwd?'<button class="btn-ghost" id="pcPwdClear" style="color:var(--red)">清除密码</button>':''}
@@ -1858,21 +1933,37 @@ function openPasswordModal(){
   document.body.appendChild(ov);
   ov.querySelector("#pcPwdCancel").addEventListener("click",()=>ov.remove());
   ov.querySelector("#pcPwdSave").addEventListener("click",async()=>{
-    const pwd=ov.querySelector("#pcPwdInput").value.trim();
-    if(!pwd){
-      if(hasPwd){toast("如需清除密码请点\"清除密码\"");return;}
-      toast("请输入密码");return;
+    const pwdNew=ov.querySelector("#pcPwdNew").value.trim();
+    // If has pwd and new pwd is provided, verify old pwd first
+    if(hasPwd){
+      const pwdOld=ov.querySelector("#pcPwdOld").value.trim();
+      if(!pwdOld){toast("请先验证旧密码");return;}
+      if(!/^\d{4,6}$/.test(pwdOld)){toast("旧密码需4-6位数字");return;}
+      const ok = await verifyPassword(pwdOld);
+      if(!ok){showPasswordError("旧密码错误");return;}
     }
-    if(!/^\d{4,6}$/.test(pwd)){toast("密码需4-6位数字");return;}
-    const h=await hashPassword(pwd);
-    if(!h){toast("密码格式错误");return;}
-    data.parentPasswordHash=h;
-    saveData();
-    toast("家长密码已设置 🔒");
-    ov.remove();
+    // Save new pwd
+    if(pwdNew){
+      if(!/^\d{4,6}$/.test(pwdNew)){toast("密码需4-6位数字");return;}
+      const h=await hashPassword(pwdNew);
+      if(!h){toast("密码格式错误");return;}
+      data.parentPasswordHash=h;
+      saveData();
+      toast("家长密码已修改 🔒");
+      ov.remove();
+    } else {
+      toast("新密码留空，密码未修改");
+      ov.remove();
+    }
   });
+  // Clear password button — verify old pwd first
   if(hasPwd){
-    ov.querySelector("#pcPwdClear").addEventListener("click",()=>{
+    ov.querySelector("#pcPwdClear").addEventListener("click",async()=>{
+      const pwdOld=ov.querySelector("#pcPwdOld").value.trim();
+      if(!pwdOld){toast("请先验证旧密码");return;}
+      if(!/^\d{4,6}$/.test(pwdOld)){toast("旧密码需4-6位数字");return;}
+      const ok = await verifyPassword(pwdOld);
+      if(!ok){showPasswordError("旧密码错误");return;}
       data.parentPasswordHash="";
       saveData();
       toast("家长密码已清除");
@@ -1894,21 +1985,57 @@ function openBackupModal(){
     <button class="btn-ghost" id="pcBackupClose" style="min-height:36px;padding:8px 24px">关闭</button></div>`;
   document.body.appendChild(ov);
   ov.querySelector("#pcExportBtn").addEventListener("click", ()=>{
-    const exportData={version:2,exportedAt:new Date().toISOString(),data:data};
+    // 读取主账号的 children 和 parentPasswordHash
+    const mainData = (()=>{ try{return JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");}catch(e){return {};}})();
+    const exportData={
+      version:3,
+      exportedAt:new Date().toISOString(),
+      data:data,
+      main:{
+        children: mainData.children || [],
+        parentPasswordHash: mainData.parentPasswordHash || ""
+      }
+    };
+    // 如果当前是 child 模式，也把 child key 一起导出来
+    if(data.activeChildId && data.activeChildId!=='default'){
+      const childRaw = localStorage.getItem("summerGrowthBankV2_child_"+data.activeChildId);
+      if(childRaw) exportData.childData = JSON.parse(childRaw);
+    }
     const blob=new Blob([JSON.stringify(exportData,null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`成长银行备份_${new Date().toISOString().slice(0,10)}.json`;a.click();
     URL.revokeObjectURL(url);toast("备份已下载 📦");
   });
-  ov.querySelector("#pcImportBtn").addEventListener("click", ()=>{
+  ov.querySelector("#pcImportBtn").addEventListener("click", async()=>{
     const fi=document.createElement("input");fi.type="file";fi.accept=".json";
     fi.onchange=async()=>{
       const file=fi.files[0];if(!file)return;
       try{
         const text=await file.text();const parsed=JSON.parse(text);
+        // 验证密码
         if(data.parentPasswordHash){
-          await showPasswordModal("导入恢复会替换所有数据，请输入家长密码确认",()=>{});
+          const ok = await new Promise(resolve => {
+            showPasswordModal("导入恢复会替换所有数据，请输入家长密码确认", ()=>{ ov.remove(); resolve(true); });
+          });
+          if(!ok) return;
         }
-        localStorage.setItem("summerGrowthBankV2", JSON.stringify(parsed.data||parsed));
+        // 恢复主账号数据（children + parentPasswordHash）
+        const main = parsed.main || {};
+        localStorage.setItem("summerGrowthBankV2", JSON.stringify({
+          children: main.children || [],
+          parentPasswordHash: main.parentPasswordHash || "",
+          activeChildId: main.activeChildId || null
+        }));
+        // 恢复当前 child 数据
+        if(parsed.data){
+          localStorage.setItem("summerGrowthBankV2", JSON.stringify({
+            ...(JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}")),
+            ...parsed.data
+          }));
+        }
+        // 恢复 child 模式数据
+        if(parsed.childData){
+          localStorage.setItem("summerGrowthBankV2_child_"+(parsed.data&&parsed.data.activeChildId||data.activeChildId||'default'), JSON.stringify(parsed.childData));
+        }
         toast("数据已恢复，请刷新页面 🎉");
         ov.remove();
       }catch(e){toast("文件解析失败 🚫");}
@@ -1919,10 +2046,10 @@ function openBackupModal(){
   ov.addEventListener("click", e=>{ if(e.target===ov) ov.remove(); });
 }
 
-/* 多孩子管理弹窗 */
+/* 好多宝宝切换弹窗 */
 function openChildrenModal(){
   const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="1000";
-  ov.innerHTML=`<div class="modal-box"><h3>👨‍👩‍👧 多孩子切换</h3>
+  ov.innerHTML=`<div class="modal-box"><h3>👨‍👩‍👧 好多宝宝切换</h3>
     <p style="color:var(--muted);font-size:12px;margin-bottom:14px">添加孩子后，各自成长档案完全隔离。最多3个孩子。</p>
     <div id="pcChildrenList" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;min-height:30px"></div>
     <div style="display:flex;gap:8px;margin-bottom:14px">
@@ -1932,13 +2059,16 @@ function openChildrenModal(){
   document.body.appendChild(ov);
 
   // Read children from main localStorage (not current data, which might be a child's data)
-  const mainData = (()=>{ try{return JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");}catch(e){return {};}})();
-  const childrenList = mainData.children || [];
+  function getChildren(){
+    const m = JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
+    return m.children || [];
+  }
 
   function render(){
     const cl=ov.querySelector("#pcChildrenList");
+    const childrenList = getChildren();
     if(!childrenList||childrenList.length===0){
-      cl.innerHTML='<div style="color:var(--muted);font-size:11px;padding:4px">暂无其他孩子</div>';
+      cl.innerHTML='<div style="color:var(--muted);font-size:11px;padding:4px">暂无宝宝，先添加一个吧～</div>';
       ov.querySelector("#pcAddChildBtn").textContent="添加孩子";
       ov.querySelector("#pcAddChildBtn").disabled=false;
       return;
@@ -1948,13 +2078,34 @@ function openChildrenModal(){
     childrenList.forEach(c=>{
       const isActive=c.id===currentId;
       const emoji=c.gender==='boy'?'👦':'👧';
-      html+=`<button class="child-opt" data-cid="${c.id}" style="padding:6px 14px;border-radius:999px;font-size:12px;font-weight:800;border:2px solid ${isActive?'var(--leaf)':'rgba(0,0,0,.1)'};background:${isActive?'var(--mint)':'rgba(255,255,255,.7)'};cursor:pointer;color:${isActive?'var(--leaf-dark)':'var(--ink)'};transition:.15s">${emoji} ${esc(c.name)}${isActive?' ✓':''}</button>`;
+      html+=`<div class="child-card" data-cid="${c.id}" style="display:flex;align-items:center;gap:4px;padding:6px 14px 6px 6px;border-radius:999px;font-size:12px;font-weight:800;border:2px solid ${isActive?'var(--leaf)':'rgba(0,0,0,.1)'};background:${isActive?'var(--mint)':'rgba(255,255,255,.7)'};cursor:pointer;color:${isActive?'var(--leaf-dark)':'var(--ink)'};transition:.15s;user-select:none">
+        <button class="child-select" style="padding:6px 14px;border:none;background:transparent;cursor:pointer;font-size:12px;font-weight:800;color:inherit">${emoji} ${esc(c.name)}${isActive?' ✓':''}</button>
+        <button class="child-delete-btn" style="padding:4px 6px;border:none;background:rgba(239,83,80,.12);color:var(--red);font-size:14px;cursor:pointer;border-radius:6px;font-weight:900;line-height:1;flex-shrink:0" title="删除">${isActive?'⋯':'✕'}</button>
+      </div>`;
     });
     cl.innerHTML=html;
-    cl.querySelectorAll(".child-opt").forEach(b=>{
-      b.addEventListener("click",()=>{
+    // Click to switch
+    cl.querySelectorAll(".child-select").forEach(b=>{
+      b.addEventListener("click",(e)=>{
+        e.stopPropagation();
         ov.remove();
-        switchChildFromParentCenter(b.dataset.cid);
+        switchChildFromParentCenter(b.parentElement.dataset.cid);
+      });
+    });
+    // Click card background also switches
+    cl.querySelectorAll(".child-card").forEach(card=>{
+      card.addEventListener("click",(e)=>{
+        if(e.target.closest(".child-delete-btn"))return;
+        ov.remove();
+        switchChildFromParentCenter(card.dataset.cid);
+      });
+    });
+    // Delete buttons
+    cl.querySelectorAll(".child-delete-btn").forEach(btn=>{
+      btn.addEventListener("click",(e)=>{
+        e.stopPropagation();
+        const cid=btn.parentElement.dataset.cid;
+        deleteChild(cid, ov);
       });
     });
     ov.querySelector("#pcAddChildBtn").textContent=childrenList.length>=3?"已达上限":"+ 添加";
@@ -1977,27 +2128,26 @@ function openChildrenModal(){
     ov2.querySelector("#pcAddOk").addEventListener("click",()=>{
       const name=ov2.querySelector("#pcAddName").value.trim();
       if(!name){toast("请输入名字");return;}
+      // Check duplicate name
+      const existingChildren = (()=>{ try{return JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}").children||[];}catch(e){return [];}})();
+      if(existingChildren.some(c=>c.name===name)){toast("已有同名宝宝，换个名字吧");return;}
+      // Check password requirement
+      const hasPwd = (()=>{ try{let h=data.parentPasswordHash||"";if(!h){const m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");h=m.parentPasswordHash||"";}return !!h;}catch(e){return false;}})();
       const doAdd=()=>{
         const id="child_"+Date.now();
-        // Always read and update main localStorage for children
         try{
           const m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
           if(!m.children)m.children=[];
           m.children.push({id,name,gender:ov2.querySelector("#pcAddGender").value,theme:ov2.querySelector("#pcAddTheme").value});
           localStorage.setItem("summerGrowthBankV2",JSON.stringify(m));
-        }catch(e){}
-        // Also update current data
-        if(!data.children)data.children=[];
-        data.children.push({id,name,gender:ov2.querySelector("#pcAddGender").value,theme:ov2.querySelector("#pcAddTheme").value});
-        saveData();
-        // Re-read childrenList from main localStorage
-        Object.assign(mainData, (()=>{ try{return JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");}catch(e){return {};}})());
-        Object.assign(childrenList, mainData.children||[]);
-        render();
+        }catch(e){toast("保存失败");return;}
         toast(`${name}已添加 👶`);
         ov2.remove();
+        // Close and reopen modal to refresh list from fresh localStorage
+        ov.remove();
+        openChildrenModal();
       };
-      if(data.parentPasswordHash){showPasswordModal("添加孩子需要家长密码验证",doAdd);}else{doAdd();}
+      if(hasPwd){showPasswordModal("添加孩子需要家长密码验证",doAdd);}else{doAdd();}
     });
   });
   ov.querySelector("#pcChildrenClose").addEventListener("click",()=>ov.remove());
@@ -2008,11 +2158,11 @@ function openChildrenModal(){
 function switchChildFromParentCenter(id){
   // Always preserve children array from main localStorage
   let mainChildren=[];
-  try{const m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");mainChildren=m.children||[];}catch(e){}
-  
+  let mainPasswordHash="";
+  try{const m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");mainChildren=m.children||[];mainPasswordHash=m.parentPasswordHash||"";}catch(e){}
+
   if(id==='default'){
     try{const savedMain=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");data={...freshState(),...savedMain};}catch(e){data=loadData();}
-    // Restore main data to main localStorage
     data.activeChildId=null;
     localStorage.setItem("summerGrowthBankV2",JSON.stringify(data));
   }else{
@@ -2024,6 +2174,8 @@ function switchChildFromParentCenter(id){
       const child=mainChildren.find(c=>c.id===id);
       if(child){data=freshState();data.childName=child.name;data.childGender=child.gender||"girl";data.theme=child.theme||"sakura";}else{data=loadData();}
     }
+    // Sync parentPasswordHash from main localStorage
+    data.parentPasswordHash = mainPasswordHash;
     data.activeChildId=id;
     // Save child data to child-specific key, NOT to main key
     data.children=mainChildren; // keep children array reference for UI
@@ -2033,6 +2185,42 @@ function switchChildFromParentCenter(id){
   applyTheme();renderAll();
   clearDailyReminderFlag();requestNotificationPermission();scheduleDailyReminder();checkGrowthReportDay();
 }
+
+/* 删除孩子（需密码） */
+function deleteChild(cid, modalOverlay){
+  // Find child info
+  const childrenList = (()=>{ try{return (JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}").children||[]);}catch(e){return [];}})();
+  const child = childrenList.find(c=>c.id===cid);
+  if(!child){toast("未找到该孩子");return;}
+
+  showPasswordModal(`确定要删除「${esc(child.name)}」吗？删除后所有打卡记录将丢失，不可恢复。`, async()=>{
+    try{
+      // 1. 从 children 数组中移除
+      const m = JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
+      const idx = (m.children|| []).findIndex(c=>c.id===cid);
+      if(idx>=0) m.children.splice(idx, 1);
+      localStorage.setItem("summerGrowthBankV2", JSON.stringify(m));
+
+      // 2. 删除对应的 child key
+      const childKey = "summerGrowthBankV2_child_"+cid;
+      localStorage.removeItem(childKey);
+
+      // 3. 如果当前是这个被删除的孩子，切换回默认
+      if(data.activeChildId === cid){
+        data = loadData();
+        applyTheme(); renderAll();
+      } else {
+        // 4. 重新渲染当前弹窗（刷新 children 列表）
+        if(modalOverlay && modalOverlay.parentElement){
+          modalOverlay.remove();
+          openChildrenModal();
+        }
+      }
+      toast(`${child.name} 已删除`);
+    }catch(e){toast("删除失败");}
+  });
+}
+
 applyTheme();
 renderAll();
 
