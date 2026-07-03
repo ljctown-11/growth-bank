@@ -2238,10 +2238,18 @@ function deleteChild(cid, modalOverlay){
       const childKey = "summerGrowthBankV2_child_"+cid;
       localStorage.removeItem(childKey);
 
-      // 3. 如果当前是这个被删除的孩子，切换回默认
+      // 3. 如果当前是这个被删除的孩子，切换到下一个剩余宝宝
       if(data.activeChildId === cid){
-        data = loadData();
-        applyTheme(); renderAll();
+        // Find the first remaining child to switch to
+        const remaining = childrenList.filter(c=>c.id!==cid);
+        if(remaining.length>0){
+          // Use the first remaining child as current
+          switchChildFromParentCenter(remaining[0].id);
+        } else {
+          // Fallback: load main account if no children left
+          data = loadData();
+          applyTheme(); renderAll();
+        }
         if(modalOverlay && modalOverlay.parentElement){
           modalOverlay.remove();
           openChildrenModal();
