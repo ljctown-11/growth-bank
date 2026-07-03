@@ -902,14 +902,16 @@ async function verifyPassword(pwd){
   const h=await hashPassword(pwd);
   return h===pwdHash;
 }
-function showPasswordModal(promptText,cb){
-  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="2000";
-  ov.innerHTML=`<div class="modal-box"><h3>🔒 家长验证</h3><p style="color:var(--muted);font-size:14px;margin-bottom:18px">${promptText}</p>
-    <div style="display:flex;justify-content:center;gap:10px;margin-bottom:22px" id="pinDigits"></div>
-    <div class="pin-keypad" id="pinKeypad"></div>
-    <p style="color:var(--muted);font-size:12px;margin-top:16px">请输入4-6位数字家长密码</p>
-  </div>`;
-  document.body.appendChild(ov);
+async function showPasswordModal(promptText,cb){
+  if(!hasParentPassword()){showPasswordError("请先设置密码");return Promise.resolve(false);}
+  return new Promise((resolve)=>{
+    const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="2000";
+    ov.innerHTML=`<div class="modal-box"><h3>🔒 家长验证</h3><p style="color:var(--muted);font-size:14px;margin-bottom:18px">${promptText}</p>
+      <div style="display:flex;justify-content:center;gap:10px;margin-bottom:22px" id="pinDigits"></div>
+      <div class="pin-keypad" id="pinKeypad"></div>
+      <p style="color:var(--muted);font-size:12px;margin-top:16px">请输入4-6位数字家长密码</p>
+    </div>`;
+    document.body.appendChild(ov);
 
   const pinDigits=ov.querySelector("#pinDigits");
   const pinKeypad=ov.querySelector("#pinKeypad");
@@ -943,14 +945,15 @@ function showPasswordModal(promptText,cb){
       ov.querySelectorAll(".pin-key").forEach(b=>b.disabled=true);
       ov.querySelector(".pin-del").disabled=true;
   /* Fix #3: Ensure password modal always removes itself on success */
-  verifyPassword(pin).then(ok=>{
+  verifyPassword(pin).then(async ok=>{
     if(ov.parentNode){
       ov.querySelectorAll(".pin-key").forEach(b=>{try{b.disabled=false;}catch(e){}});
       try{ov.querySelector(".pin-del").disabled=false;}catch(e){}
     }
     if(ok){
       if(ov.parentNode)ov.remove();
-      try{cb&&cb();}catch(e){toast("操作失败，请重试");}
+      try{cb&&await cb();}catch(e){toast("操作失败，请重试");}
+      resolve(true);
     }else{
       if(ov.parentNode){showPasswordError("密码错误，请重试");pin="";renderDigits();}
     }
@@ -963,7 +966,7 @@ function showPasswordModal(promptText,cb){
     const key=e.target.closest(".pin-key");if(!key)return;
     handleKey(key.dataset.key);
   });
-  ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
+  ov.addEventListener("click",e=>{if(e.target===ov){ov.remove();resolve(false);}});
   // auto focus for mobile keyboard
   ov.addEventListener("keydown",e=>{
     if(/^[0-9]$/.test(e.key))handleKey(e.key);
@@ -972,6 +975,7 @@ function showPasswordModal(promptText,cb){
   // click modal to focus
   ov.addEventListener("click",()=>ov.focus());
   ov.focus();
+})
 }
 
 /* ======== EFFECTS ======== */
@@ -1005,6 +1009,15 @@ function speakEncourage(text){
 }
 if("speechSynthesis" in window){speechSynthesis.onvoiceschanged=()=>{_encVoice=pickVoice();};}
 function toast(txt){const t=document.getElementById("toast");t.textContent=txt;t.classList.add("show");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("show"),2200);}
+
+/* 检查是否设置了家长密码（检查 data + 主 localStorage） */
+function hasParentPassword(){
+  try{
+    if(data.parentPasswordHash) return true;
+    const m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
+    return !!m.parentPasswordHash;
+  }catch(e){return false;}
+}
 
 /* ======== RENDER ======== */
 function renderAll(){renderCalendar();renderDateLabel();renderCheckinDateLabel();renderMapDateLabel();renderTasks();renderMap();renderTrendChart();renderRewards();renderRedemptions();renderReviewTimeline();renderWorksDropdown();renderArchive();renderPoints();renderBabyName();}
@@ -1106,7 +1119,7 @@ function renderTasks(){
       <span class="pts"><span class="coin" style="width:20px;height:20px;font-size:10px">分</span>+${t.pts}</span>
     </label>`;
   }).join("");
-  g.querySelectorAll("input").forEach(inp=>inp.addEventListener("change",e=>toggleTask(e.target.dataset.tid,e.target.checked,e)));
+  g.querySelectorAll("input").forEach(inp=>inp.addEventListener("change",async e=>await toggleTask(e.target.dataset.tid,e.target.checked,e)));
 }
 
 function renderCatTabs(){
@@ -1116,13 +1129,16 @@ function renderCatTabs(){
   tabs.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{selCat=b.dataset.cat;renderTasks();renderMap();}));
 }
 
-function toggleTask(tid,checked,event){
-  if(!canCheckIn(selDate))return;
-  const t=getActiveTasks().find(x=>x.id===tid);if(!t)return;
+let _toggleLocked = false; // 防止补卡密码验证期间 checkbox 状态变化触发重复调用
+
+async function toggleTask(tid,checked,event){
+  if(_toggleLocked) return; // 锁住，防止补卡时 checkbox 反复变化触发重复逻辑
+  if(!canCheckIn(selDate)) return;
+  const t=getActiveTasks().find(x=>x.id===tid); if(!t) return;
   const day=getDay(selDate);
   // 补卡时第一次勾选任务，扣分并记录
   // 用 makeupVerifiedDates 标记已扣过分的日期，避免取消打卡后重新打卡再次扣费
-  if(checked&&!day.tasks[tid]){
+  if(checked && !day.tasks[tid]){
     if(!isToday(selDate)){
       // 如果这一天已经扣过费（免费或付费），不再重复扣费
       if(data.makeupVerifiedDates && data.makeupVerifiedDates[selDate]){
@@ -1133,7 +1149,22 @@ function toggleTask(tid,checked,event){
           const mk=getMonthKey(selDate);
           data.makeupUsed[mk]=(data.makeupUsed[mk]||0)+1;
           if(mc.cost>0){
-            // 扣分
+            // 补卡扣分：需要家长密码验证
+            _toggleLocked = true;
+            event.target.checked = false;
+            const ok = await showPasswordModal(`补卡需扣除 <b>${mc.cost}</b> 分（${mc.reason}），请输入家长密码确认`, ()=>{});
+            _toggleLocked = false;
+            if(!ok){
+              renderAll();
+              return;
+            }
+            // 验证通过，重新勾选
+            _toggleLocked = true;
+            event.target.checked = true;
+            _toggleLocked = false;
+          }
+          // 扣分
+          if(mc.cost>0){
             data.redemptions.unshift({date:new Date().toLocaleDateString("zh-CN"),reward:"补卡扣分("+mc.reason+")",level:"补卡",cost:mc.cost});
           }
           // 标记该日期已验证（已扣费或免费补卡）
@@ -1275,10 +1306,10 @@ function renderRewards(){
   }));
 
   // redeem button
-  g.querySelectorAll("[data-redeem]").forEach(b=>b.addEventListener("click",()=>redeemReward(Number(b.dataset.redeem))));
+  g.querySelectorAll("[data-redeem]").forEach(b=>b.addEventListener("click",async()=>await redeemReward(Number(b.dataset.redeem))));
 }
 
-function redeemReward(cost){
+async function redeemReward(cost){
   const total=calcTotalScore();
   if(total<cost){toast(`还差 ${cost-total} 分才能兑换这个奖励哦`);return;}
   // find selected item in this tier
@@ -1286,17 +1317,20 @@ function redeemReward(cost){
   if(!checked){toast("请先选择一项具体奖励再兑换哦 👆");return;}
   const itemName=checked.value;
   const reward=REWARDS.find(r=>r.cost===cost);
-  showConfirm(`确定用 <b>${cost}</b> 分兑换<br>「<b>${esc(itemName)}</b>」吗？<br><small style="color:#6c7d72">兑换后将从成长账户中扣除对应积分。</small>`,()=>{
-    data.redemptions.unshift({
-      date:new Date().toLocaleDateString("zh-CN"),
-      reward:itemName,
-      level:reward.title,
-      cost
-    });
-    saveData();
-    toast("🎉 奖励已兑换！请和孩子一起庆祝这份努力。");
-    renderAll();
+
+  // 兑换奖励需家长密码验证
+  const ok = await showPasswordModal(`确定用 <b>${cost}</b> 分兑换「<b>${esc(itemName)}</b>」吗？兑换后将从成长账户中扣除对应积分。`, ()=>{});
+  if(!ok) return;
+
+  data.redemptions.unshift({
+    date:new Date().toLocaleDateString("zh-CN"),
+    reward:itemName,
+    level:reward.title,
+    cost
   });
+  saveData();
+  toast("🎉 奖励已兑换！请和孩子一起庆祝这份努力。");
+  renderAll();
 }
 
 function showConfirm(msg,cb){
@@ -1395,13 +1429,10 @@ async function renderArchive(){
   c.querySelectorAll(".art-del-btn").forEach(b=>{
     b.addEventListener("click",async()=>{
       const artId=b.dataset.artid;
-      if(data.parentPasswordHash){
-        await showPasswordModal("删除作品需要家长密码验证",async()=>{
-          await deleteArtwork(artId,c);
-        });
-      }else{
+      // Always gate through showPasswordModal
+      await showPasswordModal("删除作品需要家长密码验证",async()=>{
         await deleteArtwork(artId,c);
-      }
+      });
     });
   });
   for(const a of all.slice(0,30)){if(a.hasMedia){const mc=c.querySelector(`.art-media-${a.id}`);getMedia(a.id).then(url=>{if(!url)return;let thumbHtml="";if(a.mediaKind==="image"){thumbHtml=`<div class="work-media-thumb" onclick="openMediaViewer('${a.id}','image','${esc(a.title)}','${a.dateDisplay}','${esc(a.taskTitle)}')"><img src="${url}" alt="${esc(a.title)}"></div>`;}
@@ -1771,15 +1802,10 @@ function openTaskManager(){
     tc.querySelectorAll(".task-del-btn").forEach(b=>{
       b.addEventListener("click",()=>{
         const idx = parseInt(b.dataset.idx);
-        if(data.parentPasswordHash){
-          showPasswordModal("删除任务需要家长密码验证",()=>{
-            workingDeleteIds.add(idx);
-            renderTasks();
-          });
-        } else {
+        showPasswordModal("删除任务需要家长密码验证",()=>{
           workingDeleteIds.add(idx);
           renderTasks();
-        }
+        });
       });
     });
 
@@ -1834,17 +1860,11 @@ function openTaskManager(){
   ov.querySelector("#newTaskTitle").addEventListener("keydown",e=>{if(e.key==="Enter") ov.querySelector("#addTaskBtn").click();});
 
   ov.querySelector("#taskModalSave").addEventListener("click",()=>{
-    if(data.parentPasswordHash){
-      showPasswordModal("保存任务修改需要家长密码验证",()=>{
-        saveWorking();
-        ov.remove();
-        renderAll();
-      });
-    } else {
+    showPasswordModal("保存任务修改需要家长密码验证",()=>{
       saveWorking();
       ov.remove();
       renderAll();
-    }
+    });
   });
   ov.querySelector("#taskModalCancel").addEventListener("click",()=>ov.remove());
   ov.addEventListener("click",e=>{if(e.target===ov) ov.remove();});
@@ -1917,7 +1937,7 @@ document.getElementById("parentCenterBtn").addEventListener("click", openParentC
 /* 密码设置弹窗 */
 function openPasswordModal(){
   const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="1000";
-  const hasPwd=(()=>{try{let h=data.parentPasswordHash||"";if(!h){const m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");h=m.parentPasswordHash||"";}return !!h;}catch(e){return false;}})();
+  const hasPwd=hasParentPassword();
   ov.innerHTML=`<div class="modal-box" style="max-width:380px"><h3>🔒 家长密码</h3>
     <p style="color:var(--muted);font-size:12px;margin-bottom:14px">${hasPwd?"已设置家长密码。修改或清除需验证旧密码。":"设置4-6位数字密码，保护敏感操作。"}</p>
     ${hasPwd?'<div style="margin-bottom:14px"><label style="display:block;margin-bottom:6px;font-weight:800;font-size:13px">旧密码（验证）</label><input id="pcPwdOld" type="password" placeholder="4-6位数字" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="width:100%;min-height:38px;padding:8px 12px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:15px;box-sizing:border-box;outline:none"></div>':''}
@@ -1984,7 +2004,11 @@ function openBackupModal(){
     </div>
     <button class="btn-ghost" id="pcBackupClose" style="min-height:36px;padding:8px 24px">关闭</button></div>`;
   document.body.appendChild(ov);
-  ov.querySelector("#pcExportBtn").addEventListener("click", ()=>{
+  ov.querySelector("#pcExportBtn").addEventListener("click", async()=>{
+    // 验证家长密码
+    // Always gate through showPasswordModal
+    const ok = await showPasswordModal("导出备份需要家长密码确认", ()=>{});
+    if(!ok) return;
     // 读取主账号的 children 和 parentPasswordHash
     const mainData = (()=>{ try{return JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");}catch(e){return {};}})();
     const exportData={
@@ -2012,12 +2036,9 @@ function openBackupModal(){
       try{
         const text=await file.text();const parsed=JSON.parse(text);
         // 验证密码
-        if(data.parentPasswordHash){
-          const ok = await new Promise(resolve => {
-            showPasswordModal("导入恢复会替换所有数据，请输入家长密码确认", ()=>{ ov.remove(); resolve(true); });
-          });
-          if(!ok) return;
-        }
+        // Always gate through showPasswordModal
+        const ok = await showPasswordModal("导入恢复会替换所有数据，请输入家长密码确认", ()=>{});
+        if(!ok) return;
         // 恢复主账号数据（children + parentPasswordHash）
         const main = parsed.main || {};
         localStorage.setItem("summerGrowthBankV2", JSON.stringify({
@@ -2132,7 +2153,7 @@ function openChildrenModal(){
       const existingChildren = (()=>{ try{return JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}").children||[];}catch(e){return [];}})();
       if(existingChildren.some(c=>c.name===name)){toast("已有同名宝宝，换个名字吧");return;}
       // Check password requirement
-      const hasPwd = (()=>{ try{let h=data.parentPasswordHash||"";if(!h){const m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");h=m.parentPasswordHash||"";}return !!h;}catch(e){return false;}})();
+      // Always gate through showPasswordModal (blocks when no password)
       const doAdd=()=>{
         const id="child_"+Date.now();
         try{
@@ -2147,7 +2168,8 @@ function openChildrenModal(){
         ov.remove();
         openChildrenModal();
       };
-      if(hasPwd){showPasswordModal("添加孩子需要家长密码验证",doAdd);}else{doAdd();}
+      // Always gate through showPasswordModal (blocks when no password)
+      showPasswordModal("添加孩子需要家长密码验证",doAdd);
     });
   });
   ov.querySelector("#pcChildrenClose").addEventListener("click",()=>ov.remove());
@@ -2190,6 +2212,8 @@ function switchChildFromParentCenter(id){
 function deleteChild(cid, modalOverlay){
   // Find child info
   const childrenList = (()=>{ try{return (JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}").children||[]);}catch(e){return [];}})();
+  // 至少保留一个宝宝
+  if(childrenList.length <= 1){toast("至少保留一个宝宝哦");return;}
   const child = childrenList.find(c=>c.id===cid);
   if(!child){toast("未找到该孩子");return;}
 
@@ -2209,10 +2233,17 @@ function deleteChild(cid, modalOverlay){
       if(data.activeChildId === cid){
         data = loadData();
         applyTheme(); renderAll();
-      } else {
-        // 4. 重新渲染当前弹窗（刷新 children 列表）
         if(modalOverlay && modalOverlay.parentElement){
           modalOverlay.remove();
+          openChildrenModal();
+        }
+      } else {
+        // 4. 刷新当前弹窗（删除该孩子的卡片并重新渲染列表）
+        if(modalOverlay && modalOverlay.parentElement){
+          modalOverlay.remove();
+          openChildrenModal();
+        } else {
+          // Fallback: if modal already closed, just reopen
           openChildrenModal();
         }
       }
@@ -2249,12 +2280,17 @@ checkGrowthReportDay();
   },3050);
 })();
 
+/* Auto-save on page unload to prevent data loss */
+window.addEventListener("beforeunload", ()=>{
+  try{ saveData(); }catch(e){}
+});
+
 /* PWA Register — unregister all old SWs to prevent stale cache */
 if("serviceWorker" in navigator){
   navigator.serviceWorker.getRegistrations().then(regs=>{
     regs.forEach(r=>r.unregister());
   });
-  navigator.serviceWorker.register("sw.js?v=9").catch(()=>{});
+  navigator.serviceWorker.register("sw.js?v=10").catch(()=>{});
 }
 </script>
 </body>
