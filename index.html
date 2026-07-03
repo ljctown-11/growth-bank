@@ -1377,7 +1377,10 @@ document.getElementById("saveReview").addEventListener("click",()=>{
 /* Works */
 function renderWorksDropdown(){
   const s=document.getElementById("workTask");
-  s.innerHTML='<option value="">-- 关联打卡任务 --</option>'+getActiveTasks().map(t=>`<option value="${t.id}">${t.title} (${t.cat})</option>`).join("");
+  const day=getDay(selDate);
+  const doneTaskIds = day.tasks ? Object.keys(day.tasks) : [];
+  const doneTasks = getActiveTasks().filter(t=>doneTaskIds.includes(t.id));
+  s.innerHTML='<option value="">-- 关联打卡任务 --</option>'+doneTasks.map(t=>`<option value="${t.id}">${t.title} (${t.cat})</option>`).join("");
 }
 
 document.getElementById("workMedia").addEventListener("change",e=>{
