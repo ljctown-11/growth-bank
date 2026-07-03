@@ -1,5 +1,5 @@
-const CACHE_NAME = 'summer-growth-bank-v16';
-const ASSETS = ['manifest.json', 'icon-512.png'];
+const CACHE_NAME = 'summer-growth-bank-v17';
+const ASSETS = ['manifest.json', 'icon-512.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', event => {
   self.skipWaiting();

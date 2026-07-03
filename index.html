@@ -8,8 +8,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="暑假成长积分银行">
 <meta name="theme-color" content="#ff7043">
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="manifest.json?v=2">
+<link rel="icon" href="icon-512.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-512.png">
+<link rel="apple-touch-icon-precomposed" href="icon-512.png">
 <style>
 :root {
   --ink: #2d1f0e;
@@ -2311,7 +2313,7 @@ if("serviceWorker" in navigator){
   navigator.serviceWorker.getRegistrations().then(regs=>{
     regs.forEach(r=>r.unregister());
   });
-  navigator.serviceWorker.register("sw.js?v=10").catch(()=>{});
+  navigator.serviceWorker.register("sw.js?v=11").catch(()=>{});
 }
 </script>
 </body>
