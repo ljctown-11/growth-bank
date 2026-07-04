@@ -1,4 +1,4 @@
-const CACHE_NAME = 'summer-growth-bank-v24';
+const CACHE_NAME = 'summer-growth-bank-v25';
 const ASSETS = ['manifest.json', 'icon-512.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', event => {

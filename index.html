@@ -1211,8 +1211,9 @@ async function toggleTask(tid,checked,event){
             _toggleLocked = true;
             event.target.checked = false;
             const ok = await showPasswordModal(`补卡需扣除 <b>${mc.cost}</b> 分（${mc.reason}），请输入家长密码确认`, ()=>{});
-            _toggleLocked = false;
+            // 不在这里解锁：保持锁住直到补卡完成或失败
             if(!ok){
+              _toggleLocked = false;  // 密码验证失败才解锁
               renderAll();
               return;
             }
@@ -1246,6 +1247,19 @@ async function toggleTask(tid,checked,event){
   }else if(!checked&&day.tasks[tid].done){
     day.tasks[tid].done=false;
     day.score=calcDayScore(selDate);
+    // 取消补卡打卡时，清理 redemptions 里该日期的补卡扣分
+    if(!isToday(selDate) && data.makeupVerifiedDates && data.makeupVerifiedDates[selDate]){
+      data.redemptions = data.redemptions.filter(r=>{
+        if(r.level==="补卡" && r.date && r.date.startsWith(selDate.slice(0,10))){
+          return false;
+        }
+        return true;
+      });
+      delete data.makeupVerifiedDates[selDate];
+      // 释放补卡次数（减少本月已用次数）
+      const mk=getMonthKey(selDate);
+      if(data.makeupUsed[mk]>0) data.makeupUsed[mk]--;
+    }
     saveData();
     toast("已取消打卡，可以重新调整");
   }
@@ -2223,6 +2237,7 @@ function openChildrenModal(){
     cl.querySelectorAll(".child-select").forEach(b=>{
       b.addEventListener("click",(e)=>{
         e.stopPropagation();
+        saveData();
         ov.remove();
         switchChildFromParentCenter(b.parentElement.dataset.cid);
       });
@@ -2231,6 +2246,7 @@ function openChildrenModal(){
     cl.querySelectorAll(".child-card").forEach(card=>{
       card.addEventListener("click",(e)=>{
         if(e.target.closest(".child-delete-btn"))return;
+        saveData();
         ov.remove();
         switchChildFromParentCenter(card.dataset.cid);
       });
@@ -2493,9 +2509,9 @@ if("serviceWorker" in navigator){
   navigator.serviceWorker.getRegistrations().then(regs=>{
     regs.forEach(r=>r.unregister());
   });
-  navigator.serviceWorker.register("sw.js?v=24").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=25").then(reg=>{
     // 从 sw.js 文件名中推断版本号
-    localSWVersion="summer-growth-bank-v24";
+    localSWVersion="summer-growth-bank-v25";
     if(reg.waiting) {
       navigator.serviceWorker.addEventListener('message', function handler(e){
         if(e.data && e.data.type==='UPDATE_AVAILABLE'){
