@@ -2006,7 +2006,7 @@ async function checkForUpdate(statusEl){
   if(!statusEl)return;
   statusEl.textContent="— 检查中…";
   try{
-    const r=await fetch("/sw.js?v="+Date.now(),{cache:"no-store"});
+    const r=await fetch("sw.js?v="+Date.now(),{cache:"no-store"});
     if(!r.ok)throw new Error("network");
     const text=await r.text();
     const m=text.match(/CACHE_NAME\s*=\s*['"]([^'"]+)['"]/);
@@ -2420,8 +2420,10 @@ window.addEventListener("beforeunload", ()=>{
 
 /* 自动检查更新 — 页面加载时静默检测，有更新时在家长中心按钮上显示红点 */
 async function autoCheckUpdate(){
+  // 等 SW 注册完成再检查，避免 localSWVersion 未赋值
+  await navigator.serviceWorker.ready.catch(()=>{});
   try{
-    const r=await fetch("/sw.js?v="+Date.now(),{cache:"no-store"});
+    const r=await fetch("sw.js?v="+Date.now(),{cache:"no-store"});
     if(!r.ok)throw new Error("network");
     const text=await r.text();
     const m=text.match(/CACHE_NAME\s*=\s*['"]([^'"]+)['"]/);
@@ -2491,9 +2493,9 @@ if("serviceWorker" in navigator){
   navigator.serviceWorker.getRegistrations().then(regs=>{
     regs.forEach(r=>r.unregister());
   });
-  navigator.serviceWorker.register("sw.js?v=23").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=24").then(reg=>{
     // 从 sw.js 文件名中推断版本号
-    localSWVersion="summer-growth-bank-v23";
+    localSWVersion="summer-growth-bank-v24";
     if(reg.waiting) {
       navigator.serviceWorker.addEventListener('message', function handler(e){
         if(e.data && e.data.type==='UPDATE_AVAILABLE'){
