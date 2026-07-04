@@ -1031,7 +1031,7 @@ function renderCalendar(){
   const g=document.getElementById("calGrid");
   const firstDay=new Date(calYear,calMonth-1,1);
   const lastDate=new Date(calYear,calMonth,0).getDate();
-  const startDow=firstDay.getDay();
+  const startDow=(firstDay.getDay()+6)%7;
   const daw="一二三四五六日".split("");
   let h='';
   for(let i=0;i<7;i++)h+=`<div class="cal-day-header${i>=5?' weekend':''}">${daw[i]}</div>`;
@@ -1062,8 +1062,9 @@ document.getElementById("calNext").addEventListener("click",()=>{if(calMonth<8){
 document.getElementById("calToday").addEventListener("click",()=>{selDate=TODAY_STR;calMonth=TODAY.getMonth()+1;calYear=TODAY.getFullYear();selCat="全部";renderAll();});
 
 function renderDateLabel(){
-  const d=new Date(selDate+"T00:00:00");
-  document.getElementById("selectedDateLabel").textContent=fmtDisplay(d);
+  const [y,m,d]=selDate.split("-").map(Number);
+  const date=new Date(y,m-1,d);
+  document.getElementById("selectedDateLabel").textContent=fmtDisplay(date);
   const badge=document.getElementById("dateBadge");
   if(isToday(selDate)){badge.textContent="今天";badge.className="badge today-badge";}
   else if(canMakeupDate(selDate)){
@@ -1080,8 +1081,9 @@ function renderCheckinDateLabel(){
   const el1=document.getElementById("checkinDateLabel");
   const el2=document.getElementById("checkinDateBadge");
   if(!el1)return;
-  const d=new Date(selDate+"T00:00:00");
-  el1.textContent=fmtDisplay(d);
+  const [y,m,dd]=selDate.split("-").map(Number);
+  const date=new Date(y,m-1,dd);
+  el1.textContent=fmtDisplay(date);
   if(isToday(selDate)){el2.textContent="今天";el2.className="badge today-badge";}
   else if(canMakeupDate(selDate)){
     const mc=getMakeupCost(selDate);
@@ -1093,8 +1095,9 @@ function renderCheckinDateLabel(){
 function renderMapDateLabel(){
   const el=document.getElementById("mapDateLabel");
   if(!el)return;
-  const d=new Date(selDate+"T00:00:00");
-  el.textContent=fmtDisplay(d);
+  const [y,m,dd]=selDate.split("-").map(Number);
+  const date=new Date(y,m-1,dd);
+  el.textContent=fmtDisplay(date);
 }
 
 /* Tasks */
