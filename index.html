@@ -65,6 +65,9 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.18;b
 button,input,textarea,select{font:inherit}
 button{border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 
+/* 禁用 Safari/iPad 下拉刷新 — 避免误触 */
+html,body{touch-action:pan-y;overscroll-behavior:contain}
+
 .app{max-width:860px;margin:0 auto;min-height:100vh;padding:0 16px 40px;opacity:0;transition:opacity .4s ease-out}
 .app.app-ready{opacity:1}
 
@@ -1921,6 +1924,9 @@ function openParentCenter(){
       <button class="pc-btn" data-pc="password" style="padding:14px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,rgba(255,243,224,.6),rgba(255,224,178,.4));cursor:pointer;text-align:left;font-size:14px;font-weight:800;color:var(--ink);transition:.15s;border:1.5px solid rgba(255,152,0,.3)">
         <span style="font-size:18px">🔒</span> 家长密码 <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:4px">— ${hasPwd}</span>
       </button>
+      <button class="pc-btn" data-pc="update" style="padding:14px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,rgba(227,242,253,.5),rgba(232,245,233,.4));cursor:pointer;text-align:left;font-size:14px;font-weight:800;color:var(--ink);transition:.15s;border:1.5px solid rgba(41,182,246,.2)">
+        <span style="font-size:18px">🔄</span> 检查更新 <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:4px" id="pcUpdateStatus">— 点击检查</span>
+      </button>
       <button class="pc-btn" data-pc="backup" style="padding:14px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,rgba(227,242,253,.5),rgba(232,245,233,.4));cursor:pointer;text-align:left;font-size:14px;font-weight:800;color:var(--ink);transition:.15s;border:1.5px solid rgba(41,182,246,.2)">
         <span style="font-size:18px">💾</span> 数据备份与恢复 <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:4px">— 导出/导入</span>
       </button>
@@ -1939,10 +1945,58 @@ function openParentCenter(){
   ov.querySelector("[data-pc='backup']").addEventListener("click", ()=>{ ov.remove(); openBackupModal(); });
   ov.querySelector("[data-pc='tasks']").addEventListener("click", ()=>{ ov.remove(); openTaskManager(); });
   ov.querySelector("[data-pc='children']").addEventListener("click", ()=>{ ov.remove(); openChildrenModal(); });
+  ov.querySelector("[data-pc='update']").addEventListener("click", (e)=>{ e.stopPropagation(); checkForUpdate(ov.querySelector("#pcUpdateStatus")); });
   ov.querySelector("#pcClose").addEventListener("click", ()=>ov.remove());
   ov.addEventListener("click", e=>{ if(e.target===ov) ov.remove(); });
 }
 document.getElementById("parentCenterBtn").addEventListener("click", openParentCenter);
+
+/* 检查更新 — 对比本地与服务器版本号 */
+async function checkForUpdate(statusEl){
+  if(!statusEl)return;
+  statusEl.textContent="— 检查中…";
+  try{
+    const r=await fetch("/sw.js?v="+Date.now(),{cache:"no-store"});
+    if(!r.ok)throw new Error("network");
+    const text=await r.text();
+    const m=text.match(/CACHE_NAME\s*=\s*['"]([^'"]+)['"]/);
+    if(!m)throw new Error("parse");
+    const remoteVer=m[1];
+    // 本地版本号从 navigator.serviceWorker 获取
+    const localVer=localSWVersion||"";
+    if(remoteVer===localVer){
+      statusEl.innerHTML=`— 已是最新版 ${localVer}`;
+      toast("已是最新版本 ✅");
+    }else{
+      statusEl.innerHTML=`— 发现新版本 ${remoteVer}！<button class="btn-primary" onclick="applySWUpdate(this.parentElement)" style="margin-left:6px;padding:3px 10px;font-size:11px;border-radius:6px">立即更新</button>`;
+      toast("发现新版本 🎉");
+    }
+  }catch(e){
+    statusEl.textContent="— 检查失败，请重试";
+    toast("无法检查更新 🚫");
+  }
+}
+
+/* 应用服务 worker 更新 */
+async function applySWUpdate(el){
+  if(!navigator.serviceWorker||!navigator.serviceWorker.controller){
+    toast("未检测到服务 worker 🚫");return;
+  }
+  const reg=await navigator.serviceWorker.ready;
+  const waiting=reg.waiting;
+  if(waiting){
+    toast("有新版本，正在激活…");
+    navigator.serviceWorker.addEventListener('message', function handler(e){
+      if(e.data&&e.data.type==='UPDATE_AVAILABLE'){
+        window.location.reload();
+      }
+    });
+    waiting.postMessage({type:'SKIP_WAITING'});
+    setTimeout(()=>window.location.reload(), 2000);
+  } else {
+    toast("当前无待更新版本");
+  }
+}
 
 /* 密码设置弹窗 */
 function openPasswordModal(){
@@ -2315,11 +2369,23 @@ window.addEventListener("beforeunload", ()=>{
 });
 
 /* PWA Register — unregister all old SWs to prevent stale cache */
+let localSWVersion="";
 if("serviceWorker" in navigator){
   navigator.serviceWorker.getRegistrations().then(regs=>{
     regs.forEach(r=>r.unregister());
   });
-  navigator.serviceWorker.register("sw.js?v=11").catch(()=>{});
+  navigator.serviceWorker.register("sw.js?v=20").then(reg=>{
+    // 从 sw.js 文件名中推断版本号
+    localSWVersion="summer-growth-bank-v20";
+    if(reg.waiting) {
+      navigator.serviceWorker.addEventListener('message', function handler(e){
+        if(e.data && e.data.type==='UPDATE_AVAILABLE'){
+          window.location.reload();
+        }
+      });
+      reg.waiting.postMessage({type:'SKIP_WAITING'});
+    }
+  }).catch(()=>{});
 }
 </script>
 </body>

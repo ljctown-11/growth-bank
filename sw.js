@@ -1,4 +1,4 @@
-const CACHE_NAME = 'summer-growth-bank-v19';
+const CACHE_NAME = 'summer-growth-bank-v20';
 const ASSETS = ['manifest.json', 'icon-512.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', event => {
@@ -12,6 +12,12 @@ self.addEventListener('activate', event => {
     ))
   );
   self.clients.claim();
+});
+
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // Network-only for HTML, cache only for static assets as fallback
