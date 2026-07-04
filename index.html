@@ -287,7 +287,8 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
 /* Enc message */
 .enc-msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:55;pointer-events:none;font-size:22px;font-weight:900;color:var(--enc-msg-color);background:rgba(255,253,248,.97);padding:16px 28px;border-radius:16px;box-shadow:0 12px 40px rgba(var(--leaf-rgb),.22);animation:encPop .22s ease-out,encFade 2s .22s forwards;opacity:0}
 @keyframes encPop{0%{opacity:0;transform:translate(-50%,-40%);}100%{opacity:1;transform:translate(-50%,-50%)}}
-@keyframes encFade{0%{opacity:1}80%{opacity:1}100%{opacity:0}}
+@keyframes dotPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:.5}}
+@keyframes updateBtnBlink{0%,100%{box-shadow:0 3px 10px rgba(var(--leaf-rgb),.3)}50%{box-shadow:0 0 0 4px rgba(255,61,61,.5),0 3px 10px rgba(var(--leaf-rgb),.3)}}
 
 /* Fireworks */
 .firework-layer{position:fixed;inset:0;z-index:45;pointer-events:none;overflow:hidden}
@@ -567,7 +568,7 @@ body[data-theme="starry"] {
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <span class="baby-name" id="babyName" title="点击设置名字和性别">👧 宝贝</span>
       <span class="points-pill"><span class="coin">分</span><span id="topPoints">0</span> 成长分</span>
-      <button class="parent-btn" id="parentCenterBtn" title="家长中心" style="padding:8px 14px;border-radius:999px;background:linear-gradient(90deg,#ffca28,#ff7043);color:#fff;font-weight:800;font-size:12px;border:none;cursor:pointer;box-shadow:0 3px 10px rgba(var(--leaf-rgb),.3);transition:.15s">👨‍💼 家长中心</button>
+      <button class="parent-btn" id="parentCenterBtn" title="家长中心" style="padding:8px 14px;border-radius:999px;background:linear-gradient(90deg,#ffca28,#ff7043);color:#fff;font-weight:800;font-size:12px;border:none;cursor:pointer;box-shadow:0 3px 10px rgba(var(--leaf-rgb),.3);transition:.15s;position:relative">👨‍💼 家长中心<span id="updateDot" style="display:none;position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:#ff3d3d;border:2px solid #fff;animation:dotPulse 1.2s infinite"></span></button>
     </div>
   </header>
 
@@ -2368,15 +2369,82 @@ window.addEventListener("beforeunload", ()=>{
   try{ saveData(); }catch(e){}
 });
 
+/* 自动检查更新 — 页面加载时静默检测，有更新时在家长中心按钮上显示红点 */
+async function autoCheckUpdate(){
+  try{
+    const r=await fetch("/sw.js?v="+Date.now(),{cache:"no-store"});
+    if(!r.ok)throw new Error("network");
+    const text=await r.text();
+    const m=text.match(/CACHE_NAME\s*=\s*['"]([^'"]+)['"]/);
+    if(!m)throw new Error("parse");
+    const remoteVer=m[1];
+    const localVer=localSWVersion||"";
+    if(remoteVer!==localVer){
+      const dot=document.getElementById("updateDot");
+      if(dot){
+        dot.style.display="block";
+        // 点击家长中心按钮时自动跳转到检查更新按钮
+        const btn=document.getElementById("parentCenterBtn");
+        if(btn){
+          btn.addEventListener("click", function autoClick(){
+            btn.removeEventListener("click", autoClick);
+            // 先打开家长中心，再自动点击检查更新按钮
+            openParentCenter();
+            setTimeout(()=>{
+              const updateBtn=document.querySelector("[data-pc='update']");
+              if(updateBtn){
+                checkForUpdate(document.getElementById("pcUpdateStatus"));
+                updateBtn.scrollIntoView({behavior:"smooth", block:"center"});
+                // 按钮闪烁提醒
+                updateBtn.style.animation="updateBtnBlink 0.6s 3";
+                setTimeout(()=>{ updateBtn.style.animation=""; }, 1800);
+              }
+            }, 100);
+          });
+        }
+      }
+      toast("🔄 发现新版本，请到家长中心更新");
+    }
+  }catch(e){
+    // 静默失败，不影响正常使用
+  }
+}
+
+/* 禁用 Android/iPad 下拉刷新 — 当页面在顶部时阻止下拉 */
+let touchStartY=0, touchStartScrollTop=0;
+document.addEventListener("touchstart", e=>{
+  const scrollTop=document.documentElement.scrollTop||document.body.scrollTop;
+  const scrollHeight=document.documentElement.scrollHeight;
+  const clientHeight=document.documentElement.clientHeight;
+  const isAtTop=scrollTop<=0;
+  const isAtBottom=scrollTop+clientHeight>=scrollHeight-2;
+  if(isAtTop||isAtBottom){
+    touchStartY=e.touches[0].clientY;
+    touchStartScrollTop=scrollTop;
+  } else {
+    touchStartY=-1; // 非顶部/底部时不拦截
+  }
+}, {passive:true});
+document.addEventListener("touchmove", e=>{
+  if(touchStartY===-1)return;
+  const y=e.touches[0].clientY;
+  const delta=y-touchStartY;
+  const scrollTop=document.documentElement.scrollTop||document.body.scrollTop;
+  // 在顶部向下拉(delta>0)或在底部向上拉(delta<0)时阻止默认行为
+  if((scrollTop<=0 && delta>0) || (scrollTop+document.documentElement.clientHeight>=document.documentElement.scrollHeight-2 && delta<0)){
+    e.preventDefault();
+  }
+}, {passive:false});
+
 /* PWA Register — unregister all old SWs to prevent stale cache */
 let localSWVersion="";
 if("serviceWorker" in navigator){
   navigator.serviceWorker.getRegistrations().then(regs=>{
     regs.forEach(r=>r.unregister());
   });
-  navigator.serviceWorker.register("sw.js?v=20").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=21").then(reg=>{
     // 从 sw.js 文件名中推断版本号
-    localSWVersion="summer-growth-bank-v20";
+    localSWVersion="summer-growth-bank-v21";
     if(reg.waiting) {
       navigator.serviceWorker.addEventListener('message', function handler(e){
         if(e.data && e.data.type==='UPDATE_AVAILABLE'){
@@ -2387,6 +2455,12 @@ if("serviceWorker" in navigator){
     }
   }).catch(()=>{});
 }
+
+/* 页面加载完成后自动检查更新 */
+window.addEventListener("load", ()=>{
+  // 延迟2秒确保 PWA 注册完成
+  setTimeout(autoCheckUpdate, 2000);
+});
 </script>
 </body>
 </html>
