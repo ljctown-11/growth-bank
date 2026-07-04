@@ -300,11 +300,50 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
 .tab-nav button{padding:10px 16px;border-radius:999px;color:#7a6050;background:rgba(255,255,255,.7);border:1.5px solid rgba(var(--leaf-rgb),.12);font-weight:800;white-space:nowrap;font-size:13px;transition:.15s;flex-shrink:0}
 .tab-nav button.active{color:#fff;background:linear-gradient(90deg,var(--leaf),var(--rose));border-color:transparent;box-shadow:0 5px 16px rgba(var(--leaf-rgb),.3)}
 
-/* Responsive */
+/* Responsive — large phones / small tablets */
 @media(max-width:640px){
   .tasks-grid,.map-grid,.reward-grid,.review-grid,.works-layout{grid-template-columns:1fr}
   .topbar{flex-wrap:wrap}
   .brand h1{font-size:17px}
+}
+
+/* Enc message / phone-specific refinements — below 480px */
+@media(max-width:480px){
+  .enc-msg{font-size:18px;padding:14px 18px;max-width:calc(100% - 32px)}
+  .toast{font-size:12px;padding:10px 16px;max-width:min(420px,calc(100% - 24px))}
+  .section-title{font-size:18px}
+  .section-title .icon{width:26px;height:26px;font-size:12px}
+  .panel-pad{padding:14px 10px}
+  .cal-cell{height:42px}
+  .cal-cell .day-num{font-size:12px}
+  .cal-cell .day-pts{font-size:10px}
+  .cal-header h2{font-size:15px}
+  .cal-legend{font-size:10px;gap:8px;padding:4px 10px 8px}
+  .cat-tabs button{padding:6px 10px;font-size:11px}
+  .main-tab-nav{position:sticky;top:58px}
+  .main-tab-nav button{padding:8px 12px;font-size:12px}
+  .tab-nav button{padding:8px 12px;font-size:12px}
+  .map-card{padding:8px 4px;min-height:72px}
+  .map-card strong{font-size:13px;margin-bottom:2px}
+  .map-card small{font-size:9px}
+  .map-card .flowers{font-size:13px}
+  .map-card .map-num{width:20px;height:20px;font-size:10px;margin-bottom:4px}
+  .task-row{padding:10px 12px;min-height:50px}
+  .task-row strong{font-size:13px}
+  .task-row .tag{font-size:10px}
+  .task-row .pts{font-size:12px}
+  .points-pill{font-size:13px;padding:6px 10px}
+  .points-pill .coin{width:22px;height:22px;font-size:10px}
+  .baby-name{font-size:11px;padding:5px 10px 5px 6px}
+  .brand h1{font-size:15px}
+  .brand p{font-size:10px}
+  .brand-mark{width:34px;height:34px;font-size:16px}
+  .parent-btn{padding:6px 10px;font-size:11px}
+  .cal-nav button{width:28px;height:28px;font-size:12px}
+  .modal-overlay{padding:10px}
+  .modal-box{padding:18px 14px;border-radius:14px}
+  .modal-box h3{font-size:17px}
+  .empty-state{padding:14px;font-size:12px}
 }
 @media(min-width:641px) and (max-width:1024px){
   .map-grid{grid-template-columns:repeat(3,1fr)}
@@ -2442,9 +2481,9 @@ if("serviceWorker" in navigator){
   navigator.serviceWorker.getRegistrations().then(regs=>{
     regs.forEach(r=>r.unregister());
   });
-  navigator.serviceWorker.register("sw.js?v=21").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=22").then(reg=>{
     // 从 sw.js 文件名中推断版本号
-    localSWVersion="summer-growth-bank-v21";
+    localSWVersion="summer-growth-bank-v22";
     if(reg.waiting) {
       navigator.serviceWorker.addEventListener('message', function handler(e){
         if(e.data && e.data.type==='UPDATE_AVAILABLE'){
