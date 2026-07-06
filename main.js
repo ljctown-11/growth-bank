@@ -2,7 +2,7 @@
 import { freshState, setData, setSelDate, STATE, data, TODAY_STR as STATE_TODAY_STR } from './core/state.js';
 import { loadData, saveData, getDay, calcTotalScore } from './core/data.js';
 import { CATEGORIES, TASKS, REWARDS, ENCOURAGES, CAT_INTRO, localDateStr, fmtDisplay, esc, getMonthKey } from './core/helpers.js';
-import { renderAll, renderTasks, renderCalendar, renderDateLabel, renderCheckinDateLabel, toggleTask, renderPoints, renderBabyName, renderArchive, renderMap, renderTrendChart, renderReviewTimeline } from './features/render.js';
+import { renderAll, renderTasks, renderCalendar, renderDateLabel, renderCheckinDateLabel, toggleTask, renderPoints, renderBabyName, renderArchive, renderMap, renderTrendChart, renderReviewTimeline, showEncourageMsg } from './features/render.js';
 import { showPasswordModal, hasParentPassword, hashPassword } from './features/password.js';
 import { getMakeupCost, canMakeupDate, isToday, isFuture, isPastLocked, canCheckIn } from './features/makeup.js';
 import { saveMedia } from './features/media.js';
@@ -145,7 +145,12 @@ document.getElementById("babyName")?.addEventListener("click", function(){
     var gender=genderEl?genderEl.value:"girl";
     var themeEl=ov.querySelector("input[name='babyTheme']:checked");
     var theme=themeEl?themeEl.value:"sakura";
-    if(!name){toast("请输入宝贝的名字");return;}
+    if(!name){showEncourageMsg("请输入宝贝的名字");return;}
+    // 检查是否已设置家长密码
+    if(!hasParentPassword()){
+      showEncourageMsg("请先在家长中心设置密码哦 👆");
+      return;
+    }
     // 密码确认后保存
     showPasswordModal("保存宝贝信息需要家长密码确认", function(){
       doSaveAfterPassword();

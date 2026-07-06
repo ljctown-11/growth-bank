@@ -361,9 +361,10 @@ export async function toggleTask(tid, checked, event){
   if(_toggleLocked){ toast("操作过快，请稍后再试"); return; }
   // 前置校验：必须有宝贝信息
   if(!STATE.childName || !STATE.childName.trim()){
-    toast("请先设置宝贝信息哦 👆");
-    // 回退勾选状态，防止名字为空时 checkbox 被勾选
-    if(event && event.target && event.target.type === 'checkbox'){
+    showEncourageMsg("请先设置宝贝信息哦 👆");
+    // 阻止默认行为 + 回退勾选状态
+    if(event && event.target){
+      event.preventDefault();
       event.target.checked = !checked;
     }
     return;
@@ -470,7 +471,7 @@ function triggerEncourageAndFirework(){
   triggerFireworks();
 }
 
-function showEncourageMsg(){
+export function showEncourageMsg(customMsg){
   // 移除旧弹窗
   const old = document.querySelector(".encourage-msg");
   if(old) old.remove();
