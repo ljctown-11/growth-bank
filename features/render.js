@@ -145,8 +145,11 @@ export function renderPoints(){
 // ===== 日历 =====
 export function renderCalendar(){
   const now = new Date();
-  let calYear = STATE.curCalYear != null ? STATE.curCalYear : now.getFullYear();
-  let calMonth = STATE.curCalMonth != null ? STATE.curCalMonth + 1 : now.getMonth() + 1;
+  // 防御性校验：防止 STATE.curCalYear 或 STATE.curCalMonth 为 NaN 导致日历崩溃
+  let calYear = (STATE.curCalYear != null && !isNaN(STATE.curCalYear)) ? STATE.curCalYear : now.getFullYear();
+  let calMonth = (STATE.curCalMonth != null && !isNaN(STATE.curCalMonth)) ? (STATE.curCalMonth + 1) : (now.getMonth() + 1);
+  if(calMonth < 1) calMonth = 1;
+  if(calMonth > 12) calMonth = 12;
 
   document.getElementById("calMonthLabel").textContent = calYear + "年" + calMonth + "月";
 
@@ -158,7 +161,9 @@ export function renderCalendar(){
   if(!g) return;
 
   const firstDay = new Date(calYear, calMonth-1, 1);
-  const lastDate = new Date(calYear, calMonth, 0).getDate();
+  let lastDate = new Date(calYear, calMonth, 0).getDate();
+  // 防御性校验：防止 lastDate 异常
+  if(!lastDate || isNaN(lastDate) || lastDate < 1) lastDate = 28;
   const startDow = (firstDay.getDay()+6)%7;
 
   let h = '';
@@ -357,6 +362,10 @@ export async function toggleTask(tid, checked, event){
   // 前置校验：必须有宝贝信息
   if(!STATE.childName || !STATE.childName.trim()){
     toast("请先设置宝贝信息哦 👆");
+    // 回退勾选状态，防止名字为空时 checkbox 被勾选
+    if(event && event.target && event.target.type === 'checkbox'){
+      event.target.checked = !checked;
+    }
     return;
   }
   if(!canCheckIn(STATE.selDate) && !isPastWithNoCheckins(STATE.selDate)) return;

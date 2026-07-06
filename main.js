@@ -119,13 +119,7 @@ document.getElementById("babyName")?.addEventListener("click", function(){
   document.body.appendChild(ov);
   ov.querySelectorAll(".gender-opt").forEach(l=>l.addEventListener("click",function(){ov.querySelectorAll(".gender-opt").forEach(x=>x.style.borderColor="rgba(0,0,0,.1)");l.style.borderColor="var(--leaf)";l.querySelector("input").checked=true;}));
   ov.querySelectorAll(".theme-opt").forEach(l=>l.addEventListener("click",function(){ov.querySelectorAll(".theme-opt").forEach(x=>{x.style.borderColor="rgba(0,0,0,.1)";x.style.background="transparent";});l.style.borderColor="var(--leaf)";l.querySelector("input").checked=true;}));
-  function save(){
-    var name=ov.querySelector("#babyNameInput").value.trim();
-    var genderEl=ov.querySelector("input[name='babyGender']:checked");
-    var gender=genderEl?genderEl.value:"girl";
-    var themeEl=ov.querySelector("input[name='babyTheme']:checked");
-    var theme=themeEl?themeEl.value:"sakura";
-    if(!name){toast("请输入宝贝的名字");return;}
+  function doSaveAfterPassword(){
     data.childName=name;data.childGender=gender;data.theme=theme;saveData();
     try{
       var m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
@@ -144,6 +138,18 @@ document.getElementById("babyName")?.addEventListener("click", function(){
     toast("已更新为："+(gender==="boy"?"👦":"👧")+" "+name+"宝贝");
     ov.remove();
     dismissAutofill();
+  }
+  function save(){
+    var name=ov.querySelector("#babyNameInput").value.trim();
+    var genderEl=ov.querySelector("input[name='babyGender']:checked");
+    var gender=genderEl?genderEl.value:"girl";
+    var themeEl=ov.querySelector("input[name='babyTheme']:checked");
+    var theme=themeEl?themeEl.value:"sakura";
+    if(!name){toast("请输入宝贝的名字");return;}
+    // 密码确认后保存
+    showPasswordModal("保存宝贝信息需要家长密码确认", function(){
+      doSaveAfterPassword();
+    });
   }
   ov.querySelector("#babyModalOk").addEventListener("click",save);
   ov.querySelector("#babyModalCancel").addEventListener("click",function(){ov.remove();dismissAutofill();});
