@@ -1,4 +1,4 @@
-# 暑假成长积分银行 v3.0
+# 暑假成长积分银行 v3.1.06
 
 > 用可视化的方式，拆解孩子的成长目标，让每一天都有看得见的进步。
 
@@ -25,11 +25,11 @@
 
 ## 技术栈
 
-- **纯 HTML + CSS + JavaScript** — 无框架依赖，单文件 `bundle.js` 打包
+- **纯 HTML + CSS + JavaScript** — 无框架依赖，ES Module 多文件架构（入口 `main.js` + `core/` + `features/`）
 - **PWA 应用** — `manifest.json` + `sw.js` Service Worker 缓存，支持离线使用
 - **数据存储** — localStorage（结构化数据）+ IndexedDB（图片/视频/音频）
 - **语音合成** — Web Speech API (`SpeechSynthesis`)
-- **兼容协议** — `file://` 和 `http://` 均支持
+- **运行环境** — 需通过 HTTP 服务器访问（如 `npx serve .` 或 `python -m http.server`）；直接用 `file://` 双击打开会因 ES Module 的 CORS 限制导致脚本加载失败
 
 ---
 
@@ -47,21 +47,15 @@ cd I:\summer-growth-bank
 npm install   # 安装依赖
 ```
 
-直接用浏览器打开 `index.html` 即可，也可通过本地静态服务器启动：
+需通过本地静态服务器启动（**不要用 `file://` 直接双击打开**，ES Module 会因 CORS 限制加载失败）：
 
 ```bash
 npx serve .
+# 或
+python -m http.server 8080
 ```
 
-访问 `http://localhost:3000` 查看。
-
-### 重新打包
-
-```bash
-node bundle.js
-```
-
-将 `core/` 和 `features/` 下的所有 ES Module 文件合并为单文件 `bundle.js`。
+访问 `http://localhost:3000`（或 `http://localhost:8080`）查看。
 
 ---
 
@@ -69,8 +63,8 @@ node bundle.js
 
 ```
 summer-growth-bank/
-├── index.html          # 主页面入口
-├── bundle.js           # 打包后的单文件（兼容 file://）
+├── index.html          # 主页面入口（以 ES Module 加载 main.js）
+├── main.js             # ESM 入口：动态注册 Service Worker 并启动渲染
 ├── manifest.json       # PWA 清单文件
 ├── sw.js               # Service Worker 缓存策略
 ├── icon-512.png        # PWA 图标
@@ -83,6 +77,7 @@ summer-growth-bank/
     ├── makeup.js       # 补卡规则（动态日期判断）
     ├── media.js        # IndexedDB 媒体存储
     ├── password.js     # 密码验证（SHA-256 哈希 + PIN 键盘）
+    ├── toast-center.js # 全局 Toast 提示（被 render/password 间接引用）
     └── parent-center.js # 家长中心（多孩子/备份/任务管理）
 ```
 
@@ -92,6 +87,7 @@ summer-growth-bank/
 
 | 版本 | 日期 | 更新内容 |
 |------|------|---------|
+| v3.1.06 | 2026-07-07 | 八点混合增强 + 补卡返还/日历高亮等累积修复（最近版本） |
 | v3.0.5 | 2026-07-05 | 修复 6 个 Bug + 新增语音朗读鼓励话功能 |
 | v3.0 | — | 模块化重构，ES Module 多文件架构 |
 | v2.0 | — | PWA 支持 + 语音朗读 + 补卡系统 |
