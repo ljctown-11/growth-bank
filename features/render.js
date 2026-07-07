@@ -1,11 +1,12 @@
 // features/render.js — 所有渲染函数（匹配原始 CSS 结构）
 
-import { STATE, TODAY_STR, setSelDate } from '../core/state.js';
-import { TASKS, REWARDS, CATEGORIES, CAT_INTRO, localDateStr, fmtDisplay, esc, getMonthKey, DEFAULT_REWARD_ITEMS } from '../core/helpers.js';
+import { STATE, setSelDate } from '../core/state.js';
+import { TASKS, REWARDS, CATEGORIES, CAT_INTRO, fmtDisplay, esc, getMonthKey, DEFAULT_REWARD_ITEMS } from '../core/helpers.js';
 import { getDay, saveData, calcTotalScore, calcDayScore } from '../core/data.js';
-import { getMakeupCost, canMakeupDate, isToday, isFuture, isPastLocked, isPastWithNoCheckins, canCheckIn } from '../features/makeup.js';
+import { getMakeupCost, isToday, isFuture, isPastLocked, isPastWithNoCheckins, canCheckIn } from '../features/makeup.js';
 import { showPasswordModal } from '../features/password.js';
 import { getMedia, removeMedia } from '../features/media.js';
+import { showCenterToast } from './toast-center.js';
 
 // ===== 全局锁 =====
 let _toggleLocked = false;
@@ -176,6 +177,7 @@ export function renderCalendar(){
     if(isFuture(ds)) cls += " future";
     else if(isPastLocked(ds)) cls += " past-locked";
     else if(isPastWithNoCheckins(ds)) cls += " past-nocheck";
+    if(score>0) cls += " has-pts";
     if(isToday(ds)) cls += " today";
     if(ds === STATE.selDate) cls += " active";
     h += `<div class="${cls}" data-date="${ds}"><span class="day-num">${d}</span>${score>0?`<span class="day-pts">+${score}</span>`:''}</div>`;
@@ -238,6 +240,21 @@ function switchMainTab(tab){
   document.querySelectorAll(".main-tab-content").forEach(x => {
     x.style.display = x.id === "mtab-" + tab ? "" : "none";
   });
+}
+
+// ===== 切换到指定分类（保存宝宝后回「学习力」） =====
+export function switchToCategory(cat){
+  if(cat) STATE.selCat = cat;
+  // 切回打卡主 tab 并高亮
+  document.querySelectorAll("#mainTabNav button").forEach(b => {
+    b.classList.toggle("active", b.dataset.maintab === "checkin");
+  });
+  document.querySelectorAll(".main-tab-content").forEach(x => {
+    x.style.display = x.id === "mtab-checkin" ? "" : "none";
+  });
+  renderCheckinDateLabel();
+  renderTasks();
+  renderMap();
 }
 
 // ===== 分类标签 =====
@@ -318,8 +335,9 @@ export function renderTasks(){
 
     taskGrid.innerHTML = vis.map(t => {
       const done = day.tasks[t.id] && day.tasks[t.id].done;
-      return `<label class="task-row${done?' done':''}">
-        <input type="checkbox" data-tid="${t.id}" ${done?'checked':''}>
+      const nameEmpty = !STATE.childName || !STATE.childName.trim();
+      return `<label class="task-row${done?' done':''}${nameEmpty?' name-empty-disabled':''}">
+        <input type="checkbox" data-tid="${t.id}" ${done?'checked':''} ${nameEmpty?'disabled':''}>
         <span><strong>${t.title}</strong><span class="tag">${t.cat}</span></span>
         <span class="pts"><span class="coin" style="width:20px;height:20px;font-size:10px">分</span>+${t.pts}</span>
       </label>`;
@@ -344,8 +362,9 @@ export function renderTasks(){
 
   taskGrid.innerHTML = vis.map(t => {
     const done = day.tasks[t.id] && day.tasks[t.id].done;
-    return `<label class="task-row${done?' done':''}">
-      <input type="checkbox" data-tid="${t.id}" ${done?'checked':''}>
+    const nameEmpty = !STATE.childName || !STATE.childName.trim();
+    return `<label class="task-row${done?' done':''}${nameEmpty?' name-empty-disabled':''}">
+      <input type="checkbox" data-tid="${t.id}" ${done?'checked':''} ${nameEmpty?'disabled':''}>
       <span><strong>${t.title}</strong><span class="tag">${t.cat}</span></span>
       <span class="pts"><span class="coin" style="width:20px;height:20px;font-size:10px">分</span>+${t.pts}</span>
     </label>`;
@@ -387,7 +406,7 @@ export async function toggleTask(tid, checked, event){
       if(mc.cost > 0){
         const currentScore = calcTotalScore();
         if(currentScore < mc.cost){
-          toast("成长分不足，无法补卡（补卡需扣"+mc.cost+"分，当前只有"+currentScore+"分）");
+          showCenterToast('warn', '成长分不足，还差 ' + (mc.cost - currentScore) + ' 分才能补卡');
           if(event && event.target) event.target.checked = false;
           return;
         }
@@ -410,12 +429,13 @@ export async function toggleTask(tid, checked, event){
         _toggleLocked = false;
       }
       if(mc.cost > 0){
-        STATE.redemptions.unshift({
-          date: new Date().toLocaleDateString("zh-CN"),
-          reward: "补卡扣分",
-          level: "补卡",
-          cost: mc.cost
-        });
+      STATE.redemptions.unshift({
+        date: new Date().toLocaleDateString("zh-CN"),
+        makeupDate: STATE.selDate,
+        reward: "补卡扣分",
+        level: "补卡",
+        cost: mc.cost
+      });
       }
       if(!STATE.makeupVerifiedDates) STATE.makeupVerifiedDates = {};
       STATE.makeupVerifiedDates[STATE.selDate] = true;
@@ -438,12 +458,19 @@ export async function toggleTask(tid, checked, event){
     day.tasks[tid].done = false;
     day.score = calcDayScore(STATE.selDate);
     if(!isToday(STATE.selDate) && STATE.makeupVerifiedDates && STATE.makeupVerifiedDates[STATE.selDate]){
-      STATE.redemptions = STATE.redemptions.filter(r => {
-        return !(r.level === "补卡" && r.date && r.date.startsWith(STATE.selDate.slice(0, 10)));
-      });
-      delete STATE.makeupVerifiedDates[STATE.selDate];
-      const mk = getMonthKey(STATE.selDate);
-      STATE.makeupUsed[mk] = Math.max(0, (STATE.makeupUsed[mk] || 0) - 1);
+      // 判定当天是否还有其他勾选任务（"全空才返还"）
+      const stillHas = Object.values(day.tasks).some(t => t && t.done);
+      if(!stillHas){
+        // 找该日补卡扣分记录，取其金额用于反馈，再按 makeupDate 精确删除
+        const rec = STATE.redemptions.find(r => r.level === "补卡" && r.makeupDate === STATE.selDate);
+        const returned = rec ? (rec.cost || 0) : 0;
+        STATE.redemptions = STATE.redemptions.filter(r => !(r.level === "补卡" && r.makeupDate === STATE.selDate));
+        delete STATE.makeupVerifiedDates[STATE.selDate];
+        const mk = getMonthKey(STATE.selDate);
+        STATE.makeupUsed[mk] = Math.max(0, (STATE.makeupUsed[mk] || 0) - 1);
+        if(returned > 0) toast(`已返还 ${returned} 分，补卡次数 -1`);
+      }
+      // 否则：当天仍有勾选任务 → 保留扣分记录与补卡标记、不回退次数
     }
     saveData();
   }
@@ -476,7 +503,7 @@ export function showEncourageMsg(customMsg){
   const old = document.querySelector(".encourage-msg");
   if(old) old.remove();
 
-  const msg = _ENCOURAGES[Math.floor(Math.random() * _ENCOURAGES.length)];
+  const msg = customMsg || _ENCOURAGES[Math.floor(Math.random() * _ENCOURAGES.length)];
   // 清理表情符号后用于语音朗读
   const cleanMsg = msg.replace(/[🌟🎉💪✨❤️🚀🎁🎊🌈🌻]/g, '');
 
@@ -694,7 +721,7 @@ export function renderRewards(){
           <button class="secondary-btn" data-save-red="${cost}">保存修改</button>
         </div>
       </details>
-      <button class="${can?'redeem-btn':'disabled-btn'}" data-redeem="${cost}" ${can?'':'disabled'}>${can?'兑换所选奖励':'继续存分'}</button>
+      <button class="${can?'redeem-btn':'disabled-btn'}" data-redeem="${cost}" ${can?'':'disabled'}>${can?'兑换所选奖励':'还差 ' + (cost - total) + ' 分'}</button>
     </div>`;
   }).join("");
 
@@ -797,12 +824,11 @@ export function renderReviewTimeline(){
   tl.innerHTML = STATE.reviews.map((r, idx) => {
     const dateStr = r.date || "未记录";
     const preview = r.best ? r.best.slice(0, 40) + (r.best.length > 40 ? '...' : '') : (r.next || r.hard || r.parent || r.support || "未填写内容").slice(0, 40);
-    const isLatest = idx === 0;
-    return `<div class="timeline-item review-item${isLatest?' latest':''}" data-review-idx="${idx}" style="cursor:pointer">
+    return `<div class="timeline-item review-item" data-review-idx="${idx}" style="cursor:pointer">
       <div style="display:flex;justify-content:space-between;align-items:start">
         <time>${esc(dateStr)}</time>
         <div style="display:flex;gap:6px;align-items:center">
-          ${isLatest ? `<button class="review-edit-btn" data-review-edit="${idx}" style="padding:3px 8px;border-radius:6px;border:none;background:rgba(41,182,246,.12);color:#1565c0;font-size:11px;font-weight:800;cursor:pointer;transition:.15s">编辑</button>` : ''}
+          <button class="review-edit-btn" data-review-edit="${idx}" style="padding:3px 8px;border-radius:6px;border:none;background:rgba(41,182,246,.12);color:#1565c0;font-size:11px;font-weight:800;cursor:pointer;transition:.15s">编辑</button>
           <span style="font-size:11px;color:var(--muted)">查看详情</span>
         </div>
       </div>

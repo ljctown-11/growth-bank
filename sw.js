@@ -1,5 +1,10 @@
-const CACHE_NAME = 'summer-growth-bank-v3.0';
-const ASSETS = ['/', 'index.html', 'bundle.js', 'manifest.json', 'icon-512.png'];
+const CACHE_NAME = 'summer-growth-bank-v3.1.06';
+const ASSETS = [
+  '/', 'index.html', 'main.js?v=3.1.06', 'manifest.json', 'icon-512.png',
+  'core/state.js?v=3.1.06', 'core/data.js?v=3.1.06', 'core/helpers.js?v=3.1.06',
+  'features/render.js?v=3.1.06', 'features/password.js?v=3.1.06', 'features/makeup.js?v=3.1.06',
+  'features/media.js?v=3.1.06', 'features/parent-center.js?v=3.1.06'
+];
 
 self.addEventListener('install', event => {
   event.waitUntil(

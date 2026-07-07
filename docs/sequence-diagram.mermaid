@@ -1,0 +1,115 @@
+%% ===== 流程①：保存宝宝 → 渲染成功 → 关弹窗 → 回学习力 =====
+sequenceDiagram
+    actor U as 家长
+    participant B as babyName 点击事件
+    participant PM as showPasswordModal
+    participant M as main.doSaveAfterPassword
+    participant R as render.switchToCategory
+    participant A as render.renderAll
+    U->>B: 输入名字/性别/主题，点"确认"
+    B->>PM: 验证家长密码
+    PM-->>M: cb() 密码成功
+    M->>M: 写入 STATE + localStorage(单源真相)
+    M->>A: try { renderAll() } catch(e)
+    M->>R: switchToCategory('学习力')
+    M->>M: ov.remove()  // 渲染成功后才关
+    M->>M: dismissAutofill()
+    M->>U: toast('已添加为…')
+
+%% ===== 流程②：补卡不足 → 中心橙提示 =====
+sequenceDiagram
+    actor U as 家长
+    participant T as render.toggleTask
+    participant D as calcTotalScore
+    participant C as showCenterToast('warn')
+    U->>T: 勾选过去任务（补卡模式）
+    T->>D: 计算当前总分
+    alt 总分 < 补卡扣分
+        D-->>T: currentScore < mc.cost
+        T->>C: showCenterToast('warn','成长分不足，无法补卡…',1800)
+        T->>T: 回退勾选 + return
+    else 足够
+        T->>T: 发起密码验证 / 扣分流程
+    end
+
+%% ===== 流程③：密码成功 → 中心绿闪示（覆盖 4 个密码门）=====
+sequenceDiagram
+    participant PM as showPasswordModal
+    participant C as showCenterToast('ok')
+    participant CB as 回调(保存宝宝/补卡/兑换/删作品)
+    PM->>PM: 输入 4-6 位，verifyPassword
+    alt 验证通过
+        PM->>PM: ov.remove()
+        PM->>C: showCenterToast('ok','✓ 验证通过',1200)
+        PM->>CB: await cb()
+    else 失败
+        PM->>PM: showPasswordError('密码错误，请重试')
+    end
+
+%% ===== 流程④：兑换差额渲染 =====
+sequenceDiagram
+    participant R as render.renderRewards
+    participant U as calcTotalScore
+    R->>U: total = calcTotalScore()
+    loop 每个奖励档位 cost
+        alt total >= cost
+            R->>R: 按钮='兑换所选奖励'（可点）
+        else total < cost
+            R->>R: 按钮='还差 {cost-total} 分'（禁用）
+        end
+    end
+
+%% ===== 流程⑤：复盘保存 → weekKey upsert → 时间线每条可编辑 =====
+sequenceDiagram
+    actor U as 家长
+    participant M as main.saveReview
+    participant W as getWeekKey
+    participant S as STATE.reviews
+    participant T as render.renderReviewTimeline
+    U->>M: 点"保存复盘"
+    M->>W: weekKey = getWeekKey(rev.date)
+    M->>S: 回填旧记录 weekKey（无则按 date 推导）
+    alt 同周已存在
+        M->>S: 更新内容字段，保留首条 date
+        M->>U: toast('本周复盘已更新 ✏️')
+    else 异周
+        M->>S: unshift(rev)
+        M->>U: toast('复盘已保存…')
+    end
+    M->>M: saveData()
+    M->>T: renderReviewTimeline()
+    T->>T: 每条复盘均渲染"编辑"按钮（复用 revEditIdx）
+
+%% ===== 流程⑥：作品存盘 → 取所选日期 =====
+sequenceDiagram
+    actor U as 家长
+    participant M as main.saveWork
+    participant WD as workDate(表单所选)
+    participant D as getDay(workDate)
+    U->>M: 选日期 + 选关联任务 + 填标题 + 存入
+    M->>WD: 读取 workDate（默认今天）
+    M->>D: getDay(workDate)
+    M->>M: artwork.date = workDate; dateDisplay = fmtDisplay(workDate)
+    M->>D: day.artworks.unshift(artwork)
+    M->>M: saveData() + renderAll()
+
+%% ===== 流程⑦：档案上传 → 去重 + 大小校验 =====
+sequenceDiagram
+    actor U as 家长
+    participant M as main.saveWork
+    participant F as workFile
+    participant D as day.artworks
+    U->>M: 选择文件 + 点"存入成长档案"
+    M->>F: 检查类型/大小
+    alt 超限(图片>10MB / 视频>100MB)
+        M->>U: toast('文件过大：图片≤10MB，视频≤100MB')
+        M->>M: return
+    else 通过
+        M->>M: 生成 artwork.id = art_<ts>_<rand>
+        alt day.artworks 已含同 id
+            M->>U: toast('该作品已存在')
+            M->>M: return(去重)
+        else 不含
+            M->>D: unshift(artwork)
+        end
+    end

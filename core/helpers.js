@@ -112,6 +112,17 @@ export function getMonthKey(dateStr){
   return dateStr.slice(0,7); // "2026-07"
 }
 
+export function getWeekKey(dateStr){
+  // 返回当周周一的 YYYY-MM-DD（以周一为一周起点）
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const dow = dt.getDay(); // 0=周日 .. 6=周六
+  const diffToMonday = (dow + 6) % 7; // 距离本周一的天数
+  dt.setDate(dt.getDate() - diffToMonday);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+}
+
 // 动态获取今天日期字符串（本地时区）
 export function getTodayStr(){
   const today = new Date();

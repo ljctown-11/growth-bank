@@ -1,7 +1,6 @@
 // features/password.js — 密码相关
 
-import { STATE } from '../core/state.js';
-import { saveData } from '../core/data.js';
+import { showCenterToast } from './toast-center.js';
 
 // 获取主数据中的家长密码（不依赖 STATE，始终从 main localStorage 读取）
 function getMainPasswordHash(){
@@ -39,7 +38,7 @@ export function hasParentPassword(){
 let _passwordModalActive = false;
 
 // 关闭弹窗后 dismiss iOS Safari autofill 建议栏
-function dismissAutofill(){
+export function dismissAutofill(){
   // 先 blur 当前焦点
   try {
     const active = document.activeElement;
@@ -101,6 +100,7 @@ export async function showPasswordModal(promptText, cb){
           }
           if(ok){
             if(ov.parentNode)ov.remove();
+            showCenterToast('ok', '✓ 验证通过');
             try{cb&&await cb();}catch(e){toast("操作失败，请重试");}
             resolve(true);
           }else{

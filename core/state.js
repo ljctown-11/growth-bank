@@ -41,7 +41,16 @@ export let data = STATE; // legacy alias
 export function setData(newData){
   // Merge into the existing STATE object to keep all references alive
   const merged = {...freshState(), ...newData};
-  Object.keys(merged).forEach(k => { STATE[k] = merged[k]; });
+  Object.keys(merged).forEach(k => { if(merged[k] !== undefined) STATE[k] = merged[k]; });
+}
+
+// 切换孩子时，从存储对象恢复 STATE，但始终用 freshState 兜底缺失字段，
+// 避免 theme/childName 等被清空为 undefined（导致主题失效 / 宝宝掉线）
+export function hydrateStateFrom(obj){
+  const base = freshState();
+  Object.keys(base).forEach(k => {
+    STATE[k] = (obj && obj[k] !== undefined) ? obj[k] : base[k];
+  });
 }
 
 export function setSelDate(newSelDate){

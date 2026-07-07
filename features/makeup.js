@@ -1,7 +1,7 @@
 // ===== features/makeup.js — 补卡规则 =====
 
 import { getMonthKey, getTodayStr } from '../core/helpers.js';
-import { getDay, saveData } from '../core/data.js';
+import { getDay } from '../core/data.js';
 import { STATE } from '../core/state.js';
 
 export function isToday(dateStr){

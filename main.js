@@ -1,12 +1,16 @@
 // main.js — 应用入口，连接所有模块
 import { freshState, setData, setSelDate, STATE, data, TODAY_STR as STATE_TODAY_STR } from './core/state.js';
 import { loadData, saveData, getDay, calcTotalScore } from './core/data.js';
-import { CATEGORIES, TASKS, REWARDS, ENCOURAGES, CAT_INTRO, localDateStr, fmtDisplay, esc, getMonthKey } from './core/helpers.js';
-import { renderAll, renderTasks, renderCalendar, renderDateLabel, renderCheckinDateLabel, toggleTask, renderPoints, renderBabyName, renderArchive, renderMap, renderTrendChart, renderReviewTimeline, showEncourageMsg } from './features/render.js';
-import { showPasswordModal, hasParentPassword, hashPassword } from './features/password.js';
+import { TASKS, localDateStr, fmtDisplay, esc, getWeekKey, getTodayStr } from './core/helpers.js';
+import { renderAll, renderTasks, renderCalendar, renderDateLabel, renderCheckinDateLabel, toggleTask, renderPoints, renderBabyName, renderArchive, renderMap, renderTrendChart, renderReviewTimeline, showEncourageMsg, switchToCategory } from './features/render.js';
+import { showPasswordModal, hasParentPassword, hashPassword, showPasswordError, dismissAutofill } from './features/password.js';
 import { getMakeupCost, canMakeupDate, isToday, isFuture, isPastLocked, canCheckIn } from './features/makeup.js';
 import { saveMedia } from './features/media.js';
 import { openParentCenter, openPasswordModal, openBackupModal, openChildrenModal, openTaskManager, checkForUpdate, switchChildFromParentCenter, deleteChild } from './features/parent-center.js';
+
+// ===== 常量 =====
+const MAX_IMG_MB = 10;     // 作品图片大小上限（MB）
+const MAX_VIDEO_MB = 100;  // 作品视频大小上限（MB）
 
 // ===== Init =====
 // Load data from localStorage into a local variable
@@ -14,14 +18,20 @@ let _localData = loadData();
 
 // Load active child data on init
 if(_localData.activeChildId && _localData.activeChildId!=='default'){
+  const childId = _localData.activeChildId;
   try{
-    const childKey = "summerGrowthBankV2_child_"+_localData.activeChildId;
+    const childKey = "summerGrowthBankV2_child_"+childId;
     const saved = localStorage.getItem(childKey);
+    const mainData = JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
     if(saved){
       const parsed = JSON.parse(saved);
       _localData = {...freshState(), ...parsed};
+      _localData.activeChildId = childId;
+      // 方案B：从 main.children 派生元信息
+      const c = (mainData.children||[]).find(x=>x.id===childId);
+      if(c){ _localData.childName=c.name; _localData.childGender=c.gender||"girl"; _localData.theme=c.theme||"sakura"; }
+      _localData.children = mainData.children||[];
     } else {
-      const mainData = loadData();
       mainData.activeChildId = null;
       _localData = mainData;
     }
@@ -71,7 +81,7 @@ window.applySWUpdate = async function(el){
 };
 
 // ===== Apply theme & render =====
-function applyTheme(){
+export function applyTheme(){
   const t=data.theme||"sakura";
   document.body.dataset.theme=t;
   const mc=document.querySelector("meta[name=theme-color]");
@@ -119,25 +129,65 @@ document.getElementById("babyName")?.addEventListener("click", function(){
   document.body.appendChild(ov);
   ov.querySelectorAll(".gender-opt").forEach(l=>l.addEventListener("click",function(){ov.querySelectorAll(".gender-opt").forEach(x=>x.style.borderColor="rgba(0,0,0,.1)");l.style.borderColor="var(--leaf)";l.querySelector("input").checked=true;}));
   ov.querySelectorAll(".theme-opt").forEach(l=>l.addEventListener("click",function(){ov.querySelectorAll(".theme-opt").forEach(x=>{x.style.borderColor="rgba(0,0,0,.1)";x.style.background="transparent";});l.style.borderColor="var(--leaf)";l.querySelector("input").checked=true;}));
-  function doSaveAfterPassword(){
-    data.childName=name;data.childGender=gender;data.theme=theme;saveData();
+  function doSaveAfterPassword(name, gender, theme){
+    var hadActive = data.activeChildId && data.activeChildId!=="default";
+    // 1) 写入当前宝宝信息到 STATE（单源真相）
+    data.childName=name;data.childGender=gender;data.theme=theme;
+
+    if(hadActive){
+      // 更新当前已激活的宝宝元信息（名字/性别/主题）
+      data.childName=name;data.childGender=gender;data.theme=theme;
+    } else {
+      // 没有激活宝宝：真正“新增”一个宝宝（生成新 id，绝不覆盖已有 children[0]）
+      var newId="child_"+Date.now();
+      data.activeChildId=newId;
+      if(!data.children) data.children=[];
+      data.children.push({id:newId,name:name,gender:gender,theme:theme});
+    }
+
+    // 2) 同步元信息到 main.children 单一真相源，并把当前打卡数据存为该宝宝的独立快照
     try{
       var m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
       if(!m.children)m.children=[];
       if(data.activeChildId && data.activeChildId!=="default"){
         var idx=-1;
         for(var i=0;i<m.children.length;i++){if(m.children[i].id===data.activeChildId){idx=i;break;}}
-        if(idx>=0){m.children[idx].name=name;m.children[idx].gender=gender;m.children[idx].theme=theme;m.activeChildId=data.activeChildId;}
-      } else {
-        if(m.children.length>0){m.children[0].name=name;m.children[0].gender=gender;m.children[0].theme=theme;m.activeChildId=m.children[0].id;data.activeChildId=m.children[0].id;}
-        else {m.children.push({id:"child_"+Date.now(),name:name,gender:gender,theme:theme});m.activeChildId=m.children[0].id;data.activeChildId=m.children[0].id;}
+        if(idx>=0){
+          // 已存在：更新元信息
+          m.children[idx].name=name;m.children[idx].gender=gender;m.children[idx].theme=theme;
+        } else {
+          // 新增：push 新宝宝（不覆盖任何已有宝宝）
+          m.children.push({id:data.activeChildId,name:name,gender:gender,theme:theme});
+        }
+        m.activeChildId=data.activeChildId;
       }
+      m.parentPasswordHash = data.parentPasswordHash || m.parentPasswordHash || "";
+      m.customRewards = data.customRewards || m.customRewards || {};
       localStorage.setItem("summerGrowthBankV2",JSON.stringify(m));
+
+      // 把当前 STATE（含已有打卡数据）作为该宝宝的独立快照保存
+      if(data.activeChildId && data.activeChildId!=="default"){
+        var childKey="summerGrowthBankV2_child_"+data.activeChildId;
+        var { children, childName, childGender, theme, activeChildId, parentPasswordHash, customRewards, ...childData } = data;
+        localStorage.setItem(childKey, JSON.stringify(childData));
+      }
     }catch(e){}
-    applyTheme();renderBabyName();
-    toast("已更新为："+(gender==="boy"?"👦":"👧")+" "+name+"宝贝");
+
+    // 3) 通过 saveData() 二次兜底，确保 main 与子快照一致
+    applyTheme();
+    saveData();
+    renderBabyName();
+    // 先关闭弹窗（即便后面渲染抛错，面板也一定消失）
     ov.remove();
     dismissAutofill();
+    try {
+      renderAll();
+    } catch(e) {
+      console.error("renderAll after save failed", e);
+    }
+    // 主界面跳回「学习力」分类（打卡 tab，active 态正确）
+    switchToCategory('学习力');
+    toast((hadActive?"已更新宝贝信息：":("已添加为："+(gender==="boy"?"👦":"👧")+" "+name+"宝贝")));
   }
   function save(){
     var name=ov.querySelector("#babyNameInput").value.trim();
@@ -148,12 +198,15 @@ document.getElementById("babyName")?.addEventListener("click", function(){
     if(!name){showEncourageMsg("请输入宝贝的名字");return;}
     // 检查是否已设置家长密码
     if(!hasParentPassword()){
-      showEncourageMsg("请先在家长中心设置密码哦 👆");
+      showPasswordError("请先设置家长密码");
+      ov.remove();
+      dismissAutofill();
+      setTimeout(function(){ openParentCenter(); }, 300);
       return;
     }
     // 密码确认后保存
     showPasswordModal("保存宝贝信息需要家长密码确认", function(){
-      doSaveAfterPassword();
+      doSaveAfterPassword(name, gender, theme);
     });
   }
   ov.querySelector("#babyModalOk").addEventListener("click",save);
@@ -185,15 +238,32 @@ document.getElementById("saveReview")?.addEventListener("click", () => {
   // 至少填写任意一项（5个字段都可作为有效内容）
   if(!rev.best && !rev.hard && !rev.next && !rev.parent && !rev.support){ toast("请至少填写一项复盘内容"); return; }
 
+  const wk = getWeekKey(rev.date);
   if(rev.editIdx >= 0 && rev.editIdx < STATE.reviews.length){
-    // 编辑模式：更新已有复盘
-    STATE.reviews[rev.editIdx] = { ...STATE.reviews[rev.editIdx], ...rev };
-    delete STATE.reviews[rev.editIdx].editIdx;
+    // 编辑模式：就地更新内容，保留首条 date 锚点与 weekKey
+    const old = STATE.reviews[rev.editIdx];
+    STATE.reviews[rev.editIdx] = {
+      ...old,
+      best: rev.best, hard: rev.hard, next: rev.next,
+      parent: rev.parent, support: rev.support, weekKey: old.weekKey || wk
+    };
     toast("复盘已更新 ✏️");
   } else {
-    // 新增模式
-    STATE.reviews.unshift(rev);
-    toast("复盘已保存，看见进步就是最好的成长。");
+    // 同周 upsert：按 weekKey 查找同周记录，存在则更新内容（保留最早 date 锚点），否则新增
+    const existIdx = STATE.reviews.findIndex(r => r.weekKey === wk);
+    if(existIdx >= 0){
+      const old = STATE.reviews[existIdx];
+      STATE.reviews[existIdx] = {
+        ...old,
+        best: rev.best, hard: rev.hard, next: rev.next,
+        parent: rev.parent, support: rev.support, weekKey: wk
+      };
+      toast("本周复盘已更新 ✏️");
+    } else {
+      rev.weekKey = wk;
+      STATE.reviews.unshift(rev);
+      toast("复盘已保存，看见进步就是最好的成长。");
+    }
   }
 
   // 清空编辑状态
@@ -217,16 +287,24 @@ function fileToDataURL(file){
   });
 }
 
+function getWorkDate(){
+  const inp = document.getElementById("workDate");
+  return (inp && inp.value) ? inp.value : getTodayStr();
+}
+
 function renderWorksDropdown(){
   const s = document.getElementById("workTask");
   if(!s) return;
-  const day = getDay(STATE.selDate);
+  const wd = getWorkDate();
+  const day = getDay(wd);
   const doneTaskIds = day.tasks ? Object.keys(day.tasks) : [];
   const allTasks = [...(STATE.modifiedDefaultTasks||[]), ...(STATE.customTasks||[])];
   const tasks = allTasks.length > 0 ? allTasks : TASKS;
   const doneTasks = tasks.filter(t => doneTaskIds.includes(t.id));
   s.innerHTML = '<option value="">-- 关联打卡任务 --</option>' +
     doneTasks.map(t => `<option value="${t.id}">${t.title} (${t.cat})</option>`).join("");
+  const note = document.getElementById("workDateNote");
+  if(note) note.textContent = "作品将关联到：" + wd;
 }
 
 document.getElementById("workMedia")?.addEventListener("change", e => {
@@ -242,6 +320,8 @@ document.getElementById("workMedia")?.addEventListener("change", e => {
   else p.innerHTML = `<div style="padding:12px">已选择：${esc(f.name)}</div>`;
 });
 
+document.getElementById("workDate")?.addEventListener("change", renderWorksDropdown);
+
 document.getElementById("saveWork")?.addEventListener("click", async () => {
   // 前置校验：必须有宝贝信息
   if(!STATE.childName || !STATE.childName.trim()){
@@ -252,7 +332,9 @@ document.getElementById("saveWork")?.addEventListener("click", async () => {
   const title = document.getElementById("workTitle").value.trim();
   const note = document.getElementById("workNote").value.trim();
   if(!tid){ toast("请先选择关联的打卡任务"); return; }
-  const day = getDay(STATE.selDate);
+
+  const wd = getWorkDate();
+  const day = getDay(wd);
   const allTasks = [...(STATE.modifiedDefaultTasks||[]), ...(STATE.customTasks||[])];
   const tasks = allTasks.length > 0 ? allTasks : TASKS;
   const artwork = {
@@ -261,11 +343,28 @@ document.getElementById("saveWork")?.addEventListener("click", async () => {
     taskTitle: (tasks.find(t => t.id === tid) || {}).title || tid,
     title: title || "未命名作品",
     note,
-    date: STATE.selDate,
-    dateDisplay: fmtDisplay(new Date(STATE.selDate + "T00:00:00")),
+    date: wd,
+    dateDisplay: fmtDisplay(new Date(wd + "T00:00:00")),
     hasMedia: !!workFile
   };
+
+  // 去重：同一作品（id 相同）不重复写入
+  if(day.artworks.some(a => a.id === artwork.id)){
+    toast("该作品已存入档案");
+    return;
+  }
+
+  // 文件大小校验（图片 ≤10MB，视频 ≤100MB）后再读取
   if(workFile){
+    const sizeMB = workFile.size / (1024 * 1024);
+    if(workFile.type.startsWith("image/") && sizeMB > MAX_IMG_MB){
+      toast("图片不能超过10MB");
+      return;
+    }
+    if(workFile.type.startsWith("video/") && sizeMB > MAX_VIDEO_MB){
+      toast("视频不能超过100MB");
+      return;
+    }
     try{
       const dataUrl = await fileToDataURL(workFile);
       await saveMedia(artwork.id, dataUrl);
@@ -279,6 +378,7 @@ document.getElementById("saveWork")?.addEventListener("click", async () => {
       artwork.hasMedia = false;
     }
   }
+
   day.artworks.unshift(artwork);
   saveData();
   document.getElementById("workTask").value = "";
@@ -354,7 +454,7 @@ async function autoCheckUpdate(){
 }
 
 // ===== Daily reminder =====
-function requestNotificationPermission(){
+export function requestNotificationPermission(){
   if(!("Notification" in window))return;
   // 只在新用户首次访问时请求一次，已授权或已拒绝就不再打扰
   if(Notification.permission==="granted")return;
@@ -371,7 +471,7 @@ function requestNotificationPermission(){
   });
 }
 
-function scheduleDailyReminder(){
+export function scheduleDailyReminder(){
   if(!("Notification" in window)||Notification.permission!=="granted")return;
   const now=new Date();const target=new Date(now.getFullYear(),now.getMonth(),now.getDate(),20,30,0);
   if(target<=now)target.setDate(target.getDate()+1);
@@ -389,7 +489,7 @@ function scheduleDailyReminder(){
   },delay);
 }
 
-function clearDailyReminderFlag(){
+export function clearDailyReminderFlag(){
   const todayKey="checkinRemind_"+STATE_TODAY_STR;
   if(data.remindersSent&&data.remindersSent[todayKey]){delete data.remindersSent[todayKey];saveData();}
 }
@@ -428,7 +528,7 @@ function renderGrowthReport(report){
   ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
 }
 
-function checkGrowthReportDay(){
+export function checkGrowthReportDay(){
   const today=STATE_TODAY_STR;
   if(today.endsWith("-07-30")||today.endsWith("-08-31")){
     const reportKey=localDateStr(new Date(today+"T00:00:00"));
@@ -442,14 +542,14 @@ function checkGrowthReportDay(){
 }
 
 // ===== SW Register =====
-const SW_VERSION = 'summer-growth-bank-v3.0';
+const SW_VERSION = 'summer-growth-bank-v3.1.06';
 
 if('serviceWorker' in navigator){
   // 先 unregister 旧版 SW
   navigator.serviceWorker.getRegistrations().then(regs=>{
     regs.forEach(r=>r.unregister());
   });
-  navigator.serviceWorker.register("sw.js?v=3.0").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=3.1.06").then(reg=>{
     // 注册成功后设置版本号，供检查更新使用
     window.localSWVersion = SW_VERSION;
     if(reg.waiting){
@@ -466,6 +566,9 @@ if('serviceWorker' in navigator){
 // ===== Boot =====
 applyTheme();
 renderBabyName();
+// 作品日期默认今天
+const _wd = document.getElementById("workDate");
+if(_wd && !_wd.value) _wd.value = getTodayStr();
 renderAll();
 clearDailyReminderFlag();
 requestNotificationPermission();

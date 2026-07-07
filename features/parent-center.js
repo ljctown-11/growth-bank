@@ -1,11 +1,13 @@
 // features/parent-center.js — 家长中心、备份、多孩子、任务管理
 
 import { STATE } from '../core/state.js';
-import { saveData, getDay, calcTotalScore, loadData } from '../core/data.js';
-import { freshState, setData } from '../core/state.js';
+import { saveData, loadData } from '../core/data.js';
+import { freshState, hydrateStateFrom } from '../core/state.js';
 import { esc, getMonthKey, getTodayStr } from '../core/helpers.js';
-import { showPasswordModal, hasParentPassword, hashPassword } from '../features/password.js';
+import { showPasswordModal, hasParentPassword, hashPassword, dismissAutofill } from '../features/password.js';
 import { TASKS } from '../core/helpers.js';
+import { renderAll } from '../features/render.js';
+import { applyTheme, clearDailyReminderFlag, requestNotificationPermission, scheduleDailyReminder, checkGrowthReportDay } from '../main.js';
 
 // ===== 家长中心 =====
 export function openParentCenter(){
@@ -169,8 +171,10 @@ export function openChildrenModal(){
   document.body.appendChild(ov);
 
   function getChildren(){
-    const m = JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
-    return m.children || [];
+    try {
+      const m = JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
+      return m.children || [];
+    } catch(e){ return []; }
   }
 
   function render(){
@@ -233,7 +237,8 @@ export function openChildrenModal(){
           localStorage.setItem("summerGrowthBankV2",JSON.stringify(m));
         }catch(e){toast("保存失败");return;}
         toast(`${name}已添加 👶`);
-        ov2.remove();ov.remove();openChildrenModal();
+        ov2.remove();ov.remove();
+        switchChildFromParentCenter(id);  // 方案B+问题3：添加后立即切到新宝宝，信息即时同步到“设置宝贝信息”
       };
       showPasswordModal("添加孩子需要家长密码验证",doAdd);
     });
@@ -249,55 +254,66 @@ export function switchChildFromParentCenter(id){
   let mainCustomRewards={};
   try{const m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");mainChildren=m.children||[];mainPasswordHash=m.parentPasswordHash||"";mainCustomRewards=m.customRewards||{};}catch(e){}
   if(id==='default'){
-    try{const savedMain=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");setStateFromSaved(savedMain);}catch(e){setStateFromSaved(loadData());}
-    // Bug 4 修复：切换孩子后重置 selDate 到今天
+    try{hydrateStateFrom(loadData());}catch(e){hydrateStateFrom(loadData());}
+    // 切换孩子后重置 selDate 到今天
     const todayStr = getTodayStr();
     STATE.selDate = todayStr;
     STATE.curCalYear = new Date().getFullYear();
     STATE.curCalMonth = new Date().getMonth();
-    // 校验 childName：如果不在 children 列表中则清除
-    if(STATE.childName && mainChildren.length > 0 && !mainChildren.some(c => c.name === STATE.childName)){
-      STATE.childName = "";
-    }
+    // default 分支保留 main 元信息
     STATE.activeChildId=null;
-    localStorage.setItem("summerGrowthBankV2",JSON.stringify(STATE));
+    STATE.children = mainChildren;
+    STATE.parentPasswordHash = mainPasswordHash;
+    STATE.customRewards = mainCustomRewards;
+    saveData();
   }else{
     const childKey="summerGrowthBankV2_child_"+id;
     const saved=localStorage.getItem(childKey);
+    const child=mainChildren.find(c=>c.id===id);
     if(saved){
-      try{const parsed=JSON.parse(saved);setStateFromSaved(parsed);}catch(e){setStateFromSaved(loadData());}
+      try{const parsed=JSON.parse(saved);hydrateStateFrom(parsed);}catch(e){hydrateStateFrom(freshState());}
     }else{
-      const child=mainChildren.find(c=>c.id===id);
-      if(child){setStateFromFresh();STATE.childName=child.name;STATE.childGender=child.gender||"girl";STATE.theme=child.theme||"sakura";}else{setStateFromSaved(loadData());}
+      hydrateStateFrom(freshState());
     }
-    // Bug 4 修复：切换孩子后重置 selDate 到今天
+    // 切换孩子后重置 selDate 到今天
     const todayStr = getTodayStr();
     STATE.selDate = todayStr;
     STATE.curCalYear = new Date().getFullYear();
     STATE.curCalMonth = new Date().getMonth();
-    // 校验 childName：如果不在 children 列表中则清除
-    if(STATE.childName && mainChildren.length > 0 && !mainChildren.some(c => c.name === STATE.childName)){
-      STATE.childName = "";
+    // 从 main.children 派生元信息（单一真相源），始终用 child 内的值兜底
+    if(child){
+      STATE.childName=child.name||"";
+      STATE.childGender=child.gender||"girl";
+      STATE.theme=child.theme||"sakura";
+    } else {
+      STATE.childName="";
+      STATE.theme="sakura";
     }
     STATE.parentPasswordHash = mainPasswordHash;
     STATE.customRewards = mainCustomRewards; // sync custom rewards from main
     STATE.activeChildId=id;
     STATE.children=mainChildren;
-    localStorage.setItem(childKey,JSON.stringify(STATE));
+    saveData();  // 回写 main（activeChildId + children 元信息）+ child 快照
   }
   applyTheme();renderAll();
   clearDailyReminderFlag();requestNotificationPermission();scheduleDailyReminder();checkGrowthReportDay();
 }
 
-// Helper: mutate STATE object in place (keeps all references alive)
-function setStateFromSaved(obj){
-  Object.keys(STATE).forEach(k => { STATE[k] = undefined; });
-  Object.assign(STATE, obj);
-}
-function setStateFromFresh(){
-  const f = freshState();
-  Object.keys(STATE).forEach(k => { STATE[k] = undefined; });
-  Object.assign(STATE, f);
+// Helper: 从“设置宝贝信息”/家长中心新增或更新当前宝宝后，确保 main.children 与当前宝宝同步
+export function syncCurrentChildToMain(){
+  let mainData;
+  try{ mainData = JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}"); }catch(e){ mainData={}; }
+  if(!mainData.children) mainData.children=[];
+  if(STATE.activeChildId && STATE.activeChildId!=='default'){
+    const idx = mainData.children.findIndex(c=>c.id===STATE.activeChildId);
+    if(idx>=0){
+      mainData.children[idx] = {...mainData.children[idx], name:STATE.childName, gender:STATE.childGender, theme:STATE.theme};
+    }
+  }
+  mainData.activeChildId = STATE.activeChildId;
+  mainData.parentPasswordHash = STATE.parentPasswordHash||"";
+  mainData.customRewards = STATE.customRewards||{};
+  localStorage.setItem("summerGrowthBankV2", JSON.stringify(mainData));
 }
 
 // ===== Delete child =====
@@ -316,7 +332,7 @@ export function deleteChild(cid, modalOverlay){
       if(STATE.activeChildId === cid){
         const remaining = childrenList.filter(c=>c.id!==cid);
         if(remaining.length>0){switchChildFromParentCenter(remaining[0].id);}
-        else {setStateFromSaved(loadData());applyTheme();renderAll();}
+        else {hydrateStateFrom(loadData());applyTheme();renderAll();}
         if(modalOverlay && modalOverlay.parentElement)modalOverlay.remove();
       } else {
         if(modalOverlay && modalOverlay.parentElement){modalOverlay.remove();openChildrenModal();}
