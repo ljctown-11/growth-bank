@@ -36,7 +36,6 @@
 ## 体验地址
 
 - **GitHub Pages**: https://ljctown-11.github.io/growth-bank/
-- **Gitee Pages**: https://ljctown.gitee.io/growth-bank/
 
 ---
 
