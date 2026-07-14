@@ -1,0 +1,110 @@
+%% ① 进页面浇水 → 水滴引擎 → 重渲染
+sequenceDiagram
+    participant U as 用户
+    participant PG as page.js
+    participant W as water.js
+    participant S as STATE.growthTree
+    participant V as voice-encourage
+    U->>PG: 点「💧 浇水 +1」
+    PG->>W: grantDailyWater(today)
+    alt lastDailyWaterDate !== today
+        W->>S: totalWater += 1; lastDailyWaterDate = today
+        W-->>PG: true
+        PG->>V: getEncouragementToPlay → playRecording (随机，非阻塞)
+    else 同日已浇
+        W-->>PG: false（按钮置灰「明日再来」）
+    end
+    PG->>PG: refreshGrowthTree()
+
+%% ② 打卡任务勾选 → onTaskChecked → grantEffortWater / grantStreakWater
+sequenceDiagram
+    participant U as 用户
+    participant RT as render.js(toggleTask)
+    participant PG as page.js
+    participant W as water.js
+    participant S as STATE.growthTree
+    U->>RT: 勾选任务(tid)
+    RT->>RT: day.tasks[tid].done=true; saveData()
+    RT->>PG: onTaskChecked(tid, today)
+    PG->>W: grantEffortWater(tid, today)
+    W->>S: effortGranted['today:tid'] 去重 → 未发则 totalWater += 1
+    PG->>W: grantStreakWater()
+    W->>W: getStreakSincePlant()（读 STATE.daily，仅计种树后连续天数）
+    W->>S: 命中里程碑且未 claimed → totalWater += water; claimedMilestones.push(day)
+    RT->>RT: renderAll() → refreshGrowthTree()
+
+%% ③ 买种子 → 密码 → redemptions → 背包
+sequenceDiagram
+    participant U as 用户
+    participant PG as page.js
+    participant SS as seed-shop.js
+    participant PW as password.js
+    participant S as STATE
+    U->>PG: 种子小铺点「购买」(species,grade)
+    PG->>SS: openSeedShop() → showPasswordModal
+    SS->>PW: showPasswordModal("买种子需扣 N 分")
+    PW-->>SS: 验证通过 cb()
+    SS->>SS: buySeed(species, grade)（提交段）
+    SS->>S: redemptions.unshift({cost:grade, reward:"买种子", level:"成长树", date})
+    SS->>S: growthTree.inventory.push({species,grade,state:'seed'})
+    SS->>S: saveData()
+    SS->>PG: 刷新背包/小铺弹层
+
+%% ④ 收获 → harvestTree → 重置
+sequenceDiagram
+    participant U as 用户
+    participant PG as page.js
+    participant INV as inventory.js
+    participant W as water.js
+    participant S as STATE.growthTree
+    U->>PG: 点「🍎 收获」（繁茂时）
+    PG->>INV: harvestTree(rng)
+    INV->>W: scoreToTreeStage(totalWater, grade).idx === 4 ?
+    alt 存在繁茂树
+        INV->>S: 按各 activeTree.grade 产果(5种:3–6 / 10种:5–10) push inventory(state:'fruit')
+        INV->>S: totalWater = 0; seasonSeq++; effortGranted = {}
+        INV->>S: claimedMilestones 不变（跨季保留）
+        INV-->>PG: 果实数组
+    else 未繁茂
+        INV-->>PG: false（提示「还没成熟」）
+    end
+    PG->>PG: refreshGrowthTree()
+
+%% ⑤ 果实兑积分 → fruitEarnings → calcTotalScore
+sequenceDiagram
+    participant U as 用户
+    participant PG as page.js
+    participant INV as inventory.js
+    participant PW as password.js
+    participant S as STATE
+    U->>PG: 背包点「兑换 +N」
+    PG->>PW: showPasswordModal("果实兑积分需确认")
+    PW-->>PG: 验证通过
+    PG->>INV: redeemFruit(itemId)（已授权）
+    INV->>S: fruitEarnings.push({gain: grade===5?5:10, source:"果实兑换", date})
+    INV->>S: 从 inventory 移除该 fruit
+    INV->>S: saveData()
+    PG->>PG: 刷新背包 + 顶部积分
+
+%% ⑥ 合成 → synthesizeFruit
+sequenceDiagram
+    participant U as 用户
+    participant PG as page.js
+    participant INV as inventory.js
+    participant S as STATE.growthTree
+    U->>PG: 背包点「🧪 合成」
+    PG->>INV: synthesizeFruit(rng)
+    INV->>INV: 统计 5分果 ≥ 2 ?
+    alt 不足 2 个 5分果
+        INV-->>PG: false（提示「需要 2 个 5分果」）
+    else 充足
+        INV->>INV: roll = rng(); 成功(roll>=0.2) ?
+        alt 成功(80%)
+            INV->>S: 移除 2×5分果; 新增 1×10分果
+        else 失败(20%)
+            INV->>S: 移除 1×5分果（净 -1，另 1 个退回）
+        end
+        INV->>S: saveData()
+        INV-->>PG: true
+    end
+    PG->>PG: 刷新背包

@@ -1,7 +1,7 @@
 // core/data.js — 数据加载/保存/计算
 
 import { freshState, STATE } from './state.js';
-import { getTodayStr, getWeekKey } from './helpers.js';
+import { getTodayStr, getWeekKey, getWeekMeta } from './helpers.js';
 
 export function loadData(){
   try{
@@ -32,7 +32,23 @@ export function loadData(){
           _merged.push(r);
         }
       }
-      parsed.reviews = _merged;
+      // 迁移：在合并后的「同周多条」周快照基础上，仅补全字段（weekIndex/dateRange/mood），
+      // 丢弃每日明细与旧的 editIdx；weekKey 已存在则沿用，否则由 date 还原。
+      parsed.reviews = _merged.map((r) => {
+        const wk = r.weekKey || getWeekKey(r.date || getTodayStr());
+        const meta = getWeekMeta(wk);
+        return {
+          weekKey: wk,
+          weekIndex: meta.weekIndex,
+          dateRange: meta.dateRange,
+          best: r.best || '',
+          hard: r.hard || '',
+          next: r.next || '',
+          parent: r.parent || '',
+          support: r.support || '',
+          mood: r.mood || '',
+        };
+      });
     }
     parsed.customTasks=parsed.customTasks||[];
     parsed.makeupVerifiedDates=parsed.makeupVerifiedDates||{};
@@ -135,6 +151,10 @@ export function calcTotalScore(){
   }
   for(const r of STATE.redemptions){
     total-=r.cost||0;
+  }
+  // 果实兑换真加积分（与 redemptions 兑换记录 UI 解耦，不污染其列表）
+  for(const f of (STATE.fruitEarnings || [])){
+    total += f.gain || 0;
   }
   return Math.max(0,total);
 }

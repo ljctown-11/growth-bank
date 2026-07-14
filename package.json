@@ -1,5 +1,13 @@
 {
-  "dependencies": {
-    "playwright": "^1.61.1"
+  "name": "summer-growth-bank",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0",
+    "jsdom": "^24.0.0"
   }
 }

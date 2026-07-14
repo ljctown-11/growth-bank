@@ -129,3 +129,56 @@ export function getTodayStr(){
   const pad = (n) => String(n).padStart(2, '0');
   return `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
 }
+
+// ===== 暑假锚点常量（改暑假区间只动这两个常量）=====
+export const SUMMER_START = '2026-07-01'; // 暑假起始（含）
+export const SUMMER_END = '2026-08-31';   // 暑假结束（含）
+
+// 两个 weekKey（均为当周周一）之间相差的整周数（可负）
+function _weekDiff(aKey, bKey) {
+  const [ay, am, ad] = aKey.split('-').map(Number);
+  const [by, bm, bd] = bKey.split('-').map(Number);
+  const a = new Date(ay, am - 1, ad);
+  const b = new Date(by, bm - 1, bd);
+  const diffDays = Math.round((b - a) / 86400000); // round 抵消 DST 偏移
+  return Math.floor(diffDays / 7);
+}
+
+// 由 weekKey（当周周一）计算「第 N 周」索引（1-based）。
+// 第 1 周 = 暑假起始日所在周（周一为起点）。
+export function getWeekIndex(weekKey) {
+  const startMonday = getWeekKey(SUMMER_START);
+  return _weekDiff(startMonday, weekKey) + 1;
+}
+
+// 由 weekKey（当周周一）计算展示区间：周一 M/D – 周日 M/D（en dash –）
+export function getWeekDateRange(weekKey) {
+  const [y, m, d] = weekKey.split('-').map(Number);
+  const monday = new Date(y, m - 1, d);
+  const sunday = new Date(y, m - 1, d);
+  sunday.setDate(monday.getDate() + 6);
+  const fmt = (dt) => `${dt.getMonth() + 1}/${dt.getDate()}`;
+  return `${fmt(monday)}–${fmt(sunday)}`;
+}
+
+// 由 weekKey 还原 { weekIndex, dateRange }
+export function getWeekMeta(weekKey) {
+  return { weekIndex: getWeekIndex(weekKey), dateRange: getWeekDateRange(weekKey) };
+}
+
+// 枚举暑假全量周（返回 weekKey 列表，第1周..第N周，单调且覆盖整个暑假）
+export function enumerateSummerWeeks() {
+  const startMonday = getWeekKey(SUMMER_START);
+  const endMonday = getWeekKey(SUMMER_END);
+  const [sy, sm, sd] = startMonday.split('-').map(Number);
+  const [ey, em, ed] = endMonday.split('-').map(Number);
+  const cur = new Date(sy, sm - 1, sd);
+  const end = new Date(ey, em - 1, ed);
+  const weeks = [];
+  while (cur <= end) {
+    const wk = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+    weeks.push(wk);
+    cur.setDate(cur.getDate() + 7);
+  }
+  return weeks;
+}

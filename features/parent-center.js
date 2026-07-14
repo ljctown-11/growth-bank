@@ -7,7 +7,9 @@ import { esc, getMonthKey, getTodayStr } from '../core/helpers.js';
 import { showPasswordModal, hasParentPassword, hashPassword, dismissAutofill } from '../features/password.js';
 import { TASKS } from '../core/helpers.js';
 import { renderAll } from '../features/render.js';
-import { applyTheme, clearDailyReminderFlag, requestNotificationPermission, scheduleDailyReminder, checkGrowthReportDay } from '../main.js';
+import { applyTheme, clearDailyReminderFlag, requestNotificationPermission, scheduleDailyReminder, checkGrowthReportDay } from './runtime.js';
+import { encStorageKey } from '../features/voice-encourage.js';
+import { removeMedia } from '../features/media.js';
 
 // ===== 家长中心 =====
 export function openParentCenter(){
@@ -329,6 +331,10 @@ export function deleteChild(cid, modalOverlay){
       if(idx>=0) m.children.splice(idx, 1);
       localStorage.setItem("summerGrowthBankV2", JSON.stringify(m));
       localStorage.removeItem("summerGrowthBankV2_child_"+cid);
+      // 非阻塞清理该孩录音 blob（enc_<cid>_<seq>，单孩上限 10 条）
+      for(let seq = 0; seq < 10; seq++){
+        removeMedia(encStorageKey(cid, seq)).catch(() => {});
+      }
       if(STATE.activeChildId === cid){
         const remaining = childrenList.filter(c=>c.id!==cid);
         if(remaining.length>0){switchChildFromParentCenter(remaining[0].id);}

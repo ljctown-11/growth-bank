@@ -1,72 +1,44 @@
 classDiagram
-    class STATE {
-        +string childName
-        +string selDate
-        +string selCat
-        +Object daily
-        +Review[] reviews
-        +Object redemptions
-    }
-    class Review {
-        +string date
-        +string weekKey
-        +string best
-        +string hard
-        +string next
-        +string parent
-        +string support
-        +int editIdx
-    }
-    class Day {
-        +Object tasks
-        +number score
-        +Artwork[] artworks
-    }
-    class Artwork {
-        +string id
-        +string taskId
-        +string taskTitle
-        +string title
-        +string note
-        +string date
-        +string dateDisplay
-        +bool hasMedia
-        +string mediaKind
-    }
-    class ToastCenter {
-        +showCenterToast(type, text, duration)
-    }
-    class DateHelpers {
-        +getWeekKey(ds) string
-        +getMonthKey(ds) string
-    }
-    class MainJS {
-        +doSaveAfterPassword(name,gender,theme)
-        +saveReview()
-        +renderWorksDropdown()
-        +saveWork()
-        +let workDate
-        +MAX_IMG_MB
-        +MAX_VIDEO_MB
-    }
-    class RenderJS {
-        +renderCalendar()
-        +renderRewards()
-        +renderReviewTimeline()
-        +switchToCategory(cat)
-        +toggleTask(tid,checked,event)
-    }
-    class PasswordJS {
-        +showPasswordModal(prompt,cb)
-        +verifyPassword(pwd)
-    }
-    STATE "1" *-- "many" Day : daily[ds]
-    Day "1" *-- "many" Artwork : artworks
-    STATE "1" *-- "many" Review : reviews
-    MainJS ..> ToastCenter : showCenterToast
-    RenderJS ..> ToastCenter : showCenterToast
-    PasswordJS ..> ToastCenter : showCenterToast
-    MainJS ..> DateHelpers : getWeekKey
-    RenderJS ..> DateHelpers : getMonthKey
-    MainJS ..> RenderJS : switchToCategory / renderWorksDropdown
-    MainJS ..> PasswordJS : showPasswordModal
+  class AppState {
+    +daily: object
+    +reviews: WeekReview[]
+    +children: object[]
+    +activeChildId: string
+  }
+  class WeekReview {
+    +weekKey: string
+    +weekIndex: number
+    +dateRange: string
+    +best: string
+    +hard: string
+    +next: string
+    +parent: string
+    +support: string
+    +mood: string
+  }
+  class DayTask {
+    +done: boolean
+    +pts: number
+    +cat: string
+    +title: string
+    +fromIdea: boolean
+  }
+  class IdeaLibrary {
+    +id: string
+    +title: string
+    +pts: number
+    +cat: string
+  }
+  class ModalManager {
+    -registry: Map~string,HTMLElement~
+    +openModal(id, builder, opts): HTMLElement
+    +closeModal(id): void
+  }
+  class PasswordModal {
+    +showPasswordModal(prompt, cb, onCancel): Promise~boolean~
+  }
+  AppState "1" *-- "0..*" WeekReview : reviews
+  AppState "1" *-- "0..*" DayTask : daily[date].tasks
+  ModalManager ..> PasswordModal : z1500 小于 z2000
+  ideas.js ..> ModalManager : openModal('idea-library')
+  render.js ..> ModalManager : openModal('review-detail'|'work-detail')

@@ -1,0 +1,80 @@
+classDiagram
+    class STATE {
+        +Object daily
+        +Array redemptions
+        +Array fruitEarnings
+        +Object growthTree
+        +String childName
+        +freshState() Object
+    }
+    class WaterEngine {
+        +treeThresholds(grade) number[]
+        +scoreToTreeStage(water, grade) Object
+        +grantDailyWater(today) boolean
+        +grantEffortWater(taskId, date) boolean
+        +grantStreakWater() number
+        +STREAK_MILESTONES Array
+    }
+    class Inventory {
+        +InventoryItem type
+        +plantSeed(itemId) boolean
+        +plantFruitAsSeed(itemId) boolean
+        +redeemFruit(itemId) boolean
+        +harvestTree(rng) Array~false~
+        +synthesizeFruit(rng) boolean
+        +addInventoryItem(item) void
+        +getInventory() Array
+    }
+    class TreeSVG {
+        +renderTreeStage(species, grade, stageIdx) string
+    }
+    class SeedShop {
+        +buySeed(species, grade) boolean
+        +openSeedShop() void
+    }
+    class Page {
+        +renderGrowthTreePage() void
+        +mountGrowthTreePage() void
+        +onTaskChecked(taskId, date) void
+        +refreshGrowthTree() void
+        +onWaterClick() void
+    }
+    class MascotModule {
+        +renderMascot(placement, opts) string
+    }
+    class GrowthTreeLegacy {
+        +getStreak() number
+        +scoreToStage(total) Object
+        +renderStreak() void
+        +renderBadges() void
+        +badgeSVG(cat, level) string
+    }
+    class VoiceEncourage {
+        +getEncouragementToPlay(list, cid) Object
+        +playRecording(id) Promise
+    }
+    class Password {
+        +showPasswordModal(prompt, cb) Promise
+    }
+    class Modal {
+        +openModal(id, builder, opts) void
+        +closeModal(id) void
+    }
+
+    STATE "1" *-- "1" growthTree : 顶层字段
+    STATE "1" *-- "many" fruitEarnings : 顶层字段
+    WaterEngine ..> STATE : 读写 growthTree
+    Inventory ..> STATE : 读写 growthTree.inventory/activeTrees
+    Inventory ..> WaterEngine : scoreToTreeStage(成熟判定)
+    SeedShop ..> STATE : 写 redemptions/inventory
+    SeedShop ..> Password : showPasswordModal
+    Page ..> WaterEngine : grant*
+    Page ..> Inventory : plant/redeem/harvest/synth
+    Page ..> TreeSVG : renderTreeStage
+    Page ..> MascotModule : renderMascot(蝴蝶)
+    Page ..> VoiceEncourage : 浇水随机语音
+    Page ..> Modal : openModal(背包/合成/小铺)
+    %% 坚持水已内置为 water.js 的 getStreakSincePlant()（读 STATE.daily，仅计种树后连续天数），不再依赖 GrowthTreeLegacy
+    SeedShop ..> Inventory : buySeed 提交段
+    note for GrowthTreeLegacy : 仅保留 Streak/徽章/scoreToStage\n藤蔓与旧树区块已删
+    note for MascotModule : 原地重写为蝴蝶\n公开契约不变

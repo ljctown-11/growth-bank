@@ -44,12 +44,12 @@ export function dismissAutofill(){
     const active = document.activeElement;
     if (active) active.blur();
   } catch(e) {}
-  // 页面滚动1px dismiss autofill 建议栏
-  window.scrollBy(0, 1);
-  setTimeout(() => window.scrollBy(0, -1), 50);
+  // 页面滚动1px dismiss autofill 建议栏（部分环境未实现 scrollBy，安全兜底）
+  try { window.scrollBy(0, 1); } catch(e) {}
+  try { setTimeout(() => { try { window.scrollBy(0, -1); } catch(e2) {} }, 50); } catch(e) {}
 }
 
-export async function showPasswordModal(promptText, cb){
+export async function showPasswordModal(promptText, cb, onCancel){
   if(_passwordModalActive){showPasswordError("请关闭上一个验证窗口后再操作");return Promise.resolve(false);}
   if(!hasParentPassword()){showPasswordError("请先设置密码");return Promise.resolve(false);}
   _passwordModalActive = true;
@@ -60,6 +60,9 @@ export async function showPasswordModal(promptText, cb){
       <div style="display:flex;justify-content:center;gap:10px;margin-bottom:22px" id="pinDigits"></div>
       <div class="pin-keypad" id="pinKeypad"></div>
       <p style="color:var(--muted);font-size:12px;margin-top:16px">请输入4-6位数字家长密码</p>
+      <div style="margin-top:18px;display:flex;justify-content:center;gap:12px">
+        <button class="btn-ghost" id="pinCancel" style="min-height:40px;padding:10px 28px">取消</button>
+      </div>
     </div>`;
     document.body.appendChild(ov);
 
@@ -104,7 +107,7 @@ export async function showPasswordModal(promptText, cb){
             try{cb&&await cb();}catch(e){toast("操作失败，请重试");}
             resolve(true);
           }else{
-            // 显示错误提示，同时让弹窗抖动一下
+            // 密码错误：仅抖动 + 提示，保持弹窗让用户重试（不 resolve，避免弹窗卡留）
             if(ov.parentNode){
               const modal = ov.querySelector(".modal-box");
               if(modal){
@@ -118,18 +121,15 @@ export async function showPasswordModal(promptText, cb){
               try{b.disabled=false;}catch(e){}
             });
             try{ov.querySelector(".pin-del").disabled=false;}catch(e){}
-            // 关键修复：必须 resolve(false) 释放锁，否则后续操作全部卡死
-            resolve(false);
           }
         }).catch(err=>{
-          // verifyPassword 自身出错
+          // verifyPassword 自身出错：提示并可重试/取消（不自动 resolve）
           if(ov.parentNode) showPasswordError("验证失败，请重试");
           pin=""; renderDigits();
           ov.querySelectorAll(".pin-key").forEach(b=>{
             try{b.disabled=false;}catch(e){}
           });
           try{ov.querySelector(".pin-del").disabled=false;}catch(e){}
-          resolve(false);
         });
       }
     }
@@ -137,12 +137,20 @@ export async function showPasswordModal(promptText, cb){
       const key=e.target.closest(".pin-key");if(!key)return;
       handleKey(key.dataset.key);
     });
-    ov.addEventListener("click",e=>{if(e.target===ov){ov.remove();resolve(false);}});
+    // 取消：移除密码键盘 + 回调 onCancel + resolve(false)
+    function cancel(){
+      if(ov.parentNode) ov.remove();
+      try{ if(typeof onCancel === 'function') onCancel(); }catch(e){}
+      resolve(false);
+    }
+    ov.addEventListener("click",e=>{if(e.target===ov)cancel();});
     ov.addEventListener("keydown",e=>{
       if(/^[0-9]$/.test(e.key))handleKey(e.key);
       else if(e.key==="Backspace")handleKey("del");
     });
     ov.addEventListener("click",()=>ov.focus());
+    const cancelBtn = ov.querySelector("#pinCancel");
+    if(cancelBtn) cancelBtn.addEventListener("click", cancel);
     ov.focus();
   });
     return result;

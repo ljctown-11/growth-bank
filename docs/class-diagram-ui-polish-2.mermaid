@@ -1,0 +1,54 @@
+classDiagram
+  class AppState {
+    +daily: object
+    +reviews: WeekReview[]
+    +activeChildId: string
+  }
+  class WeekReview {
+    +weekKey: string
+    +weekIndex: number
+    +dateRange: string
+    +best: string
+    +hard: string
+    +next: string
+    +parent: string
+    +support: string
+    +mood: 'happy'|'neutral'|'sad'|''
+  }
+  class GrowthTreeModule {
+    +STAGES: {name,threshold}[]
+    +scoreToStage(total): {stage,idx,nextThreshold,pct}
+    +computeDimensionScores(daily): Record~string,number~
+    +morningGlorySVG(size): string
+    +renderGrowthVine(): void
+    -_vineBloomedToday: boolean
+  }
+  class WeekGridModule {
+    +renderWeekTable(): void
+    +openWeekEditorModal(weekKey): HTMLElement
+    +buildWeekEditor(weekKey, rec): HTMLElement
+    +saveWeekReview(weekKey, data): void
+    +openSummerSummary(): HTMLElement
+  }
+  class EmptyStateModule {
+    +renderArchive(): void
+  }
+  class CollapseModule {
+    +renderMap(): void
+    +renderTrendChart(): void
+  }
+  class ModalManager {
+    -registry: Map~string,HTMLElement~
+    +openModal(id, builder, opts): HTMLElement
+    +closeModal(id): void
+  }
+  AppState "1" *-- "0..*" WeekReview : reviews
+  GrowthTreeModule ..> AppState : 经 calcTotalScore 读 daily
+  WeekGridModule ..> GrowthTreeModule : scoreToStage / STAGES / morningGlorySVG / computeDimensionScores
+  WeekGridModule ..> ModalManager : openModal('week-editor-*'|'summer-summary')
+  WeekGridModule ..> AppState : reviews / daily
+  EmptyStateModule ..> AppState : daily[date].artworks
+  EmptyStateModule ..> ModalManager : 否(仅显隐表单/引导卡)
+  CollapseModule ..> ModalManager : 否(仅折叠 body)
+  note for GrowthTreeModule "renderGrowthVine 输出到 .growth-vine-block(日历Tab)\n摘要=阶段名+距下阶段差X分"
+  note for WeekGridModule "12格=10周+小结入口+完成装饰\n点击真实周格→openWeekEditorModal"

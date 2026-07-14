@@ -1,0 +1,58 @@
+classDiagram
+  class AppState {
+    +daily: object
+    +reviews: WeekReview[]
+    +activeChildId: string
+  }
+  class MascotModule {
+    +PLACEMENTS: {tree,success,empty,encourage}
+    +renderMascot(placement, opts): string
+    -beeSVG(stage, placement): string  %% 卵蛹/幼虫/小蜜蜂/大蜜蜂
+    -C: {bee-body, bee-stripe, bee-wing, bee-stroke, bee-cheek}
+    -deriveStage(): number  %% scoreToStage(calcTotalScore()).idx
+  }
+  class GrowthTreeModule {
+    +STAGES: {name, threshold}[]
+    +scoreToStage(total): {stage, idx, nextThreshold, pct}
+    +renderGrowthVine(): void  %% 多段贝塞尔藤蔓 + 侧枝/三裂心形叶/多朝向花 + .vine-mascot.vine-bee-static|fly
+    +badgeLevel(score): 1|2|3|4
+    +badgeSVG(cat, level): string  %% 盾牌 + badgeIcon 最上层
+    -badgeIcon(cat): string  %% 书本/球/沙漏/放大镜/手
+    -vineBranch(x,y,dir,thick): string
+    -vineLeaf(x,y,dir,size,idx): string  %% 三裂心形真叶
+    -vineFlower(x,y,r,bloom,orient): string  %% 多朝向
+    -vineTendril(x,y,dir): string
+    -vineStemPath(progress,W,H): string
+    +renderBadges(): void
+    +computeDimensionScores(daily): Record~string,number~
+  }
+  class IdeaModule {
+    +IDEA_TABS: string[]
+    +openIdeaEditModal(id): HTMLElement
+    +loadCustomIdeas(): object
+    +saveCustomIdea(id, title, pts): void
+    +resetCustomIdea(id): void
+    +getIdeaView(idea): object
+  }
+  class ModalManager {
+    -registry: Map~string,HTMLElement~
+    +openModal(id, builder, opts): HTMLElement
+    +closeModal(id): void
+  }
+  class EncourageModule {
+    +showEncourageMsg(msg, opts): void  %% opts.mascotType: success|encourage
+  }
+
+  AppState "1" *-- "0..*" WeekReview : reviews
+  MascotModule ..> AppState : calcTotalScore/daily(随 child 隔离)
+  GrowthTreeModule ..> AppState : calcTotalScore/daily(随 child 隔离)
+  GrowthTreeModule ..> MascotModule : renderMascot('tree',{size,stage})
+  GrowthTreeModule ..> GrowthTreeModule : scoreToStage/STAGES/computeDimensionScores
+  IdeaModule ..> ModalManager : openModal('idea-edit-<id>')
+  IdeaModule ..> AppState : 写 customIdeas(主数据全局)
+  EncourageModule ..> MascotModule : renderMascot('success'|'encourage'|'empty')
+  IdeaModule ..> AppState : 读 daily(activeChild)
+
+  note for MascotModule "公开契约保留:\nmascot-${key} 类 + mascot-sway|pop|blink 动画\n+ success '★' / empty 'rotate(-8'\n→ 现有 mascot.test.js / ui-polish-3-qa.test.js 零改动全绿\n配色 var(--bee-*)/var(--metal-*)，禁硬编码 hex"
+  note for GrowthTreeModule "藤蔓 gating 不变(发芽无花/长叶仅花苞/开花繁茂盛花)\n高度≤160px\nSTAGES 阈值 0/20/50/100/200 不变\nbadgeLevel 阈值 0-9/10-24/25-49/50+ 不变\n盾牌铁律: 填充只作用于盾牌底/边框, 中心 badgeIcon 最上层"
+  note for IdeaModule "分值改 .pts-options>.pts-opt[data-pts=1|2|3]\n默认带 view.pts; 校验∈{1,2,3}\n分类只读不变; customIdeas 全局主数据"

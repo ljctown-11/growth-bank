@@ -1,0 +1,81 @@
+sequenceDiagram
+  participant RA as renderAll(render.js)
+  participant GV as growth-tree.renderGrowthVine
+  participant ST as scoreToStage/calcTotalScore
+  participant SC as STATE(activeChild)
+  participant MA as mascot.renderMascot
+  participant B as mascot.beeSVG(stage)
+  RA->>GV: renderGrowthVine()
+  GV->>ST: calcTotalScore() → scoreToStage(total) → idx
+  ST->>SC: 读 daily(随 activeChild 隔离)
+  GV->>GV: 按 idx 组装藤蔓(SVG, 多段贝塞尔+侧枝+三裂叶+多朝向花)
+  alt idx 0/1（卵蛹/幼虫）
+    GV->>MA: renderMascot('tree',{size:104, stage:idx})
+    MA->>B: beeSVG(idx) → 卵蛹/幼虫(静态大图)
+    GV->>GV: 包 .vine-mascot.vine-bee-static（右端常驻·占满藤蔓块高·无飞行动画）
+  else idx ≥2（小蜜蜂/大蜜蜂）
+    GV->>MA: renderMascot('tree',{size:idx>=4?72:56, stage:idx})
+    MA->>B: beeSVG(idx) → 小蜜蜂(idx2)/大蜜蜂(idx3,4，最大)
+    GV->>GV: 包 .vine-mascot.vine-bee-fly（beeOrbit 绕藤/花飞·翅膀 beeWingFlutter）
+  end
+  Note over MA: success/empty/encourage 位渲染固定友好蜜蜂（保留 ★ / rotate(-8 契约）
+
+sequenceDiagram
+  participant RA as renderAll(render.js)
+  participant GV as growth-tree.renderGrowthVine
+  participant GT as scoreToStage/STAGES
+  participant D as calcTotalScore(STATE.daily)
+  RA->>GV: renderGrowthVine()
+  GV->>D: calcTotalScore()
+  D-->>GV: total
+  GV->>GT: scoreToStage(total) → {idx, pct}
+  GV->>GV: vineStemPath(多段贝塞尔) + vineDefs(渐变)
+  alt idx=0 种子(0–19)
+    GV->>GV: 仅 vineSeed()；无茎/无叶/无花
+  else idx=1 发芽(20–49)
+    GV->>GV: 短贝塞尔主茎 + 2 小嫩叶(vineLeaf)；无花无苞
+  else idx=2 长叶(50–99)
+    GV->>GV: 主茎 + vineBranch(3 根交错递减) + 每枝 2–3 片三裂心形叶 + vineBud(花苞,非盛花)；无盛花
+  else idx=3 开花(100–199)
+    GV->>GV: 侧枝 4 根 + vineFlower(5–6 朵,多朝向 orient) 盛花
+  else idx=4 繁茂(200+)
+    GV->>GV: 侧枝 5 根铺满 + vineFlower(7–8 朵,多朝向) + 新苞 + vineTendril 加密
+  end
+  GV->>GV: 写 .growth-vine-block(摘要: 阶段名 + 距下阶段差 X 分)
+  GV->>GV: 末尾蜜蜂容器（见流程①）
+
+sequenceDiagram
+  participant RA as renderAll(render.js)
+  participant RB as growth-tree.renderBadges
+  participant CD as computeDimensionScores
+  participant BL as badgeLevel/badgeSVG/badgeIcon
+  RA->>RB: renderBadges()
+  RB->>CD: computeDimensionScores(STATE.daily)
+  CD-->>RB: 各维分数
+  loop 每个维度 cat
+    RB->>BL: badgeLevel(score) → Lv1/2/3/4
+    RB->>BL: badgeSVG(cat, level)
+    BL->>BL: 先画盾牌底(银线框/铜填/渐变/金渐变)
+    BL->>BL: 再画等级装饰(星/翅膀或绶带/光晕)
+    BL->>BL: 最后画 badgeIcon(cat)（书本/球/沙漏/放大镜/手，最上层·对比色）
+    RB->>RB: 写 .badge-slot.lvN（保留 unlocked 当 level>=2）
+  end
+  Note over BL: 铁律：Lv2/3/4 填充只作用于盾牌底色/边框，绝不覆盖中心 icon
+
+sequenceDiagram
+  participant U as 用户
+  participant IL as ideas.renderIdeaLibrary
+  participant EM as ideas.openIdeaEditModal
+  participant M as modal.openModal
+  participant D as 主数据 customIdeas
+  U->>IL: 点某条「修改」
+  IL->>EM: openIdeaEditModal(id)
+  EM->>M: openModal('idea-edit-<id>', builder, {onMount})
+  M-->>U: 弹层(标题 input + 分值按钮组[1分][2分][3分] 默认选中 view.pts + 分类 readonly)
+  U->>EM: 选分值(1/2/3) → 点「保存修改」
+  EM->>EM: onMount 取 .pts-opt.active[data-pts]，校验 ∈{1,2,3}
+  EM->>D: saveCustomIdea(id, title, pts) → summerGrowthBankV2.customIdeas[id]
+  EM->>M: closeModal + renderIdeaLibrary() 刷新
+  U->>EM: 点「恢复默认」
+  EM->>D: resetCustomIdea(id) → 删覆盖
+  EM->>M: closeModal + renderIdeaLibrary() 回默认

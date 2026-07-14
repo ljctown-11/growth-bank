@@ -1,0 +1,115 @@
+%% ===== ① 灵感 Tab 切换 → 过滤渲染；点「修改」→ openModal 编辑 → 写 customIdeas =====
+sequenceDiagram
+  participant U as 用户
+  participant IL as ideas.renderIdeaLibrary
+  participant M as modal.openModal
+  participant D as 主数据 customIdeas
+  participant S as STATE.daily(activeChild)
+  U->>IL: 点「🌟 任务灵感」
+  IL->>M: openModal('idea-library', builder, {onMount})
+  M-->>U: 弹层(顶部6胶囊Tab + 5维列表, 用 getIdeaView 显 title/pts)
+  U->>IL: 点某 Tab(如「运动力」)
+  IL->>IL: _activeIdeaTab='运动力'; 就地替换 .idea-list(仅显该维)
+  U->>IL: 点某条「修改」
+  IL->>M: openIdeaEditModal(id)=openModal('idea-edit-<id>', builder, {onMount})
+  M-->>U: 编辑框(标题可改/分值可改/cat只读)
+  U->>IL: 改完点「保存修改」
+  IL->>D: saveCustomIdea(id, title, pts) → 写 summerGrowthBankV2.customIdeas[id]
+  IL->>M: closeModal('idea-edit-<id>'); renderIdeaLibrary() 刷新
+  U->>IL: 点「恢复默认」
+  IL->>D: resetCustomIdea(id) → 删覆盖
+  IL->>M: closeModal; renderIdeaLibrary() 回默认
+
+%% ===== ② 藤蔓 renderGrowthVine 按 scoreToStage 阶段严格 gating 控制花朵 =====
+sequenceDiagram
+  participant RA as renderAll(render.js)
+  participant GV as growth-tree.renderGrowthVine
+  participant GT as scoreToStage/STAGES
+  participant D as calcTotalScore(STATE.daily)
+  participant SC as state STATE(activeChild)
+  RA->>GV: renderGrowthVine()
+  GV->>D: calcTotalScore()
+  D->>SC: 读 daily(随 activeChild 隔离)
+  D-->>GV: total
+  GV->>GT: scoreToStage(total) → {stage, idx, pct}
+  alt idx=0 种子(0–19)
+    GV->>GV: 仅 vineSeed(); 无茎/无叶/无花
+  else idx=1 发芽(20–49)
+    GV->>GV: 贝塞尔短茎 + 2 小葉(vineLeaf); 无花
+  else idx=2 长叶(50–99)
+    GV->>GV: 贝塞尔茎 + 多叶 + vineBud(半开花苞, 非盛花); 无盛花
+  else idx=3 开花(100–199)
+    GV->>GV: 茎繁茂 + vineFlower(喇叭盛花, 仅 milestone≥100)
+  else idx=4 繁茂(200+)
+    GV->>GV: 满屏 vineFlower + 持续冒 vineBud
+  end
+  GV->>GV: 末尾追加 .vine-mascot → renderMascot('tree',{size:48})
+  GV->>GV: 写 .growth-vine-block(摘要: 阶段名 + 距下阶段差X分)
+
+%% ===== ③ 藤蔓右端常驻小芽 + 打卡成功/鼓励弹层挂吉祥物 =====
+sequenceDiagram
+  participant U as 用户
+  participant TK as toggleTask(render.js)
+  participant EM as showEncourageMsg
+  participant MA as mascot.renderMascot
+  participant M as modal/DOM
+  Note over TK,GV: 藤蔓右端常驻(属流程②): renderGrowthVine 末尾 .vine-mascot=renderMascot('tree')
+  U->>TK: 勾选任务(打卡成功)
+  TK->>EM: triggerEncourageAndFirework({silent, mascotType:'success'})
+  EM->>EM: showEncourageMsg(undefined, {mascotType:'success'})
+  EM->>MA: renderMascot('success')
+  EM->>M: .encourage-msg 内挂 .encourage-mascot(成功小芽)
+  U->>TK: 取消勾选(温柔话)
+  TK->>EM: showEncourageMsg(gentleMsg, {mascotType:'encourage'})
+  EM->>MA: renderMascot('encourage')
+  EM->>M: .encourage-msg 内挂 .encourage-mascot(鼓励小芽)
+
+%% ===== ④ 徽章 renderBadges 按 computeDimensionScores 分 4 级 =====
+sequenceDiagram
+  participant RA as renderAll(render.js)
+  participant RB as growth-tree.renderBadges
+  participant CD as computeDimensionScores
+  participant BL as badgeLevel/badgeSVG
+  RA->>RB: renderBadges()
+  RB->>CD: computeDimensionScores(STATE.daily)
+  CD-->>RB: 各维分数
+  loop 每个维度 cat
+    RB->>BL: badgeLevel(score) → Lv1/2/3/4
+    RB->>BL: badgeSVG(cat, level) → 单色描边/填充/光泽/星饰
+    RB->>RB: 写 .badge-slot.lvN(始终显示当前级 SVG)
+  end
+
+%% ===== ⑤ 周表 renderWeekTable 未到周禁用 + 小结日期 =====
+sequenceDiagram
+  participant U as 用户
+  participant WT as render.renderWeekTable
+  participant H as helpers(enumerateSummerWeeks/getWeekMeta/getWeekKey)
+  participant M as modal.openWeekEditorModal
+  U->>WT: 切档案Tab → renderWeekTable()
+  WT->>H: enumerateSummerWeeks() → 第1..10周
+  WT->>H: todayKey = getWeekKey(getTodayStr())
+  loop 每真实周
+    WT->>WT: isFutureWeek = wk > todayKey ?
+    alt 未来周
+      WT->>WT: 加 .future(灰 + pointer-events:none + 无 cursor); 不绑 openWeekEditorModal
+    else 已到/过去周
+      WT->>WT: 周次+日期一行 + 大图 mood + 状态点; 绑点击→openWeekEditorModal(wk)
+    end
+  end
+  WT->>WT: 小结格加「📅 截至 {getTodayStr()}」
+  U->>WT: 点已到周格
+  WT->>M: openWeekEditorModal(wk)
+
+%% ===== ⑥ 作品表单 grid-template-columns:auto 1fr 1fr 自适应不溢出 =====
+sequenceDiagram
+  participant U as 用户
+  participant WF as .work-form(index.html)
+  participant ACT as .work-form-actions(flex-wrap)
+  participant WD as #workDate(change)
+  participant RWD as main.renderWorksDropdown
+  Note over WF: 第一排 grid-template-columns:auto 1fr 1fr(日期自适应/任务/作品名平分)
+  Note over WF: #workNote grid-column:1/-1(满宽)
+  Note over ACT: .upload-box + #saveWork 包进 .work-form-actions; display:flex;flex-wrap:wrap
+  U->>WD: 改日期(375/1920/2560+ 均不溢出)
+  WD->>RWD: renderWorksDropdown() → 刷新 #workTask 选项
+  Note over WF: ≤640px 仍单列; 字段 id 不变

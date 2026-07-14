@@ -1,0 +1,91 @@
+%% ① 首页藤蔓 render（读 activeChild 总积分 → scoreToStage → SVG 生成）
+sequenceDiagram
+  participant U as 渲染/用户
+  participant RA as renderAll(render.js)
+  participant GV as growth-tree.renderGrowthVine
+  participant GT as growth-tree(scoreToStage/STAGES)
+  participant D as data.calcTotalScore
+  participant S as STATE.daily(activeChild)
+  U->>RA: renderAll()
+  RA->>GV: renderGrowthVine()
+  GV->>D: calcTotalScore()
+  D->>S: 读 daily(随 activeChild 隔离)
+  D-->>GV: total
+  GV->>GT: scoreToStage(total) → {stage, idx, pct, nextThreshold}
+  GV->>GV: 生成 SVG 藤蔓(长度∝total/200；花朵数∝已达成阶段；最新花加.bloom 若今日首渲)
+  GV->>GV: 写入 .growth-vine-block(摘要:阶段名+距「下阶段」还差X分)
+  GV-->>U: 首页藤蔓可见(暗色随 --vine-* 变量)
+
+%% ② 周表方块点击 → openModal(buildWeekEditor) → saveWeekReview（存储不变）
+sequenceDiagram
+  participant U as 用户
+  participant WT as renderWeekTable(render.js)
+  participant H as helpers(enumerateSummerWeeks/getWeekMeta)
+  participant M as modal.openModal
+  participant BE as buildWeekEditor(字段)
+  participant S as STATE.reviews
+  participant D as data.saveData
+  U->>WT: 切档案Tab → renderWeekTable()
+  WT->>H: enumerateSummerWeeks() → 第1..10周 + 小结/完成占位
+  WT-->>U: 3×4 网格(.week-cell: 10周+小结+完成)
+  U->>WT: 点某真实周格
+  WT->>M: openWeekEditorModal(weekKey)=openModal('week-editor-<weekKey>', builder, {onMount})
+  M-->>U: 弹编辑器(5框+周mood, 单例z1500)
+  U->>M: 填5框 + 选mood + 点保存
+  M->>BE: onMount 绑定保存 → saveWeekReview(weekKey, data)
+  BE->>S: upsert WeekReview(weekKey, weekIndex, dateRange, mood, ...)
+  BE->>D: saveData()
+  BE->>WT: renderWeekTable() 刷新(●已填 / C 心情色染)
+
+%% ③ 作品表单日期 change → renderWorksDropdown 刷新关联任务
+sequenceDiagram
+  participant U as 用户
+  participant WD as #workDate(change)
+  participant RWD as main.renderWorksDropdown
+  participant G as getDay(workDate)
+  participant S as STATE.daily
+  participant WT as #workTask(下拉)
+  U->>WD: 改日期
+  WD->>RWD: renderWorksDropdown()
+  RWD->>G: getDay(workDate).tasks
+  RWD->>S: 取该日 done 任务
+  RWD-->>WT: 重渲染选项=当日已打卡任务(关联任务)
+  note over U,WT: 布局(三列)由 T03 改动；联动逻辑(main.js)不变
+
+%% ④ D 暑假小结报告卡（openSummerSummary + 原生 Canvas 导出）
+sequenceDiagram
+  participant U as 用户
+  participant WT as renderWeekTable(第11格)
+  participant SS as render.openSummerSummary
+  participant GT as growth-tree(morningGlorySVG/computeDimensionScores)
+  participant D as data.calcTotalScore
+  participant M as modal.openModal
+  U->>WT: 点第11格(暑假小结)
+  WT->>SS: openSummerSummary()
+  SS->>GT: computeDimensionScores(STATE.daily) → 5维得分
+  SS->>D: calcTotalScore() → 总积分
+  SS->>SS: 计算打卡天数(≥1 done 的天数)
+  SS->>GT: morningGlorySVG() → 顶部大牵牛花
+  SS->>M: openModal('summer-summary', builder)
+  M-->>U: 报告卡(5维条形+总分+打卡天数+大花)
+  U->>SS: 点「保存为图片」
+  SS->>SS: exportSummaryCardImage(): 原生Canvas绘制→toBlob→下载(零依赖)
+
+%% ⑤ E 空状态引导卡（renderArchive 空分支 + 显隐切换）
+sequenceDiagram
+  participant U as 用户
+  participant RA as renderArchive(render.js)
+  participant S as STATE.daily.artworks
+  participant F as .work-form
+  participant G as .work-empty-guide
+  U->>RA: 切档案Tab → renderArchive()
+  RA->>S: 收集 artworks
+  alt 无作品
+    RA->>G: 显示引导卡(大图标+文案+按钮)
+    RA->>F: 隐藏表单(display:none)
+    U->>G: 点「去记录第一个作品 ✨」
+    G->>F: 表单 fadeIn 显示 + 引导卡收起
+  else 有作品
+    RA->>F: 显示表单(常态)
+    RA->>G: 隐藏引导卡
+  end

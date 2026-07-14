@@ -1,12 +1,20 @@
 // features/render.js — 所有渲染函数（匹配原始 CSS 结构）
 
 import { STATE, setSelDate } from '../core/state.js';
-import { TASKS, REWARDS, CATEGORIES, CAT_INTRO, fmtDisplay, esc, getMonthKey, DEFAULT_REWARD_ITEMS } from '../core/helpers.js';
+import { TASKS, REWARDS, CATEGORIES, CAT_INTRO, fmtDisplay, esc, getMonthKey, getWeekKey, getTodayStr, DEFAULT_REWARD_ITEMS, enumerateSummerWeeks, getWeekMeta } from '../core/helpers.js';
 import { getDay, saveData, calcTotalScore, calcDayScore } from '../core/data.js';
 import { getMakeupCost, isToday, isFuture, isPastLocked, isPastWithNoCheckins, canCheckIn } from '../features/makeup.js';
 import { showPasswordModal } from '../features/password.js';
+import { openModal, closeModal } from './modal.js';
 import { getMedia, removeMedia } from '../features/media.js';
 import { showCenterToast } from './toast-center.js';
+// 增量功能模块
+import { countDayDone, pickGentleMessage } from './mood.js';
+import { renderStreak, renderBadges, getStreak, morningGlorySVG, computeDimensionScores } from './growth-tree.js';
+import { renderMascot } from './mascot.js';
+import { playParentEncouragementOnCheckin } from './voice-encourage.js';
+// 独立「成长树养成页面」模块
+import { onTaskChecked, onTaskUnchecked, refreshGrowthTree } from './tree-garden/index.js';
 
 // ===== 全局锁 =====
 let _toggleLocked = false;
@@ -101,13 +109,21 @@ export function renderAll(){
   renderCheckinDateLabel();
   renderBabyName();
   renderTasks();
+  renderCheckinExtras();
   renderMap();
   renderTrendChart();
   renderRewards();
   renderRedemptions();
-  renderReviewTimeline();
+  renderWeekTable();
+  renderMoodTrend();
   renderArchive();
   renderPoints();
+  // 成长树 / Streak / 徽章（随 child 隔离，实时重算）
+  // 注：首页藤蔓 renderGrowthVine 已迁移为独立「成长树」养成页面（见 features/tree-garden）
+  renderStreak();
+  renderBadges();
+  // 若成长树 tab 当前可见则静默刷新（不可见时跳过，避免无谓重渲染）
+  refreshGrowthTree();
 }
 
 // ===== 日期标签（跟随 STATE.selDate） =====
@@ -141,6 +157,81 @@ export function renderPoints(){
   const total = calcTotalScore();
   const el = document.getElementById("topPoints");
   if(el) el.textContent = total;
+  // 同步顶部连续打卡徽标
+  renderStreak();
+}
+
+// ===== 打卡 Tab 附加区：心情行 / 灵感按钮 / 温柔空状态卡 =====
+export function renderCheckinExtras(){
+  const nameEmpty = !STATE.childName || !STATE.childName.trim();
+  const day = STATE.daily[STATE.selDate];
+
+  // 心情行
+  const moodRow = document.getElementById("moodRow");
+  if(moodRow){
+    const cur = (day && day.mood) || '';
+    moodRow.querySelectorAll(".mood-btn").forEach(b => {
+      b.classList.toggle("active", b.dataset.mood === cur);
+      b.disabled = nameEmpty;
+    });
+    const noteEl = document.getElementById("moodNote");
+    if(noteEl){
+      noteEl.value = (day && day.moodNote) || '';
+      noteEl.disabled = nameEmpty;
+    }
+  }
+
+  // 灵感按钮
+  const ideaBtn = document.getElementById("ideaBtn");
+  if(ideaBtn) ideaBtn.disabled = nameEmpty;
+
+  // 任务灵感引导卡（B6）：仅「今天」显示；选中过去日期（出现补卡横幅）时隐藏
+  const ideaCard = document.getElementById("ideaPromptCard");
+  if(ideaCard) ideaCard.style.display = isToday(STATE.selDate) ? "" : "none";
+
+  // 温柔空状态卡（仅今天且 0 打卡时显示，带吉祥物）
+  const zc = document.getElementById("zeroCheckinCard");
+  if(zc){
+    const today = getTodayStr();
+    const showCard = STATE.selDate === today && countDayDone(today) === 0 && !nameEmpty;
+    if(showCard){
+      zc.style.display = "";
+      zc.innerHTML = `<div class="zero-card">
+        <div class="zero-mascot">${renderMascot("empty", { size: 80 })}</div>
+        <div class="zero-text">今天还没开始也没关系，选一个小任务试试看？🌱</div>
+      </div>`;
+    } else {
+      zc.style.display = "none";
+      zc.innerHTML = "";
+    }
+  }
+}
+
+// ===== 复盘 Tab：本周情绪趋势 =====
+export function renderMoodTrend(){
+  const el = document.getElementById("moodTrend");
+  if(!el) return;
+  const wk = getWeekKey(getTodayStr());
+  const counts = { happy: 0, neutral: 0, sad: 0 };
+  for(const ds in STATE.daily){
+    if(getWeekKey(ds) === wk){
+      const m = STATE.daily[ds] && STATE.daily[ds].mood;
+      if(m && counts[m] !== undefined) counts[m]++;
+    }
+  }
+  const total = counts.happy + counts.neutral + counts.sad;
+  if(total === 0){
+    el.innerHTML = `<div class="mood-trend-empty">这周还没记录心情哦，打卡时顺手选一个吧 🌱</div>`;
+    return;
+  }
+  const happyMost = counts.happy >= counts.sad;
+  el.innerHTML = `<div class="mood-trend-title">😊 本周心情</div>
+    <div class="mood-trend-bar">
+      <span class="mt happy">😊×${counts.happy}</span>
+      <span class="mt neutral">😐×${counts.neutral}</span>
+      <span class="mt sad">😢×${counts.sad}</span>
+    </div>
+    <div class="mood-trend-note">${happyMost ? '这周你大多数时候都很开心呀🌞' : '这周有点小低落，抱抱你🌿'}</div>`;
 }
 
 // ===== 日历 =====
@@ -274,6 +365,49 @@ function renderCatTabs(){
   });
 }
 
+// ===== 可渲染任务列表（合并灵感库 fromIdea 项）=====
+function getRenderableTasks(day){
+  const all = getActiveTasks();
+  const vis = all
+    .filter(t => STATE.selCat === "全部" || t.cat === STATE.selCat)
+    .map(t => ({
+      id: t.id, title: t.title, pts: t.pts, cat: t.cat,
+      fromIdea: false, done: !!(day.tasks[t.id] && day.tasks[t.id].done),
+    }));
+  // 合并灵感库任务（day.tasks 中 fromIdea:true 的项）
+  for(const tid in day.tasks){
+    const te = day.tasks[tid];
+    if(te && te.fromIdea && (STATE.selCat === "全部" || te.cat === STATE.selCat)){
+      if(!vis.find(v => v.id === tid)){
+        vis.push({
+          id: tid, title: te.title, pts: te.pts, cat: te.cat,
+          fromIdea: true, done: !!te.done,
+        });
+      }
+    }
+  }
+  return vis;
+}
+
+// 渲染任务网格（含 fromIdea 项）并绑定 toggle
+function renderTaskGrid(taskGrid, day){
+  const vis = getRenderableTasks(day);
+  const nameEmpty = !STATE.childName || !STATE.childName.trim();
+  taskGrid.innerHTML = vis.map(t => {
+    const done = t.done;
+    return `<label class="task-row${done?' done':''}${nameEmpty?' name-empty-disabled':''}${t.fromIdea?' from-idea':''}">
+      <input type="checkbox" data-tid="${esc(t.id)}" ${done?'checked':''} ${nameEmpty?'disabled':''}>
+      <span><strong>${esc(t.title)}</strong><span class="tag">${esc(t.cat)}</span>${t.fromIdea?'<span class="idea-tag">🌟灵感</span>':''}</span>
+      <span class="pts"><span class="coin" style="width:20px;height:20px;font-size:10px">分</span>+${t.pts}</span>
+    </label>`;
+  }).join("");
+  taskGrid.querySelectorAll("input").forEach(inp => {
+    inp.addEventListener("change", async e => await toggleTask(e.target.dataset.tid, e.target.checked, e));
+  });
+  // 同步心情行 / 灵感按钮 / 温柔空状态卡
+  renderCheckinExtras();
+}
+
 // ===== 任务列表（跟随 STATE.selDate，区分打卡/补卡模式） =====
 export function renderTasks(){
   const can = canCheckIn(STATE.selDate);
@@ -330,22 +464,7 @@ export function renderTasks(){
 
     renderCatTabs();
     const day = getDay(STATE.selDate);
-    const allTasks = getActiveTasks();
-    const vis = allTasks.filter(t => STATE.selCat === "全部" || t.cat === STATE.selCat);
-
-    taskGrid.innerHTML = vis.map(t => {
-      const done = day.tasks[t.id] && day.tasks[t.id].done;
-      const nameEmpty = !STATE.childName || !STATE.childName.trim();
-      return `<label class="task-row${done?' done':''}${nameEmpty?' name-empty-disabled':''}">
-        <input type="checkbox" data-tid="${t.id}" ${done?'checked':''} ${nameEmpty?'disabled':''}>
-        <span><strong>${t.title}</strong><span class="tag">${t.cat}</span></span>
-        <span class="pts"><span class="coin" style="width:20px;height:20px;font-size:10px">分</span>+${t.pts}</span>
-      </label>`;
-    }).join("");
-
-    taskGrid.querySelectorAll("input").forEach(inp => {
-      inp.addEventListener("change", async e => await toggleTask(e.target.dataset.tid, e.target.checked, e));
-    });
+    renderTaskGrid(taskGrid, day);
     return;
   }
 
@@ -357,22 +476,7 @@ export function renderTasks(){
 
   renderCatTabs();
   const day = getDay(STATE.selDate);
-  const allTasks = getActiveTasks();
-  const vis = allTasks.filter(t => STATE.selCat === "全部" || t.cat === STATE.selCat);
-
-  taskGrid.innerHTML = vis.map(t => {
-    const done = day.tasks[t.id] && day.tasks[t.id].done;
-    const nameEmpty = !STATE.childName || !STATE.childName.trim();
-    return `<label class="task-row${done?' done':''}${nameEmpty?' name-empty-disabled':''}">
-      <input type="checkbox" data-tid="${t.id}" ${done?'checked':''} ${nameEmpty?'disabled':''}>
-      <span><strong>${t.title}</strong><span class="tag">${t.cat}</span></span>
-      <span class="pts"><span class="coin" style="width:20px;height:20px;font-size:10px">分</span>+${t.pts}</span>
-    </label>`;
-  }).join("");
-
-  taskGrid.querySelectorAll("input").forEach(inp => {
-    inp.addEventListener("change", async e => await toggleTask(e.target.dataset.tid, e.target.checked, e));
-  });
+  renderTaskGrid(taskGrid, day);
 }
 
 // ===== Toggle task =====
@@ -389,7 +493,9 @@ export async function toggleTask(tid, checked, event){
     return;
   }
   if(!canCheckIn(STATE.selDate) && !isPastWithNoCheckins(STATE.selDate)) return;
-  const t = getActiveTasks().find(x => x.id === tid);
+  // ✅ 回退：灵感任务（fromIdea）写入 day.tasks[ideaId]，不在 getActiveTasks() 中，
+  // 需在 getDay().tasks[tid] 中回退取 pts/cat，否则永远无法勾选/取消，且不计入总分（PRD P0-3 验收②）
+  const t = getActiveTasks().find(x => x.id === tid) || getDay(STATE.selDate).tasks[tid];
   if(!t) return;
   const day = getDay(STATE.selDate);
 
@@ -447,12 +553,16 @@ export async function toggleTask(tid, checked, event){
     day.tasks[tid].done = true;
     day.score = calcDayScore(STATE.selDate);
     saveData();
+    // ✅ 同步给「成长树」独立水量池：任务努力水 + 连续打卡里程碑水（与总分解耦）
+    try { onTaskChecked(tid, STATE.selDate); } catch(e) { console.error("onTaskChecked failed", e); }
 
     // ✅ 打卡完成后实时更新成长档案的关联任务下拉
     if(typeof window.renderWorksDropdown === 'function') window.renderWorksDropdown();
 
-    // ✅ 触发鼓励话 + 烟花效果
-    triggerEncourageAndFirework();
+    // ✅ 优先播家长录音（非阻塞，不挡烟花）；有录音则机器女声让位
+    const played = playParentEncouragementOnCheckin(STATE.activeChildId);
+    // ✅ 触发鼓励话 + 烟花效果（有录音时静音机器女声，避免双重声音）
+    triggerEncourageAndFirework(played ? { silent: true } : undefined);
     toast("太棒了！成长能量已存入 🌟");
   } else if(!checked && day.tasks[tid].done){
     day.tasks[tid].done = false;
@@ -472,7 +582,11 @@ export async function toggleTask(tid, checked, event){
       }
       // 否则：当天仍有勾选任务 → 保留扣分记录与补卡标记、不回退次数
     }
+    // ✅ 取消勾选 → 温柔话术（不破坏既有勾选/扣分/补卡逻辑）
+    showEncourageMsg(pickGentleMessage('uncheck', { streak: getStreak() }));
     saveData();
+    // ✅ 取消勾选 → 收回当天努力水（D2：仅今天生效，已浇到树上的不倒回）
+    try { onTaskUnchecked(tid, STATE.selDate); } catch(e) { /* 静默回退 */ }
   }
   renderAll();
 }
@@ -491,14 +605,14 @@ const _ENCOURAGES = [
   "今天的你，比昨天更好！🌻"
 ];
 
-function triggerEncourageAndFirework(){
-  // 1. 随机鼓励话（屏幕中心）
-  showEncourageMsg();
+function triggerEncourageAndFirework(opts){
+  // 1. 随机鼓励话（屏幕中心）+ 成功吉祥物（T03：成功路径传成功标识）
+  showEncourageMsg(undefined, { ...(opts || {}), mascotType: 'success' });
   // 2. 烟花效果
   triggerFireworks();
 }
 
-export function showEncourageMsg(customMsg){
+export function showEncourageMsg(customMsg, opts){
   // 移除旧弹窗
   const old = document.querySelector(".encourage-msg");
   if(old) old.remove();
@@ -511,11 +625,19 @@ export function showEncourageMsg(customMsg){
   el.className = "encourage-msg";
   el.style.cssText = `
     position:fixed; top:0; left:0; right:0; bottom:0;
-    display:flex; align-items:center; justify-content:center;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
     z-index:9998; pointer-events:none;
     animation: encourageIn .5s ease forwards;
   `;
+  // T03：按 opts.mascotType 挂载吉祥物（成功→success、鼓励→encourage）；默认不挂载，保持旧行为
+  let mascotHtml = '';
+  if(opts && opts.mascotType === 'success'){
+    mascotHtml = `<div class="encourage-mascot">${renderMascot('success')}</div>`;
+  } else if(opts && opts.mascotType === 'encourage'){
+    mascotHtml = `<div class="encourage-mascot">${renderMascot('encourage')}</div>`;
+  }
   el.innerHTML = `
+    ${mascotHtml}
     <div style="
       background:linear-gradient(135deg,rgba(255,236,210,.98),rgba(255,210,180,.98));
       padding:20px 36px; border-radius:24px;
@@ -532,8 +654,8 @@ export function showEncourageMsg(customMsg){
     setTimeout(() => el.remove(), 400);
   }, 1800);
 
-  // 🎤 语音朗读
-  speakEncourage(cleanMsg);
+  // 🎤 语音朗读（silent 时不播机器女声，让位给家长录音）
+  if(!(opts && opts.silent)) speakEncourage(cleanMsg);
 }
 
 // ===== 语音朗读鼓励话 =====
@@ -629,6 +751,8 @@ function triggerFireworks(){
 
 // ===== 成长地图（跟随 STATE.selDate） =====
 export function renderMap(){
+  ensureCollapseBinding();
+  applyCollapseState();
   const day = getDay(STATE.selDate);
   const g = document.getElementById("mapGrid");
   if(!g) return;
@@ -653,6 +777,8 @@ export function renderMap(){
 
 // ===== 本月积分趋势 =====
 export function renderTrendChart(){
+  ensureCollapseBinding();
+  applyCollapseState();
   const chart = document.getElementById("trendChart");
   const labels = document.getElementById("trendLabels");
   if(!chart || !labels) return;
@@ -871,27 +997,365 @@ export function renderReviewTimeline(){
   });
 }
 
-function openReviewDetail(r){
-  const ov = document.createElement("div");
-  ov.className = "modal-overlay";
-  ov.style.zIndex = "1000";
-  ov.innerHTML = `<div class="modal-box" style="max-width:420px;max-height:80vh;overflow:auto">
-    <h3 style="margin-bottom:6px">📝 复盘详情</h3>
-    <p style="color:var(--muted);font-size:12px;margin-bottom:16px">${esc(r.date || "未记录日期")}</p>
-    <div style="display:flex;flex-direction:column;gap:12px">
-      ${r.best ? `<div><div style="font-weight:800;font-size:13px;color:var(--leaf-dark);margin-bottom:4px">🌟 最棒的事</div><div style="font-size:13px;line-height:1.6">${esc(r.best)}</div></div>` : ''}
-      ${r.hard ? `<div><div style="font-weight:800;font-size:13px;color:var(--orange);margin-bottom:4px">💪 遇到的困难</div><div style="font-size:13px;line-height:1.6">${esc(r.hard)}</div></div>` : ''}
-      ${r.next ? `<div><div style="font-weight:800;font-size:13px;color:var(--leaf-dark);margin-bottom:4px">📌 下周计划</div><div style="font-size:13px;line-height:1.6">${esc(r.next)}</div></div>` : ''}
-      ${r.parent ? `<div><div style="font-weight:800;font-size:13px;color:#7b1fa2;margin-bottom:4px">👨‍👩‍👧 家长悄悄话</div><div style="font-size:13px;line-height:1.6">${esc(r.parent)}</div></div>` : ''}
-      ${r.support ? `<div><div style="font-weight:800;font-size:13px;color:var(--rose);margin-bottom:4px">💗 需要支持</div><div style="font-size:13px;line-height:1.6">${esc(r.support)}</div></div>` : ''}
+export function openReviewDetail(r){
+  if(!r) return;
+  const meta = r.weekKey ? getWeekMeta(r.weekKey) : { weekIndex: '', dateRange: '' };
+  const moodEmoji = r.mood ? ({ happy: '😊', neutral: '😐', sad: '😢' }[r.mood] || '') : '';
+  // 复用统一弹层单例（F 复用点）
+  openModal('review-detail', () => `
+    <div class="modal-box" style="max-width:420px;max-height:80vh;overflow:auto">
+      <h3 style="margin-bottom:6px">📝 复盘详情</h3>
+      <p style="color:var(--muted);font-size:12px;margin-bottom:16px">第${meta.weekIndex}周 · ${esc(meta.dateRange)}</p>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        ${r.best ? `<div><div style="font-weight:800;font-size:13px;color:var(--leaf-dark);margin-bottom:4px">🌟 最棒的事</div><div style="font-size:13px;line-height:1.6">${esc(r.best)}</div></div>` : ''}
+        ${r.hard ? `<div><div style="font-weight:800;font-size:13px;color:var(--orange);margin-bottom:4px">💪 遇到的困难</div><div style="font-size:13px;line-height:1.6">${esc(r.hard)}</div></div>` : ''}
+        ${r.next ? `<div><div style="font-weight:800;font-size:13px;color:var(--leaf-dark);margin-bottom:4px">📌 下周计划</div><div style="font-size:13px;line-height:1.6">${esc(r.next)}</div></div>` : ''}
+        ${r.parent ? `<div><div style="font-weight:800;font-size:13px;color:#7b1fa2;margin-bottom:4px">👨‍👩‍👧 家长看见的进步</div><div style="font-size:13px;line-height:1.6">${esc(r.parent)}</div></div>` : ''}
+        ${r.support ? `<div><div style="font-weight:800;font-size:13px;color:var(--rose);margin-bottom:4px">💗 孩子希望的支持</div><div style="font-size:13px;line-height:1.6">${esc(r.support)}</div></div>` : ''}
+        ${moodEmoji ? `<div><div style="font-weight:800;font-size:13px;color:var(--leaf-dark);margin-bottom:4px">😊 本周心情</div><div style="font-size:20px">${moodEmoji}</div></div>` : ''}
+      </div>
+      <div style="margin-top:20px;text-align:center">
+        <button class="btn-ghost" data-modal-close style="min-height:36px;padding:8px 32px">关闭</button>
+      </div>
     </div>
-    <div style="margin-top:20px;text-align:center">
-      <button class="btn-ghost" id="reviewDetailClose" style="min-height:36px;padding:8px 32px">关闭</button>
+  `);
+}
+
+// ===== 周表（每周复盘 D 模块）：3×4 方块网格 =====
+export function renderWeekTable(){
+  const el = document.getElementById("weekTable");
+  if(!el) return;
+  const weeks = enumerateSummerWeeks();
+  const byKey = {};
+  for(const r of (STATE.reviews || [])){
+    if(r && r.weekKey) byKey[r.weekKey] = r;
+  }
+  if(!weeks.length){
+    el.innerHTML = '<div class="empty-state">暑假还没开始哦 🌱</div>';
+    return;
+  }
+  const moodMap = { happy: '😊', neutral: '😐', sad: '😢' };
+  const todayStr = getTodayStr();
+  // 前 10 格：真实周（周次+日期合并一行 + 放大心情 emoji + 状态点）
+  const cells = weeks.map(wk => {
+    const meta = getWeekMeta(wk);
+    const rec = byKey[wk];
+    const filled = !!(rec && (rec.best || rec.hard || rec.next || rec.parent || rec.support || rec.mood));
+    const moodEmoji = rec && rec.mood ? (moodMap[rec.mood] || '') : '';
+    const moodCls = rec && rec.mood ? ` mood-${rec.mood}` : '';
+    // 未来周（当周周一晚于今天）：加 .future 类、cursor:default、不绑定编辑器（data-week 保留以便结构/查询稳定）
+    const isFuture = wk > todayStr;
+    const cls = `week-cell${filled ? ' filled' : ''}${moodCls}${isFuture ? ' future' : ''}`;
+    const cursor = isFuture ? 'default' : 'pointer';
+    return `<div class="${cls}" data-week="${wk}" role="button" tabindex="0" style="cursor:${cursor}">
+      <div class="week-cell-top">
+        <span class="week-line"><span class="week-idx">第${meta.weekIndex}周</span><span class="week-sep"> · </span><span class="week-range">${esc(meta.dateRange)}</span></span>
+        <span class="week-dot">${filled ? '●' : '○'}</span>
+      </div>
+      <div class="week-mood">${moodEmoji || ''}</div>
+    </div>`;
+  });
+  // 第11格：暑假小结入口（→ D 报告卡），新增「📅 截至 {今日}」
+  const t = new Date();
+  const todayLabel = `${t.getMonth() + 1}月${t.getDate()}日`;
+  cells.push(`<div class="week-cell cell-summary" data-summary="1" role="button" tabindex="0" style="cursor:pointer">
+      <div class="week-cell-top"><span class="week-idx">🌞 暑假小结</span></div>
+      <div class="week-range">📅 截至 ${todayLabel}</div>
+    </div>`);
+  // 第12格：全部完成 🎉 装饰卡（不可点）
+  cells.push(`<div class="week-cell cell-done" aria-hidden="true">
+      <div class="week-cell-top"><span class="week-idx">✨ 全部完成 🎉</span></div>
+      <div class="week-range">暑假圆满收官</div>
+    </div>`);
+
+  el.innerHTML = `<div class="week-grid">${cells.join('')}</div>`;
+
+  el.querySelectorAll('.week-cell[data-week]').forEach(cell => {
+    if(cell.classList.contains('future')) return; // 未来周：不绑定编辑器
+    cell.addEventListener('click', () => openWeekEditorModal(cell.dataset.week));
+    cell.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openWeekEditorModal(cell.dataset.week); }
+    });
+  });
+  const summaryCell = el.querySelector('.cell-summary');
+  if(summaryCell){
+    summaryCell.addEventListener('click', () => openSummerSummary());
+    summaryCell.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openSummerSummary(); }
+    });
+  }
+}
+
+// 点击真实周格 → 复用 openModal 单例弹编辑器（5 框 + 周 mood），存储结构不变
+export function openWeekEditorModal(weekKey){
+  const id = 'week-editor-' + weekKey;
+  const meta = getWeekMeta(weekKey);
+  const rec = (STATE.reviews || []).find(r => r.weekKey === weekKey) || null;
+  return openModal(id, () => `
+    <div class="modal-box week-editor-modal" style="max-width:440px;max-height:86vh;overflow:auto;text-align:left">
+      <h3 style="margin:0 0 4px;font-size:18px">📝 第${meta.weekIndex}周 · ${esc(meta.dateRange)}</h3>
+      <div id="weekEditorMount"></div>
     </div>
-  </div>`;
-  document.body.appendChild(ov);
-  ov.querySelector("#reviewDetailClose").addEventListener("click", () => ov.remove());
-  ov.addEventListener("click", e => { if(e.target === ov) ov.remove(); });
+  `, {
+    onMount(overlay){
+      const mount = overlay.querySelector('#weekEditorMount');
+      if(mount){
+        const node = buildWeekEditor(weekKey, rec);
+        mount.appendChild(node);
+      }
+      const saveBtn = overlay.querySelector('.week-save');
+      if(saveBtn){
+        // buildWeekEditor 内部已绑定保存（saveWeekReview）；此处仅负责保存后收起弹层
+        saveBtn.addEventListener('click', () => { setTimeout(() => closeModal(id), 0); });
+      }
+    }
+  });
+}
+
+// 内联展开某周的 5 个复盘框 + 本周心情三选一；返回挂载好的 DOM 节点
+export function buildWeekEditor(weekKey, existing){
+  const rec = existing || {};
+  const wrap = document.createElement('div');
+  wrap.className = 'week-editor';
+  wrap.dataset.week = weekKey;
+  const fields = [
+    ['best', '🌟 最棒的事'],
+    ['hard', '💪 遇到的困难'],
+    ['next', '📌 下周计划'],
+    ['parent', '👨‍👩‍👧 家长看见的进步'],
+    ['support', '💗 孩子希望的支持'],
+  ];
+  const taHtml = fields.map(([k, label]) =>
+    `<div class="rev-field"><label>${label}</label><textarea data-rev="${k}" placeholder="${label}">${esc(rec[k] || '')}</textarea></div>`
+  ).join('');
+  const moodVal = rec.mood || '';
+  wrap.innerHTML = `
+    <div class="week-editor-inner">
+      <div class="rev-fields">${taHtml}</div>
+      <div class="week-mood-pick">
+        <span>本周心情：</span>
+        <button type="button" class="mood-pick ${moodVal==='happy'?'active':''}" data-mood="happy">😊</button>
+        <button type="button" class="mood-pick ${moodVal==='neutral'?'active':''}" data-mood="neutral">😐</button>
+        <button type="button" class="mood-pick ${moodVal==='sad'?'active':''}" data-mood="sad">😢</button>
+      </div>
+      <button type="button" class="btn-primary week-save" data-week-save="${weekKey}">保存本周复盘</button>
+    </div>
+  `;
+  let chosenMood = moodVal;
+  wrap.querySelectorAll('.week-mood-pick button').forEach(b => {
+    b.addEventListener('click', () => {
+      chosenMood = b.dataset.mood;
+      wrap.querySelectorAll('.week-mood-pick button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    });
+  });
+  wrap.querySelector('.week-save').addEventListener('click', () => {
+    const data = {
+      best: wrap.querySelector('[data-rev="best"]').value.trim(),
+      hard: wrap.querySelector('[data-rev="hard"]').value.trim(),
+      next: wrap.querySelector('[data-rev="next"]').value.trim(),
+      parent: wrap.querySelector('[data-rev="parent"]').value.trim(),
+      support: wrap.querySelector('[data-rev="support"]').value.trim(),
+      mood: chosenMood,
+    };
+    saveWeekReview(weekKey, data);
+  });
+  return wrap;
+}
+
+// 保存（upsert）某周复盘到 STATE.reviews，并落盘
+export function saveWeekReview(weekKey, data){
+  const meta = getWeekMeta(weekKey);
+  const rec = {
+    weekKey,
+    weekIndex: meta.weekIndex,
+    dateRange: meta.dateRange,
+    best: data.best || '',
+    hard: data.hard || '',
+    next: data.next || '',
+    parent: data.parent || '',
+    support: data.support || '',
+    mood: data.mood || '',
+  };
+  if(!STATE.reviews) STATE.reviews = [];
+  const idx = STATE.reviews.findIndex(r => r.weekKey === weekKey);
+  if(idx >= 0) STATE.reviews[idx] = rec;
+  else STATE.reviews.unshift(rec);
+  saveData();
+  renderWeekTable();
+}
+
+// ===== 暑假小结成长报告卡（D 模块）=====
+export function openSummerSummary(){
+  const id = 'summer-summary';
+  return openModal(id, () => {
+    const dims = computeDimensionScores(STATE.daily);
+    const total = calcTotalScore();
+    const checkinDays = Object.keys(STATE.daily).filter(ds => {
+      const day = STATE.daily[ds];
+      return day && day.tasks && Object.values(day.tasks).some(t => t && t.done);
+    }).length;
+    const maxScore = Math.max(1, ...CATEGORIES.map(c => dims[c.title] || 0));
+    const rows = CATEGORIES.map(c => {
+      const s = dims[c.title] || 0;
+      const pct = Math.min(100, Math.round(s / maxScore * 100));
+      return `<div class="sum-row">
+        <span class="sum-label">${c.icon} ${c.title}</span>
+        <span class="sum-bar"><span class="sum-bar-fill" style="width:${pct}%;background:${c.color}"></span></span>
+        <span class="sum-val">${s}</span>
+      </div>`;
+    }).join('');
+    return `<div class="modal-box summer-summary" style="max-width:440px;text-align:center">
+      <div class="sum-flower">${morningGlorySVG(96)}</div>
+      <h3 style="margin:6px 0 2px;font-size:20px">🌻 成长报告卡</h3>
+      <div class="sum-sub" style="color:var(--muted);font-size:13px;margin-bottom:14px">${esc(STATE.childName || '宝贝')} 的暑假小结</div>
+      <div class="sum-dims">${rows}</div>
+      <div class="sum-total" style="margin-top:14px;font-size:15px;font-weight:800">总积分 <b style="color:var(--leaf-dark);font-size:20px">${total}</b> 分 · 打卡 <b>${checkinDays}</b> 天</div>
+      <button class="btn-primary" data-save-img type="button" style="width:100%;margin-top:16px">📷 保存为图片</button>
+    </div>`;
+  }, {
+    onMount(overlay){
+      const btn = overlay.querySelector('[data-save-img]');
+      if(btn) btn.addEventListener('click', () => exportSummaryCardImage(overlay));
+    }
+  });
+}
+
+// 原生 Canvas 手绘导出报告卡为 PNG（零依赖：SVG→Image→drawImage→toBlob→下载）
+function exportSummaryCardImage(overlay){
+  const W = 600, H = 760, scale = 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = W * scale; canvas.height = H * scale;
+  const ctx = canvas.getContext('2d');
+  if(!ctx){ toast('当前环境不支持图片导出'); return; }
+  ctx.scale(scale, scale);
+
+  const style = getComputedStyle(document.body);
+  const readVar = (name, fallback) => {
+    const v = style.getPropertyValue(name).trim();
+    return v || fallback;
+  };
+
+  // 背景圆角卡片
+  roundRect(ctx, 0, 0, W, H, 24);
+  ctx.fillStyle = readVar('--paper', '#fffdf8'); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,112,67,.25)'; ctx.lineWidth = 2; ctx.stroke();
+
+  // 标题
+  ctx.fillStyle = readVar('--leaf-dark', '#e64a19');
+  ctx.font = 'bold 26px "PingFang SC",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('🌻 成长报告卡', W / 2, 52);
+  ctx.fillStyle = readVar('--muted', '#8a7b6e');
+  ctx.font = '14px "PingFang SC",sans-serif';
+  ctx.fillText(esc(STATE.childName || '宝贝') + ' 的暑假小结', W / 2, 76);
+
+  // 大牵牛花（SVG → Image；将 CSS 变量替换为计算值，使 Canvas 内可见）
+  let flowerSVG = morningGlorySVG(140);
+  flowerSVG = flowerSVG.replace(/var\((--[\w-]+)\)/g, (m, n) => readVar(n, m));
+  const svgUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(flowerSVG);
+  const img = new Image();
+  img.onload = () => { ctx.drawImage(img, W / 2 - 70, 92, 140, 140); drawSummaryBody(ctx, W, readVar); finishExport(canvas); };
+  img.onerror = () => { drawSummaryBody(ctx, W, readVar); finishExport(canvas); };
+  img.src = svgUrl;
+
+  function drawSummaryBody(ctx, W, readVar){
+    const dims = computeDimensionScores(STATE.daily);
+    const total = calcTotalScore();
+    const checkinDays = Object.keys(STATE.daily).filter(ds => {
+      const day = STATE.daily[ds];
+      return day && day.tasks && Object.values(day.tasks).some(t => t && t.done);
+    }).length;
+    const maxScore = Math.max(1, ...CATEGORIES.map(c => dims[c.title] || 0));
+    let y = 252;
+    ctx.textAlign = 'left';
+    CATEGORIES.forEach(c => {
+      const s = dims[c.title] || 0;
+      const pct = Math.min(100, Math.round(s / maxScore * 100));
+      ctx.fillStyle = '#5c3a28'; ctx.font = 'bold 14px "PingFang SC",sans-serif';
+      ctx.fillText(`${c.icon} ${c.title}`, 60, y);
+      const bx = 170, bw = 320, bh = 16;
+      roundRect(ctx, bx, y - 13, bw, bh, 8); ctx.fillStyle = 'rgba(0,0,0,.06)'; ctx.fill();
+      roundRect(ctx, bx, y - 13, Math.max(2, bw * pct / 100), bh, 8); ctx.fillStyle = c.color; ctx.fill();
+      ctx.fillStyle = readVar('--ink', '#2d1f0e'); ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'right'; ctx.fillText(String(s), W - 60, y); ctx.textAlign = 'left';
+      y += 40;
+    });
+    y += 12;
+    ctx.fillStyle = readVar('--leaf-dark', '#e64a19');
+    ctx.font = 'bold 18px "PingFang SC",sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(`总积分 ${total} 分 · 打卡 ${checkinDays} 天`, W / 2, y);
+  }
+
+  function finishExport(canvas){
+    try{
+      canvas.toBlob(blob => {
+        if(!blob){ toast('图片导出失败'); return; }
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = '成长报告卡.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+      }, 'image/png');
+    }catch(e){ toast('图片导出失败'); }
+  }
+}
+
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// ===== 成长地图 / 积分趋势 折叠（F 模块）=====
+const COLLAPSE_PREF_KEY = 'sbg_ui_collapse';
+let _collapseBound = false;
+
+function readCollapsePref(){
+  const def = { map: false, trend: true }; // 默认：地图展开 / 趋势收起
+  try{
+    const saved = JSON.parse(localStorage.getItem(COLLAPSE_PREF_KEY) || '{}');
+    return { ...def, ...(saved || {}) };
+  }catch(e){ return def; }
+}
+
+function saveCollapsePref(key, collapsed){
+  const pref = readCollapsePref();
+  pref[key] = collapsed;
+  try{ localStorage.setItem(COLLAPSE_PREF_KEY, JSON.stringify(pref)); }catch(e){}
+}
+
+function ensureCollapseBinding(){
+  if(_collapseBound) return;
+  _collapseBound = true;
+  document.querySelectorAll('.collapse-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.collapse;
+      const body = document.getElementById(key + 'Body');
+      if(!body) return;
+      const collapsed = body.classList.toggle('collapsed');
+      btn.classList.toggle('collapsed', collapsed);
+      saveCollapsePref(key, collapsed);
+    });
+  });
+}
+
+function applyCollapseState(){
+  const pref = readCollapsePref();
+  ['map', 'trend'].forEach(key => {
+    const body = document.getElementById(key + 'Body');
+    const btn = document.querySelector(`.collapse-toggle[data-collapse="${key}"]`);
+    if(!body || !btn) return;
+    const collapsed = !!pref[key];
+    body.classList.toggle('collapsed', collapsed);
+    btn.classList.toggle('collapsed', collapsed);
+  });
 }
 
 // ===== 成长档案 =====
@@ -904,16 +1368,44 @@ export async function renderArchive(){
     if(day.artworks) day.artworks.forEach(a => all.push(a));
   }
   all.sort((a,b) => b.date.localeCompare(a.date));
+
+  const guide = document.getElementById('workEmptyGuide');
+  const wform = document.querySelector('.work-form');
+  const wnote = document.getElementById('workDateNote');
+
   if(!all.length){
-    c.innerHTML = '<div class="empty-state">还没有作品。暑假结束后，这里会成为孩子自己的成长档案。</div>';
+    // 空状态：显引导卡、隐藏作品表单（E 交互）
+    if(guide){
+      guide.style.display = '';
+      guide.innerHTML = `<div class="work-empty-card">
+        <div class="work-empty-icon">🎨</div>
+        <div class="work-empty-text">还没有作品呢～<br>暑假的每一份努力都值得收藏 ✨</div>
+        <button class="btn-primary" id="workEmptyAddBtn" type="button">去记录第一个作品 ✨</button>
+      </div>`;
+      const btn = guide.querySelector('#workEmptyAddBtn');
+      if(btn) btn.addEventListener('click', () => {
+        guide.style.display = 'none';
+        if(wform){ wform.style.display = ''; wform.classList.remove('fade-in'); void wform.offsetWidth; wform.classList.add('fade-in'); }
+        if(wnote) wnote.style.display = '';
+      });
+    }
+    if(wform) wform.style.display = 'none';
+    if(wnote) wnote.style.display = 'none';
+    c.innerHTML = '';
     return;
   }
+
+  // 有作品：恢复表单显示、隐藏引导卡
+  if(guide) guide.style.display = 'none';
+  if(wform){ wform.style.display = ''; wform.classList.remove('fade-in'); }
+  if(wnote) wnote.style.display = '';
   c.innerHTML = all.slice(0, 30).map(a =>
-    `<div class="timeline-item work-item" data-artid="${a.id}" style="cursor:pointer">
-      <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+    `<div class="work-item" data-artid="${a.id}" style="cursor:pointer">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div style="flex:1;min-width:0">
-          <time>${a.dateDisplay} · ${esc(a.taskTitle)}</time>
-          <strong>${esc(a.title)}</strong>
+          <span class="work-date-badge">${esc(a.dateDisplay)}</span>
+          <div class="work-task-title">${esc(a.taskTitle)}</div>
+          <strong class="work-title">${esc(a.title)}</strong>
           <div style="color:var(--muted);font-size:12px;margin-top:2px">${esc(a.note || "")}</div>
         </div>
         <button class="art-del-btn" data-artid="${a.id}" style="padding:4px 10px;border-radius:8px;border:none;background:rgba(239,83,80,.1);color:var(--red);font-size:14px;cursor:pointer;flex-shrink:0;transition:.12s" title="删除作品">✕</button>

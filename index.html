@@ -64,6 +64,17 @@
   --ok: #2e9e5b; --ok-rgb: 46,158,91;
   --warn: #e08a1e; --warn-rgb: 224,138,30;
   --err: #d64545; --err-rgb: 214,69,69;
+  /* 牵牛花（D 报告卡 morningGlorySVG）/ 维度徽章 5 色（随主题 / 暗色切换；SVG 内用 var() 引用，不写死 hex） */
+  --vine-stem:#43a047; --vine-leaf:#8bc34a; --vine-flower:#ab47bc;
+  --badge-learning:#5c6bc0; --badge-physical:#ef5350; --badge-discipline:#ab47bc; --badge-exploration:#26c6da; --badge-practice:#66bb6a; --badge-gloss:#ffffff;
+  /* 蝴蝶吉祥物配色（成长树页 + 鼓励弹层；SVG 内用 var() 引用，不写死 hex） */
+  --butterfly-body:#7e57c2; --butterfly-wing:#ffd54f; --butterfly-dot:#ec407a; --butterfly-stroke:#4e342e;
+  /* 成长树 4 物种树形 + 果实配色（伪 3D 分层 SVG，走 CSS 变量，暗色可见） */
+  --tree-trunk:#8d6e63; --tree-leaf:#66bb6a; --tree-flower:#f06292; --tree-fruit:#ef5350; --tree-citrus:#fb8c00; --tree-soil:#a1887f;
+  --fruit-5:#ef5350; --fruit-10:#fb8c00;
+  /* 徽章盾牌金属色 + 徽章图标描边（银→铜→金映射 Lv1→Lv2→Lv3/Lv4；暗色提亮保证可见） */
+  --bee-stroke:#4e342e;
+  --metal-silver:#cfd8dc; --metal-copper:#b87333; --metal-gold:#f5b301; --metal-glow:rgba(255,213,79,.6); --metal-ink:rgba(0,0,0,.18);
 }
 *,::before,::after{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -71,13 +82,10 @@ body{margin:0;min-height:100vh;color:var(--ink);font-family:var(--font);backgrou
 body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.18;background-image:var(--gradient-dots);background-size:28px 28px,42px 42px;background-position:0 0,14px 14px}
 button,input,textarea,select{font:inherit}
 button{border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
-
 /* 禁用 Safari/iPad 下拉刷新 — 避免误触 */
 html,body{touch-action:pan-y;overscroll-behavior:contain}
-
 .app{max-width:860px;margin:0 auto;min-height:100vh;padding:0 16px 40px;padding-bottom:calc(40px + env(safe-area-inset-bottom, 0px));opacity:0;transition:opacity .4s ease-out}
 .app.app-ready{opacity:1}
-
 /* 主导航5个tab */
 .main-tab-nav{display:flex;gap:4px;overflow-x:auto;padding:6px 0 12px;-webkit-overflow-scrolling:touch;position:sticky;top:64px;z-index:18;background:rgba(255,251,245,.95);backdrop-filter:blur(10px)}
 .main-tab-nav button{padding:10px 14px;border-radius:999px;color:#7a6050;background:rgba(255,255,255,.8);border:2px solid rgba(var(--leaf-rgb),.12);font-weight:800;white-space:nowrap;font-size:14px;transition:.15s;flex-shrink:0}
@@ -95,10 +103,8 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
 .baby-name:hover{border-color:var(--leaf);background:var(--baby-name-hover)}
 .baby-name::after{content:"✎";font-size:10px;opacity:.5;margin-left:2px}
 .points-pill .coin{width:26px;height:26px;display:inline-grid;place-items:center;border-radius:50%;color:#fff;background:var(--coin-grad);border:2px solid rgba(255,255,255,.6);box-shadow:0 2px 8px rgba(var(--leaf-rgb),.3);font-size:12px;font-weight:900}
-
 .section-title{display:flex;align-items:center;gap:8px;margin:0 0 16px;font-size:22px}
 .section-title .icon{width:30px;height:30px;display:inline-grid;place-items:center;border-radius:8px;color:#fff;background:linear-gradient(135deg,var(--leaf),var(--rose));border:none;box-shadow:0 3px 10px rgba(var(--leaf-rgb),.28);font-size:14px}
-
 /* Calendar */
 .calendar-panel{background:var(--paper);border-radius:var(--radius);border:none;box-shadow:0 8px 32px rgba(var(--leaf-rgb),.13),0 2px 8px rgba(var(--sky-rgb),.1);overflow:hidden;margin-bottom:18px}
 .cal-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--cal-header-bg)}
@@ -131,23 +137,19 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
 .cal-legend .dot.today-dot{background:var(--leaf)}
 .cal-legend .dot.yday-dot{background:var(--sky)}
 .cal-legend .dot.done-dot{background:var(--lime)}
-
 /* Selected date info */
 .date-info{display:flex;align-items:center;gap:8px;padding:4px 0 12px;font-size:15px;color:var(--muted)}
 .date-info strong{color:var(--ink)}
 .date-info .badge{padding:2px 10px;border-radius:999px;font-size:11px;font-weight:800}
 .date-info .badge.today-badge{background:linear-gradient(90deg,var(--leaf),var(--rose));color:#fff;box-shadow:0 2px 8px rgba(var(--leaf-rgb),.3)}
 .date-info .badge.yday-badge{background:linear-gradient(90deg,var(--sky),var(--purple));color:#fff;box-shadow:0 2px 8px rgba(var(--sky-rgb),.3)}
-
 /* Panels */
 .panel{background:var(--paper);border-radius:var(--radius);border:none;box-shadow:0 6px 24px rgba(var(--leaf-rgb),.1),0 2px 8px rgba(var(--sky-rgb),.07);margin-bottom:18px;overflow:hidden}
 .panel-pad{padding:18px}
-
 /* Category tabs */
 .cat-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
 .cat-tabs button{padding:8px 14px;border-radius:999px;color:#6d5c50;background:rgba(255,255,255,.8);border:1.5px solid rgba(var(--leaf-rgb),.18);font-weight:800;font-size:13px;transition:.15s}
 .cat-tabs button.active{color:#fff;background:linear-gradient(90deg,var(--leaf),var(--rose));border-color:transparent;box-shadow:0 4px 12px rgba(var(--leaf-rgb),.3)}
-
 /* Tasks grid */
 .tasks-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .task-row{display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.85);border:1.5px solid rgba(var(--leaf-rgb),.1);transition:.15s;cursor:pointer;-webkit-tap-highlight-color:transparent;min-height:56px}
@@ -161,7 +163,6 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
 .task-row .tag{display:inline-flex;padding:2px 7px;border-radius:999px;color:var(--tag-color);background:var(--tag-bg);font-size:11px;font-weight:800}
 .task-row .pts{display:inline-flex;align-items:center;gap:3px;color:var(--pts-color);font-weight:900;white-space:nowrap;font-size:14px}
 .task-empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:24px}
-
 /* Growth map */
 .map-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
 .map-card{border-radius:var(--radius);padding:12px 8px;background:rgba(255,255,255,.85);border:2px solid rgba(255,202,40,.18);text-align:center;transition:.15s;min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center}
@@ -181,7 +182,6 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
 .map-card small{display:block;color:var(--muted);font-size:10px;line-height:1.3;margin-bottom:5px}
 .map-card .flowers{font-size:15px;min-height:18px;line-height:1}
 .map-card .flowers .empty-flower{color:rgba(180,160,160,.2)}
-
 /* Rewards */
 .reward-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 .reward-card{border-radius:var(--radius);padding:16px;background:rgba(255,255,255,.85);border:2px solid transparent;display:grid;gap:10px;align-content:start}
@@ -208,13 +208,11 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
 .reward-editor-body{display:grid;gap:6px;margin-top:8px}
 .reward-editor-body textarea{min-height:80px}
 .reward-editor-body .secondary-btn{min-height:36px;padding:8px 12px;border-radius:8px;color:var(--leaf-dark);background:var(--mint);font-weight:800;border:1px solid rgba(var(--leaf-rgb),.22)}
-
 /* Redemption list */
 .redemption-list{margin-top:12px}
 .redemption-item{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:10px;background:rgba(255,248,225,.8);border:1px solid rgba(255,202,40,.2);margin-bottom:6px;font-size:13px}
 .redemption-item .red-date{color:var(--muted);font-size:11px}
 .redemption-item .red-cost{color:var(--rose);font-weight:800}
-
 /* Review */
 .review-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .review-card{border-radius:var(--radius);padding:16px;background:rgba(255,255,255,.85);border:1.5px solid rgba(171,71,188,.15)}
@@ -225,7 +223,6 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
 .review-timeline{max-height:240px;overflow:auto;padding-right:4px}
 .review-timeline .timeline-item{padding:10px 12px;border-radius:10px;background:linear-gradient(135deg,#fce4ec,#e3f2fd);border:none;margin-bottom:6px;font-size:13px}
 .review-timeline .timeline-item time{color:var(--muted);font-size:11px}
-
 /* Works */
 .works-layout{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
 .work-form{display:grid;gap:10px}
@@ -236,7 +233,6 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
 .media-preview{display:none;overflow:hidden;border-radius:10px;background:#fce4ec;border:1px solid rgba(var(--rose-rgb),.15)}
 .media-preview.show{display:block}
 .media-preview img,.media-preview video{display:block;width:100%;max-height:200px;object-fit:cover}
-
 /* 作品档案中的媒体缩略图 */
 .work-media-thumb{margin-top:8px;cursor:pointer;overflow:hidden;border-radius:10px;border:1px solid rgba(var(--sky-rgb),.15);background:var(--mint);position:relative;transition:transform .15s,box-shadow .15s}
 .work-media-thumb:hover{transform:scale(1.02);box-shadow:0 6px 20px rgba(var(--leaf-rgb),.2)}
@@ -247,7 +243,6 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
 .work-media-thumb .thumb-audio-icon{font-size:28px}
 .work-media-thumb .thumb-audio-label{font-size:13px;font-weight:700;color:var(--ink)}
 .work-media-thumb .thumb-audio-meta{font-size:11px;color:var(--muted)}
-
 /* 全屏媒体查看器 */
 .media-viewer-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;animation:fadeIn .25s}
 .media-viewer-overlay .close-btn{position:absolute;top:16px;right:16px;z-index:102;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.15);backdrop-filter:blur(10px);color:#fff;font-size:24px;border:none;cursor:pointer;display:grid;place-items:center;transition:background .15s}
@@ -259,19 +254,16 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
 .media-viewer-overlay .viewer-info{color:#fff;font-size:15px;text-align:center;opacity:.9;text-shadow:0 1px 6px rgba(0,0,0,.5);max-width:600px;line-height:1.5}
 .media-viewer-overlay .viewer-info .viewer-title{font-size:18px;font-weight:900;margin-bottom:4px}
 .media-viewer-overlay .viewer-info .viewer-meta{font-size:13px;opacity:.7}
-
 .work-archive{padding-right:4px}
 .work-archive .timeline-item{padding:10px 12px;border-radius:10px;background:linear-gradient(135deg,#e8f5e9,#e3f2fd);border:none;margin-bottom:6px;font-size:13px}
 .work-archive .timeline-item time{color:var(--muted);font-size:11px}
 .empty-state{color:var(--muted);padding:20px;text-align:center;border-radius:10px;background:rgba(255,255,255,.6);border:1.5px dashed rgba(var(--leaf-rgb),.2);font-size:14px}
-
 /* Buttons */
 .btn-primary,.btn-secondary,.btn-ghost{min-height:42px;padding:10px 16px;border-radius:10px;font-weight:800;transition:.15s;font-size:14px}
 .btn-primary{color:#fff;background:linear-gradient(90deg,var(--leaf),var(--rose));box-shadow:0 6px 18px rgba(var(--leaf-rgb),.28)}
 .btn-primary:active{transform:scale(.97)}
 .btn-secondary{color:var(--leaf-dark);background:var(--mint);border:1.5px solid rgba(var(--leaf-rgb),.2)}
 .btn-ghost{color:#6d5c50;background:rgba(255,255,255,.7);border:1.5px solid rgba(var(--leaf-rgb),.12)}
-
 /* Modal */
 .modal-overlay{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s}
 .modal-box{background:#fff;border-radius:16px;padding:24px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2);text-align:center}
@@ -281,7 +273,6 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes fadeInUp{from{opacity:0;transform:translate(-50%,20px)}to{opacity:1;transform:translate(-50%,0)}}
 @keyframes fadeOut{from{opacity:1}to{opacity:0}}
-
 /* PIN Password Modal */
 .pin-dot{width:30px;height:30px;border-radius:50%;border:2px solid rgba(var(--leaf-rgb),.3);display:grid;place-items:center;font-size:16px;color:var(--leaf-dark);transition:.15s}
 .pin-dot.pin-filled{background:var(--mint);border-color:var(--leaf);color:var(--leaf-dark);font-weight:900}
@@ -289,21 +280,17 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
 .pin-key:active{background:var(--mint);border-color:var(--leaf);transform:scale(.96)}
 .pin-key:disabled{opacity:.4;cursor:not-allowed}
 .pin-key.pin-del{background:rgba(239,83,80,.08);color:var(--red);font-size:22px}
-
 /* Task management rows */
 .task-manage-row{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.8);border:1.5px solid rgba(var(--leaf-rgb),.1);margin-bottom:6px;transition:.12s}
 .task-manage-row:hover{border-color:rgba(var(--leaf-rgb),.25)}
-
 /* Toast */
 .toast{position:fixed;left:50%;bottom:calc(30px + env(safe-area-inset-bottom, 0px));z-index:50;transform:translate(-50%,20px);opacity:0;pointer-events:none;max-width:min(480px,calc(100% - 32px));padding:12px 20px;border-radius:999px;color:#fff;background:var(--toast-grad);box-shadow:0 12px 32px rgba(var(--leaf-rgb),.35);transition:.22s;text-align:center;font-weight:800;font-size:14px}
 .toast.show{opacity:1;transform:translate(-50%,0)}
-
 /* Enc message */
 .enc-msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:55;pointer-events:none;font-size:22px;font-weight:900;color:var(--enc-msg-color);background:rgba(255,253,248,.97);padding:16px 28px;border-radius:16px;box-shadow:0 12px 40px rgba(var(--leaf-rgb),.22);animation:encPop .22s ease-out,encFade 4s .22s forwards;opacity:0;max-width:none;white-space:normal;word-break:break-word;line-height:1.4}
 @keyframes encPop{0%{opacity:0;transform:translate(-50%,-40%);}100%{opacity:1;transform:translate(-50%,-50%)}}
 @keyframes dotPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:.5}}
 @keyframes updateBtnBlink{0%,100%{box-shadow:0 3px 10px rgba(var(--leaf-rgb),.3)}50%{box-shadow:0 0 0 4px rgba(255,61,61,.5),0 3px 10px rgba(var(--leaf-rgb),.3)}}
-
 /* Fireworks */
 .firework-layer{position:fixed;inset:0;z-index:45;pointer-events:none;overflow:hidden}
 .spark{position:absolute;border-radius:50%;animation:spark-pop 780ms ease-out forwards}
@@ -311,19 +298,16 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
 /* 鼓励话弹窗动画 */
 @keyframes encourageIn{0%{opacity:0;transform:scale(.7)}50%{opacity:1;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}
 @keyframes encourageOut{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.1)}}
-
 /* Tabs nav */
 .tab-nav{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;-webkit-overflow-scrolling:touch}
 .tab-nav button{padding:10px 16px;border-radius:999px;color:#7a6050;background:rgba(255,255,255,.7);border:1.5px solid rgba(var(--leaf-rgb),.12);font-weight:800;white-space:nowrap;font-size:13px;transition:.15s;flex-shrink:0}
 .tab-nav button.active{color:#fff;background:linear-gradient(90deg,var(--leaf),var(--rose));border-color:transparent;box-shadow:0 5px 16px rgba(var(--leaf-rgb),.3)}
-
 /* Responsive — large phones / small tablets */
 @media(max-width:640px){
   .tasks-grid,.map-grid,.reward-grid,.review-grid,.works-layout{grid-template-columns:1fr}
   .topbar{flex-wrap:wrap}
   .brand h1{font-size:17px}
 }
-
 /* Enc message / phone-specific refinements — below 480px */
 @media(max-width:480px){
   .enc-msg{font-size:16px;padding:12px 16px;max-width:calc(100% - 32px);line-height:1.4}
@@ -370,7 +354,6 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
   .map-grid{grid-template-columns:repeat(5,1fr)}
 }
 /* ===== 跨设备适配：iPad / Android 手机 ===== */
-
 /* 防止 iOS Safari 输入框自动放大（字体>=16px） */
 input[type="text"], input[type="password"], input[type="search"], input[type="email"], input[type="tel"],
 textarea, select {
@@ -423,7 +406,6 @@ textarea:-webkit-autofill:focus {
   -webkit-box-shadow: 0 0 0px 1000px rgba(255,255,255,0) inset !important;
   transition: background-color 5000s ease-in-out 0s !important;
 }
-
 /* 安卓设备：确保触摸目标足够大 */
 @media (pointer: coarse) {
   .cal-nav button { min-width: 36px; min-height: 36px; }
@@ -434,7 +416,6 @@ textarea:-webkit-autofill:focus {
   .task-row { min-height: 48px; padding: 12px 14px; }
   .work-form select, .work-form input, .work-form textarea { min-height: 44px; }
 }
-
 /* iPad 横向适配 */
 @media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
   .app { max-width: 768px; }
@@ -442,7 +423,6 @@ textarea:-webkit-autofill:focus {
   .reward-grid { grid-template-columns: repeat(2, 1fr); }
   .map-grid { grid-template-columns: repeat(4, 1fr); }
 }
-
 /* 小屏手机进一步适配 */
 @media (max-width: 380px) {
   .app { padding: 0 12px; padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px)); }
@@ -461,14 +441,17 @@ textarea:-webkit-autofill:focus {
   .empty-state { padding: 14px; font-size: 12px; }
   .review-timeline { max-height: 200px; }
 }
-
 /* 深色模式适配 */
 @media (prefers-color-scheme: dark) {
   :root {
     --paper: rgba(30, 30, 40, 0.95);
+    /* 徽章色在暗色下提亮，保证可见 */
+    --badge-learning:#9fa8da; --badge-physical:#ef9a9a; --badge-discipline:#ce93d8; --badge-exploration:#80deea; --badge-practice:#a5d6a7; --badge-gloss:#ffffff;
+    /* ① 小蜜蜂 + ④ 盾牌金属色（暗色提亮，保证可见） */
+    --bee-body:#ffca28; --bee-stripe:#5d4037; --bee-wing:rgba(190,225,255,.72); --bee-stroke:#4e342e; --bee-cheek:#ff8a65;
+    --metal-silver:#e0e0e0; --metal-copper:#cf9b6a; --metal-gold:#ffd54f; --metal-glow:rgba(255,213,79,.7); --metal-ink:rgba(0,0,0,.25);
   }
 }
-
 /* 已选中的复盘条目高亮 */
 .review-item.latest {
   background: linear-gradient(135deg, #fff8e1, #fff3e0) !important;
@@ -477,16 +460,17 @@ textarea:-webkit-autofill:focus {
 .review-edit-btn:hover {
   background: rgba(41, 182, 246, 0.25) !important;
 }
-
 /* 鼓励话弹窗在移动设备上适配 */
 .encourage-msg .modal-box-content {
   max-width: 85vw;
 }
-
 /* ===== 配色主题 ===== */
 /* 樱花粉（默认·女孩） */
 body[data-theme="sakura"] {
   --leaf: #ff7043; --leaf-dark: #e64a19; --rose: #ec407a;
+  /* ① 小蜜蜂 + ④ 盾牌金属色（随主题保持一致，供 SVG var() 引用） */
+  --bee-body:#ffca28; --bee-stripe:#5d4037; --bee-wing:rgba(190,225,255,.72); --bee-stroke:#4e342e; --bee-cheek:#ff8a65;
+  --metal-silver:#cfd8dc; --metal-copper:#b87333; --metal-gold:#f5b301; --metal-glow:rgba(255,213,79,.6); --metal-ink:rgba(0,0,0,.18);
   --leaf-rgb: 255,112,67; --rose-rgb: 236,64,122; --sky-rgb: 41,182,246;
   --gradient-bg: linear-gradient(160deg,#fff8f0 0%,#fce4ec 30%,#e3f2fd 62%,#f9fbe7 100%);
   --gradient-dots: radial-gradient(circle,rgba(255,112,67,.18) 1px,transparent 1px),radial-gradient(circle,rgba(41,182,246,.12) 1px,transparent 1px);
@@ -517,6 +501,9 @@ body[data-theme="sakura"] {
 /* 海洋蓝（男孩推荐） */
 body[data-theme="ocean"] {
   --leaf: #42a5f5; --leaf-dark: #1e88e5; --rose: #26c6da;
+  /* ① 小蜜蜂 + ④ 盾牌金属色（随主题保持一致，供 SVG var() 引用） */
+  --bee-body:#ffca28; --bee-stripe:#5d4037; --bee-wing:rgba(190,225,255,.72); --bee-stroke:#4e342e; --bee-cheek:#ff8a65;
+  --metal-silver:#cfd8dc; --metal-copper:#b87333; --metal-gold:#f5b301; --metal-glow:rgba(255,213,79,.6); --metal-ink:rgba(0,0,0,.18);
   --leaf-rgb: 66,165,245; --rose-rgb: 38,198,218; --sky-rgb: 30,136,229;
   --gradient-bg: linear-gradient(160deg,#f5faff 0%,#e3f2fd 30%,#e0f7fa 62%,#fff8e1 100%);
   --gradient-dots: radial-gradient(circle,rgba(66,165,245,.15) 1px,transparent 1px),radial-gradient(circle,rgba(38,198,218,.12) 1px,transparent 1px);
@@ -547,6 +534,9 @@ body[data-theme="ocean"] {
 /* 森林绿（自然中性） */
 body[data-theme="forest"] {
   --leaf: #66bb6a; --leaf-dark: #388e3c; --rose: #ffa726;
+  /* ① 小蜜蜂 + ④ 盾牌金属色（随主题保持一致，供 SVG var() 引用） */
+  --bee-body:#ffca28; --bee-stripe:#5d4037; --bee-wing:rgba(190,225,255,.72); --bee-stroke:#4e342e; --bee-cheek:#ff8a65;
+  --metal-silver:#cfd8dc; --metal-copper:#b87333; --metal-gold:#f5b301; --metal-glow:rgba(255,213,79,.6); --metal-ink:rgba(0,0,0,.18);
   --leaf-rgb: 102,187,106; --rose-rgb: 255,167,38; --sky-rgb: 41,182,246;
   --gradient-bg: linear-gradient(160deg,#f8fdf5 0%,#e8f5e9 30%,#fff3e0 62%,#f9fbe7 100%);
   --gradient-dots: radial-gradient(circle,rgba(102,187,106,.15) 1px,transparent 1px),radial-gradient(circle,rgba(255,167,38,.1) 1px,transparent 1px);
@@ -577,6 +567,9 @@ body[data-theme="forest"] {
 /* 阳光橙（活力中性） */
 body[data-theme="sunset"] {
   --leaf: #ff9800; --leaf-dark: #e65100; --rose: #ef5350;
+  /* ① 小蜜蜂 + ④ 盾牌金属色（随主题保持一致，供 SVG var() 引用） */
+  --bee-body:#ffca28; --bee-stripe:#5d4037; --bee-wing:rgba(190,225,255,.72); --bee-stroke:#4e342e; --bee-cheek:#ff8a65;
+  --metal-silver:#cfd8dc; --metal-copper:#b87333; --metal-gold:#f5b301; --metal-glow:rgba(255,213,79,.6); --metal-ink:rgba(0,0,0,.18);
   --leaf-rgb: 255,152,0; --rose-rgb: 239,83,80; --sky-rgb: 66,165,245;
   --gradient-bg: linear-gradient(160deg,#fff8f0 0%,#fff3e0 30%,#ffebee 62%,#f9fbe7 100%);
   --gradient-dots: radial-gradient(circle,rgba(255,152,0,.15) 1px,transparent 1px),radial-gradient(circle,rgba(239,83,80,.1) 1px,transparent 1px);
@@ -607,6 +600,9 @@ body[data-theme="sunset"] {
 /* 星夜紫（梦幻） */
 body[data-theme="starry"] {
   --leaf: #7e57c2; --leaf-dark: #4527a0; --rose: #5c6bc0;
+  /* ① 小蜜蜂 + ④ 盾牌金属色（随主题保持一致，供 SVG var() 引用） */
+  --bee-body:#ffca28; --bee-stripe:#5d4037; --bee-wing:rgba(190,225,255,.72); --bee-stroke:#4e342e; --bee-cheek:#ff8a65;
+  --metal-silver:#cfd8dc; --metal-copper:#b87333; --metal-gold:#f5b301; --metal-glow:rgba(255,213,79,.6); --metal-ink:rgba(0,0,0,.18);
   --leaf-rgb: 126,87,194; --rose-rgb: 92,107,192; --sky-rgb: 79,195,247;
   --gradient-bg: linear-gradient(160deg,#faf5ff 0%,#ede7f6 30%,#e3f2fd 62%,#f9fbe7 100%);
   --gradient-dots: radial-gradient(circle,rgba(126,87,194,.12) 1px,transparent 1px),radial-gradient(circle,rgba(92,107,192,.1) 1px,transparent 1px);
@@ -634,7 +630,6 @@ body[data-theme="starry"] {
   --warn: #e08a1e; --warn-rgb: 224,138,30;
   --err: #d64545; --err-rgb: 214,69,69;
 }
-
 /* ========== 进场动画 (Splash) ========== */
 .splash-overlay{
   position:fixed;inset:0;z-index:9999;
@@ -745,10 +740,374 @@ body[data-theme="starry"] {
 @keyframes appFallbackIn{to{opacity:1}}
 @keyframes fadeInOut{0%{opacity:0;transform:translate(-50%,-50%) scale(.9)}10%{opacity:1;transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}
 @keyframes shakeModal{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}50%{transform:translateX(8px)}75%{transform:translateX(-4px)}}
+/* ===== 增量功能样式 ===== */
+/* 连续打卡徽标（顶部 pill 组） */
+.streak-badge{display:inline-flex;align-items:center;gap:4px;padding:8px 14px;border-radius:999px;background:linear-gradient(90deg,#fff3e0,#ffe0b2);box-shadow:0 2px 10px rgba(255,112,67,.18),inset 0 0 0 1.5px rgba(255,112,67,.2);font-weight:800;white-space:nowrap;font-size:15px;color:var(--leaf-dark)}
+/* 心情行 */
+.mood-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.7);border:1.5px solid rgba(255,112,67,.12)}
+.mood-label{font-size:13px;font-weight:800;color:var(--ink);white-space:nowrap}
+.mood-btns{display:flex;gap:6px}
+.mood-btn{width:40px;height:40px;border-radius:50%;border:2px solid transparent;background:rgba(255,255,255,.85);font-size:20px;line-height:1;cursor:pointer;transition:.15s;display:grid;place-items:center}
+.mood-btn:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(255,112,67,.15)}
+.mood-btn.active{border-color:var(--leaf);background:var(--mint);box-shadow:0 3px 12px rgba(255,112,67,.25)}
+.mood-btn:disabled{cursor:not-allowed;opacity:.45;filter:grayscale(60%)}
+.mood-note{flex:1;min-width:160px;min-height:40px;padding:8px 12px;border-radius:10px;border:1.5px solid rgba(255,112,67,.18);background:#fff;color:var(--ink);outline:none;font-size:14px}
+.mood-note:focus{border-color:var(--leaf);box-shadow:0 0 0 3px rgba(255,112,67,.12)}
+.mood-note:disabled{background:rgba(0,0,0,.04);cursor:not-allowed}
+/* 灵感按钮行 */
+.idea-row{display:flex;justify-content:flex-end;margin-bottom:10px}
+#ideaBtn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(60%)}
+/* 温柔空状态卡（含吉祥物） */
+.zero-card{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:14px;background:linear-gradient(135deg,rgba(255,243,224,.9),rgba(252,228,236,.7));border:1.5px dashed rgba(255,112,67,.3);margin-bottom:14px}
+.zero-mascot{flex-shrink:0;display:grid;place-items:center}
+.zero-text{font-size:15px;font-weight:800;color:var(--leaf-dark);line-height:1.5}
+/* 灵感库弹层 */
+.idea-list{display:flex;flex-direction:column;gap:12px;max-height:50vh;overflow:auto}
+.idea-cat-title{font-size:14px;font-weight:900;color:var(--leaf-dark);margin-bottom:6px}
+.idea-row-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.85);border:1.5px solid rgba(255,112,67,.1)}
+.idea-title{flex:1;min-width:0;font-size:13px;font-weight:700;color:var(--ink)}
+.idea-pts{font-size:12px;font-weight:900;color:var(--leaf-dark);white-space:nowrap}
+.idea-set-btn{padding:6px 12px;border-radius:8px;border:none;background:linear-gradient(90deg,var(--leaf),var(--rose));color:#fff;font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap;transition:.15s}
+.idea-set-btn:active{transform:scale(.96)}
+.idea-set-btn:disabled{background:#d8cfc8;cursor:default}
+/* T01：灵感「修改」按钮（替代旧「仅参考」） */
+.idea-edit-btn{padding:6px 10px;border-radius:8px;border:1px solid rgba(var(--leaf-rgb),.3);background:#fff;color:var(--leaf-dark);font-weight:800;font-size:12px;cursor:pointer;white-space:nowrap;transition:.15s}
+.idea-edit-btn:hover{background:rgba(var(--leaf-rgb),.08)}
+.idea-edit-btn:active{transform:scale(.96)}
+/* T01：灵感库顶部六胶囊 Tab（全部 + 五维） */
+.idea-cat-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.idea-tab{padding:7px 16px;border-radius:999px;border:1.5px solid rgba(var(--leaf-rgb),.25);background:rgba(255,255,255,.7);color:var(--muted);font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap;transition:.15s}
+.idea-tab:hover{background:rgba(var(--leaf-rgb),.08)}
+/* 选中高亮、未选中置灰（T01） */
+.idea-tab.active{background:linear-gradient(90deg,var(--leaf),var(--rose));border-color:transparent;color:#fff;box-shadow:0 3px 10px rgba(var(--leaf-rgb),.28)}
+.idea-tab:not(.active){opacity:.72}
+/* 任务行中的灵感标记 */
+.task-row .idea-tag{margin-left:4px;font-size:12px}
+/* 成长树 */
+.growth-tree{display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px;border-radius:14px;background:linear-gradient(160deg,rgba(255,255,255,.85),rgba(232,245,233,.5));border:1.5px solid rgba(102,187,106,.25)}
+.tree-wrap{display:flex;align-items:center;gap:10px}
+.tree-svg{flex-shrink:0}
+.tree-mascot{flex-shrink:0}
+.tree-progress{width:100%;max-width:320px;text-align:center}
+.tree-stage-label{font-size:18px;font-weight:900;color:var(--leaf-dark);margin-bottom:6px}
+.tree-bar{height:12px;border-radius:6px;background:rgba(0,0,0,.07);overflow:hidden}
+.tree-bar-fill{height:100%;background:linear-gradient(90deg,var(--leaf),var(--rose));border-radius:6px;transition:width .5s}
+.tree-next{margin-top:6px;font-size:12px;color:var(--muted)}
+/* 连续打卡（日历 Tab） */
+.streak-info{display:flex;flex-direction:column;align-items:center;gap:2px;padding:16px;border-radius:14px;background:linear-gradient(160deg,rgba(255,243,224,.85),rgba(255,224,178,.5));border:1.5px solid rgba(255,152,0,.22)}
+.streak-num{font-size:30px;font-weight:900;color:var(--leaf-dark)}
+.streak-sub{font-size:12px;color:var(--muted)}
+/* 徽章墙 */
+.badge-wall{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.badge-slot{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;border-radius:12px;background:rgba(255,255,255,.8);border:2px solid rgba(255,112,67,.12);text-align:center;transition:.15s}
+.badge-slot.unlocked{background:linear-gradient(160deg,rgba(255,248,225,.95),rgba(252,228,236,.6));border-color:rgba(255,193,7,.5);box-shadow:0 3px 12px rgba(255,193,7,.18)}
+.badge-slot.locked{filter:grayscale(70%);opacity:.7}
+.badge-icon{font-size:26px;line-height:1}
+.badge-label{font-size:12px;font-weight:800;color:var(--ink)}
+.badge-progress{width:100%;height:6px;border-radius:3px;background:rgba(0,0,0,.07);overflow:hidden}
+.badge-bar{height:100%;background:linear-gradient(90deg,var(--leaf),var(--rose));border-radius:3px;transition:width .5s}
+.badge-score{font-size:10px;color:var(--muted);font-weight:700}
+/* T04：徽章 4 级边框/光晕区分（SVG 已按级变复杂；此处强化等级观感） */
+.badge-slot.lv1{border-color:rgba(120,120,120,.28)}
+.badge-slot.lv2{border-color:rgba(255,193,7,.42)}
+.badge-slot.lv3{border-color:rgba(255,152,0,.5);box-shadow:0 3px 12px rgba(255,152,0,.16)}
+.badge-slot.lv4{border-color:rgba(171,71,188,.55);box-shadow:0 4px 16px rgba(171,71,188,.22)}
+/* 家长录音区 */
+.enc-list{display:flex;flex-direction:column;gap:6px}
+.enc-item{transition:.15s}
+.enc-item:hover{box-shadow:0 3px 12px rgba(255,112,67,.12)}
+.enc-hint{min-height:16px}
+/* 情绪趋势 */
+.mood-trend-title{font-size:14px;font-weight:900;color:var(--leaf-dark);margin-bottom:6px}
+.mood-trend-bar{display:flex;gap:12px;flex-wrap:wrap;font-size:14px;font-weight:800;margin-bottom:4px}
+.mood-trend-bar .mt.happy{color:var(--lime)}
+.mood-trend-bar .mt.neutral{color:var(--sky)}
+.mood-trend-bar .mt.sad{color:var(--rose)}
+.mood-trend-note{font-size:12px;color:var(--muted)}
+.mood-trend-empty{font-size:13px;color:var(--muted)}
+/* ===== 吉祥物 SVG 动画 ===== */
+.mascot{display:inline-block;vertical-align:middle;transform-origin:50% 50%}
+.mascot-sway{animation:mascotSway 2.4s ease-in-out infinite}
+.mascot-blink{animation:mascotBlink 4s ease-in-out infinite}
+.mascot-pop{animation:mascotPop .5s ease-out}
+@keyframes mascotSway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+@keyframes mascotBlink{0%,90%,100%{transform:scaleY(1)}94%{transform:scaleY(.82)}}
+@keyframes mascotPop{0%{transform:scale(.8)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+@media(max-width:480px){
+  .badge-wall{grid-template-columns:repeat(5,1fr);gap:4px}
+  .badge-slot{padding:8px 2px}
+  .badge-icon{font-size:20px}
+  .badge-label{font-size:10px}
+  .streak-badge{font-size:13px;padding:6px 10px}
+  .mood-row{padding:8px}
+  .mood-btn{width:36px;height:36px;font-size:18px}
+}
+/* ===== 任务灵感引导卡（B2/B6） ===== */
+.idea-prompt-card{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,rgba(255,243,224,.92),rgba(252,228,236,.7));border:1.5px dashed rgba(255,112,67,.4);margin-bottom:14px}
+.idea-prompt-emoji{font-size:30px;flex-shrink:0;line-height:1}
+.idea-prompt-body{flex:1;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.idea-prompt-title{font-size:15px;font-weight:900;color:var(--leaf-dark);line-height:1.4}
+.idea-prompt-btn{flex-shrink:0}
+/* ===== 成长档案重组（C） ===== */
+.archive-subtitle{font-size:16px;font-weight:900;margin:0 0 12px;color:var(--ink);display:flex;align-items:center;gap:6px}
+.archive-block{margin-top:20px}
+.achievement-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.achievement-col h4{font-size:14px;font-weight:900;color:var(--leaf-dark);margin:0 0 8px}
+@media(max-width:640px){ .achievement-grid{grid-template-columns:1fr} }
+/* ===== 周表（D） ===== */
+#weekTable{display:flex;flex-direction:column;gap:8px}
+.week-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.85);border:1.5px solid rgba(255,112,67,.14);font-size:14px;font-weight:800;color:var(--ink);transition:.12s}
+.week-row:hover{border-color:rgba(255,112,67,.4)}
+.week-dot{font-size:18px;color:var(--leaf-dark);width:18px;text-align:center}
+.week-idx{color:var(--leaf-dark)}
+.week-range{color:var(--muted);font-weight:700;margin-left:auto}
+.week-mood{font-size:16px}
+.week-editor{margin:2px 0 10px;padding:14px;border-radius:12px;background:rgba(255,248,225,.5);border:1.5px solid rgba(255,193,7,.32)}
+.rev-fields{display:flex;flex-direction:column;gap:10px}
+.rev-field label{font-size:13px;font-weight:800;color:var(--leaf-dark);display:block;margin-bottom:4px}
+.rev-field textarea{width:100%;min-height:54px;padding:10px;border-radius:10px;border:1.5px solid rgba(0,0,0,.12);font-size:13px;box-sizing:border-box;outline:none;resize:vertical;background:#fff;color:var(--ink)}
+.rev-field textarea:focus{border-color:var(--leaf);box-shadow:0 0 0 3px rgba(255,112,67,.12)}
+.week-mood-pick{display:flex;align-items:center;gap:8px;margin:12px 0 4px;font-size:13px;font-weight:800;color:var(--leaf-dark)}
+.mood-pick{padding:6px 12px;border-radius:10px;border:2px solid rgba(0,0,0,.1);background:#fff;font-size:18px;cursor:pointer;transition:.12s}
+.mood-pick.active{border-color:var(--leaf);background:var(--mint);transform:scale(1.05)}
+.week-save{margin-top:6px;width:100%}
+/* ===== 作品档案（日期前置 + 双排网格） ===== */
+.work-archive{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-right:0}
+.work-archive .work-item{padding:12px 14px;border-radius:12px;background:linear-gradient(135deg,#e8f5e9,#e3f2fd);border:none;margin-bottom:0;font-size:13px;position:relative}
+.work-date-badge{display:inline-block;font-size:12px;font-weight:900;color:#fff;background:var(--leaf);border-radius:999px;padding:3px 10px;margin-bottom:6px}
+.work-task-title{display:block;font-size:12px;color:var(--muted);font-weight:700;margin-bottom:1px}
+.work-title{display:block;font-size:15px;font-weight:900;color:var(--ink);margin-bottom:4px;line-height:1.3}
+.work-note{font-size:12px;color:var(--muted);line-height:1.5}
+@media(max-width:640px){ .work-archive{grid-template-columns:1fr} }
+/* ===== UI-polish-2 新增样式 ===== */
+/* 主题色（随主题微调；暗色下提亮，保证可见。SVG 内用 var() 引用，不写死十六进制） */
+body[data-theme="sakura"]{ --vine-stem:#43a047; --vine-leaf:#8bc34a; --vine-flower:#ab47bc; --tree-trunk:#8d6e63; --tree-leaf:#66bb6a; --tree-flower:#f06292; --tree-fruit:#ef5350; --tree-citrus:#fb8c00; --tree-soil:#a1887f; --fruit-5:#ef5350; --fruit-10:#fb8c00; --butterfly-body:#7e57c2; --butterfly-wing:#ffd54f; --butterfly-dot:#ec407a; --butterfly-stroke:#4e342e; }
+body[data-theme="ocean"]{ --vine-stem:#2e9e5b; --vine-leaf:#66bb6a; --vine-flower:#5c6bc0; --tree-trunk:#6d4c41; --tree-leaf:#4db6ac; --tree-flower:#42a5f5; --tree-fruit:#ef5350; --tree-citrus:#fb8c00; --tree-soil:#90a4ae; --fruit-5:#ef5350; --fruit-10:#fb8c00; --butterfly-body:#5c6bc0; --butterfly-wing:#80deea; --butterfly-dot:#42a5f5; --butterfly-stroke:#37474f; }
+body[data-theme="forest"]{ --vine-stem:#388e3c; --vine-leaf:#7cb342; --vine-flower:#7e57c2; --tree-trunk:#6d4c41; --tree-leaf:#7cb342; --tree-flower:#9ccc65; --tree-fruit:#e57373; --tree-citrus:#fb8c00; --tree-soil:#8d6e63; --fruit-5:#e57373; --fruit-10:#ffb74d; --butterfly-body:#2e7d32; --butterfly-wing:#aed581; --butterfly-dot:#ffb300; --butterfly-stroke:#33691e; }
+body[data-theme="sunset"]{ --vine-stem:#ef6c00; --vine-leaf:#9ccc65; --vine-flower:#ec407a; --tree-trunk:#8d6e63; --tree-leaf:#9ccc65; --tree-flower:#ff8a65; --tree-fruit:#ff7043; --tree-citrus:#fb8c00; --tree-soil:#a1887f; --fruit-5:#ff7043; --fruit-10:#fb8c00; --butterfly-body:#ef6c00; --butterfly-wing:#ffd54f; --butterfly-dot:#ec407a; --butterfly-stroke:#4e342e; }
+body[data-theme="starry"]{ --vine-stem:#66bb6a; --vine-leaf:#aed581; --vine-flower:#b39ddb; --tree-trunk:#7e57c2; --tree-leaf:#b39ddb; --tree-flower:#ce93d8; --tree-fruit:#ba68c8; --tree-citrus:#fb8c00; --tree-soil:#9575cd; --fruit-5:#ba68c8; --fruit-10:#7e57c2; --butterfly-body:#7e57c2; --butterfly-wing:#b39ddb; --butterfly-dot:#ce93d8; --butterfly-stroke:#4527a0; }
+@media (prefers-color-scheme: dark){
+  body[data-theme="sakura"],body[data-theme="ocean"],body[data-theme="forest"],body[data-theme="sunset"],body[data-theme="starry"]{
+    --vine-stem:#7cc47f; --vine-leaf:#a5d6a7; --vine-flower:#ce93d8;
+    --tree-trunk:#a1887f; --tree-leaf:#a5d6a7; --tree-flower:#f48fb1; --tree-fruit:#ef9a9a; --tree-citrus:#ffcc80; --tree-soil:#bcaaa4;
+    --fruit-5:#ef9a9a; --fruit-10:#ffcc80;
+    --butterfly-body:#b39ddb; --butterfly-wing:#ffe082; --butterfly-dot:#f48fb1; --butterfly-stroke:#eceff1;
+    --badge-learning:#9fa8da; --badge-physical:#ef9a9a; --badge-discipline:#ce93d8; --badge-exploration:#80deea; --badge-practice:#a5d6a7; --badge-gloss:#ffffff;
+    --bee-stroke:#eceff1;
+    --metal-silver:#e0e0e0; --metal-copper:#cf9b6a; --metal-gold:#ffd54f; --metal-glow:rgba(255,213,79,.7); --metal-ink:rgba(0,0,0,.25);
+  }
+}
+/* ===== 成长树蝴蝶吉祥物（T07：蝴蝶替换小蜜蜂） ===== */
+/* 位置由 JS 随机漫游驱动（startButterflyRoam），不再用固定关键帧；翅膀扑扇 bfFlutter 保持不变 */
+.gt-butterfly{
+  position:absolute; pointer-events:none;
+  width:52px; height:56px;
+  left:0; top:0;
+  transition: transform 3s ease-in-out;
+  will-change: transform;
+}
+.butterfly .bf-wing{ transform-box:fill-box; transform-origin:center; animation:bfFlutter .18s ease-in-out infinite; }
+@keyframes bfFlutter{
+  0%,100%{ transform:scaleY(1); }
+  50%{ transform:scaleY(.6); }
+}
+/* ===== UI-polish-4 ③ 分值三选一按钮组（T01） ===== */
+.pts-options{ display:flex; gap:8px; flex-wrap:wrap; }
+.pts-opt{
+  flex:1; min-width:64px; padding:10px 14px; border-radius:10px;
+  font-weight:800; font-size:14px; color:var(--muted);
+  background:rgba(var(--leaf-rgb),.08); border:1.5px solid rgba(var(--leaf-rgb),.2);
+  cursor:pointer; transition:.15s; user-select:none;
+}
+.pts-opt:hover{ background:rgba(var(--leaf-rgb),.14); }
+.pts-opt.active{
+  color:#fff; background:linear-gradient(90deg,var(--leaf),var(--rose));
+  border-color:transparent; box-shadow:0 3px 10px rgba(var(--leaf-rgb),.3);
+}
+/* ===== UI-polish-4 ④ 徽章盾牌 4 级视觉（T01） ===== */
+.badge-slot.lv1{ border-color:rgba(160,160,170,.45); }
+.badge-slot.lv2{ border-color:var(--metal-copper); box-shadow:0 3px 12px rgba(184,115,51,.22); }
+.badge-slot.lv3{ border-color:var(--metal-copper); box-shadow:0 3px 14px rgba(184,115,51,.3); }
+.badge-slot.lv4{ border-color:var(--metal-gold); box-shadow:0 4px 18px var(--metal-glow); }
+.badge-icon{ display:grid; place-items:center; }
+.badge-icon svg{ display:block; }
+/* ===== 成长树独立页面（tree-garden，T01–T6） ===== */
+.gt-page{display:flex;flex-direction:column;gap:16px;padding-top:8px}
+.gt-locked,.gt-empty-stage{display:flex;flex-direction:column;align-items:center;gap:12px;padding:48px 16px;text-align:center;color:var(--muted)}
+.gt-empty-emoji{font-size:56px}
+.gt-empty-tip{font-size:15px;font-weight:700}
+.gt-empty-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+/* 顶部进度条 */
+.gt-progress{background:linear-gradient(135deg,rgba(255,255,255,.9),rgba(232,245,233,.5));border:1.5px solid rgba(102,187,106,.2);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow)}
+.gt-progress-head{display:flex;justify-content:space-between;align-items:center;font-weight:900;color:var(--leaf-dark)}
+.gt-progress-pct{font-size:14px;color:var(--muted)}
+.gt-progress-bar{height:14px;border-radius:999px;background:rgba(102,187,106,.18);overflow:hidden;margin:8px 0 6px}
+.gt-progress-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--tree-leaf),var(--tree-flower));transition:width .6s ease}
+.gt-progress-next{font-size:13px;color:var(--muted)}
+/* 中央舞台 */
+.gt-stage{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;align-items:flex-end;min-height:240px;padding:8px 0;position:relative}
+.gt-tree-card{position:relative;flex:1;min-width:180px;max-width:280px;background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.7),rgba(232,245,233,.25));border-radius:20px;padding:12px;display:flex;flex-direction:column;align-items:center;box-shadow:var(--shadow)}
+.gt-tree-stage{width:100%;height:200px;display:flex;align-items:flex-end;justify-content:center;position:relative}
+.gt-tree-svg{transform-origin:bottom center;animation:tree-sway 6s ease-in-out infinite;filter:drop-shadow(0 6px 10px rgba(0,0,0,.12))}
+.gt-tree-canvas{width:100%;height:100%;display:block}
+.gt-tree-name{margin-top:6px;font-weight:900;color:var(--leaf-dark);font-size:15px}
+/* 单棵卡片右上角浇水按钮（洒水壶图形，绝对定位叠加于卡片右上角） */
+.gt-card-water-btn{position:absolute;top:10px;right:10px;z-index:3;display:flex;align-items:center;justify-content:center;border:none;background:transparent;padding:0;box-shadow:none;cursor:pointer;transition:transform .15s ease}
+.gt-card-water-btn:hover{transform:scale(1.05)}
+.gt-card-water-btn:active{transform:scale(.97)}
+.gt-card-water-btn.disabled{filter:grayscale(1);opacity:.45;cursor:not-allowed}
+/* 浇水壶：图片壶（已抠图透明 PNG），66x66 */
+.gt-card-water-btn .gt-can-img{width:66px;height:66px;display:block;object-fit:contain;user-select:none;-webkit-user-drag:none}
+/* 浇水时洒水壶向左下倾斜（壶嘴朝下） */
+.gt-card-water-btn.gt-pouring{transform-origin:bottom right;transform:rotate(-18deg);transition:transform .25s ease}
+/* 收获 / 铲除按钮：左上角（与右上角浇水壶分列树两侧） */
+.gt-card-corner-actions{position:absolute;top:10px;left:10px;z-index:4;display:flex;gap:6px}
+.gt-card-corner-actions .btn-primary,.gt-card-corner-actions .btn-secondary{padding:4px 10px;font-size:12px;border-radius:999px;line-height:1.2}
+/* ===== 成长树动画（浇水流水 / 阶段绽放 / 烟花复用 .spark） ===== */
+/* 待浇水只读胶囊（替代原浇水按钮，T6） */
+.gt-water-static{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:999px;background:rgba(0,0,0,.06);color:var(--muted);font-weight:700;font-size:13px;cursor:default;white-space:nowrap}
+/* 浇水：画区发光 + 土堆变润（.watering 类由 fx.js 增删） */
+.gt-tree-card.watering .gt-tree-stage{animation:tree-glow 1.2s ease}
+@keyframes tree-glow{0%{filter:drop-shadow(0 0 0 rgba(102,187,106,0))}50%{filter:drop-shadow(0 0 14px rgba(102,187,106,.85))}100%{filter:drop-shadow(0 0 0 rgba(102,187,106,0))}}
+/* 浇水场景（由 fx.js 注入单个 .gt-water-scene 覆盖卡片：喇叭抛物线水柱 + 水花 + 星光） */
+.gt-water-scene{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2;overflow:visible}
+.gt-water-scene svg{width:100%;height:100%;display:block;overflow:visible}
+/* 水柱主体：喇叭形（上窄下宽）+ 蓝白渐变 + 柔光 */
+.ws-body{fill:url(#ws-grad);filter:url(#ws-glow)}
+/* 底部水花：双层椭圆弹开淡出 */
+.ws-splash{fill:rgba(179,229,252,.7);transform-origin:center;animation:ws-splash .55s ease-out infinite}
+.ws-splash2{fill:rgba(129,212,250,.8);transform-origin:center;animation:ws-splash .55s ease-out infinite;animation-delay:.12s}
+@keyframes ws-splash{0%{transform:scale(.5);opacity:.9}60%{transform:scale(1.3);opacity:.6}100%{transform:scale(1);opacity:0}}
+/* 飞溅水珠 */
+.ws-drop{fill:#4FC3F7;transform-origin:center;animation:ws-drop .55s ease-out infinite}
+.ws-drop.d1{--dx:-22px;--dy:-28px;animation-delay:0s}
+.ws-drop.d2{--dx:18px;--dy:-24px;animation-delay:.12s}
+.ws-drop.d3{--dx:-8px;--dy:-36px;animation-delay:.22s}
+.ws-drop.d4{--dx:12px;--dy:-32px;animation-delay:.08s}
+.ws-drop.d5{--dx:6px;--dy:-30px;animation-delay:.16s}
+@keyframes ws-drop{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(.6);opacity:0}}
+/* 星光（壶嘴 / 沿途 / 落点） */
+.ws-spark{fill:#FFD54F;opacity:0;transform-origin:center;animation:ws-spark .8s ease-out infinite}
+.gt-water-scene .ws-spark{opacity:1}
+@keyframes ws-spark{0%{transform:scale(0) rotate(0deg);opacity:0}30%{transform:scale(1.2) rotate(45deg);opacity:1}100%{transform:scale(0) rotate(90deg);opacity:0}}
+/* 阶段跨段绽放：星光爆开 + 轻微缩放回弹 */
+.gt-tree-card.stage-bloom{animation:stage-bloom .6s ease;z-index:5}
+@keyframes stage-bloom{0%{transform:scale(1)}45%{transform:scale(1.08)}100%{transform:scale(1)}}
+.gt-tree-card.stage-bloom::before{content:"";position:absolute;left:50%;top:40%;width:12px;height:12px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.95),rgba(255,224,130,.6) 45%,rgba(255,224,130,0) 72%);transform:translate(-50%,-50%);animation:bloom-star .6s ease-out forwards;pointer-events:none;z-index:6}
+@keyframes bloom-star{0%{opacity:.95;transform:translate(-50%,-50%) scale(.2)}100%{opacity:0;transform:translate(-50%,-50%) scale(7)}}
+/* 收获烟花层（index.html 已有 #fireworkLayer，复用，不新建 .firework-layer） */
+#fireworkLayer{position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:9997;overflow:hidden}
+/* 每树进度条在卡片内视觉收紧，避免与蝴蝶 / 树画重叠 */
+.gt-tree-card .gt-progress{margin-top:8px;padding:10px 12px;width:100%}
+.gt-tree-card .gt-progress-bar{margin:6px 0 4px}
+/* 统计条 */
+.gt-stats{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;font-size:13px;font-weight:800;color:var(--ink);background:rgba(255,255,255,.6);border-radius:12px;padding:8px 12px}
+.gt-stats span{white-space:nowrap}
+/* 底部操作栏 */
+.gt-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.gt-actions .btn-primary,.gt-actions .btn-secondary{flex:1;min-width:120px}
+/* 种子小铺 / 背包弹层 */
+.gt-seed-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:14px}
+.gt-seed-card{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 10px;border-radius:14px;background:linear-gradient(135deg,rgba(255,255,255,.85),rgba(252,228,236,.4));border:1.5px solid rgba(255,112,67,.16)}
+.gt-seed-emoji{font-size:34px}
+.gt-seed-name{font-weight:800;color:var(--ink)}
+.gt-seed-price{font-size:13px;color:var(--muted);font-weight:700}
+.gt-inv-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;max-height:50vh;overflow:auto}
+.gt-inv-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.8);border:1.5px solid rgba(255,112,67,.14);font-size:14px;font-weight:800}
+.gt-inv-label{flex:1}
+.gt-inv-acts{display:flex;gap:6px}
+.gt-inv-empty{color:var(--muted);font-size:14px;padding:12px;text-align:center}
+/* 伪 3D 摇摆 / 花瓣飘落（P2-2：尊重 reduced-motion） */
+@keyframes tree-sway{0%,100%{transform:rotate(-1.5deg)}50%{transform:rotate(1.5deg)}}
+@keyframes petal-fall{0%{transform:translateY(0) rotate(0);opacity:.9}100%{transform:translateY(60px) rotate(180deg);opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  .gt-butterfly{ animation:none; }
+  .butterfly .bf-wing{ animation:none; }
+  .gt-tree-svg{ animation:none; }
+}
+/* 鼓励话弹窗内吉祥物（T03：success/encourage 两态挂载点） */
+.encourage-mascot{width:64px;height:64px;display:flex;justify-content:center;animation:encourageMascotIn .5s ease}
+@keyframes encourageMascotIn{from{transform:translateY(10px) scale(.7);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+/* ② 周表 3×4 方块网格 */
+.week-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.week-cell{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.85);border:1.5px solid rgba(255,112,67,.14);min-height:46px;transition:.15s;box-shadow:0 2px 8px rgba(255,112,67,.06)}
+.week-cell:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(255,112,67,.14)}
+.week-cell-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.week-line{display:inline-flex;align-items:baseline;gap:4px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.week-line .week-range{margin-left:0}
+.week-idx{font-size:15px;font-weight:900;color:var(--leaf-dark);line-height:1}
+.week-sep{color:var(--muted);font-weight:700}
+.week-dot{font-size:15px;color:var(--lime)}
+.week-range{font-size:11px;color:var(--muted);font-weight:700}
+.week-mood{font-size:24px;min-height:26px;line-height:1;margin-top:2px}
+/* T05：未来周不可点（pointer-events:none + 不绑编辑器；视觉置灰） */
+.week-cell.future{pointer-events:none;cursor:default;opacity:.55;filter:grayscale(.35)}
+.week-cell.future:hover{transform:none;box-shadow:0 2px 8px rgba(255,112,67,.06)}
+.week-cell.filled{border-color:var(--lime);box-shadow:0 0 0 2px rgba(102,187,106,.22),0 2px 8px rgba(102,187,106,.1)}
+.week-cell.mood-happy{background:rgba(255,193,7,.12)}
+.week-cell.mood-neutral{background:rgba(41,182,246,.12)}
+.week-cell.mood-sad{background:rgba(33,150,243,.10)}
+.week-cell.cell-summary{background:linear-gradient(160deg,rgba(255,248,225,.9),rgba(255,224,178,.5));border-color:rgba(255,193,7,.4);justify-content:center}
+.week-cell.cell-done{background:linear-gradient(160deg,rgba(255,243,224,.7),rgba(252,228,236,.5));border-style:dashed;justify-content:center;cursor:default}
+.cell-summary .week-idx,.cell-done .week-idx{font-size:15px}
+@media(max-width:640px){ .week-grid{grid-template-columns:repeat(2,1fr)} }
+/* ⑤ 空状态引导卡 */
+.work-empty-guide{margin-bottom:14px}
+.work-empty-card{text-align:center;padding:26px 18px;border-radius:16px;background:linear-gradient(160deg,rgba(255,255,255,.92),rgba(252,228,236,.5));border:1.5px dashed rgba(171,71,188,.32);box-shadow:0 4px 16px rgba(171,71,188,.1)}
+.work-empty-icon{font-size:52px;line-height:1;margin-bottom:10px}
+.work-empty-text{font-size:15px;font-weight:800;color:var(--ink);margin-bottom:16px;line-height:1.5}
+.work-form.fade-in{animation:workFadeIn .4s ease}
+@keyframes workFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+/* ④ 档案页分区头 + 呼吸感 */
+.archive-block{margin:30px 0;padding-top:16px;border-top:1px solid rgba(0,0,0,.06)}
+.archive-block:first-of-type{border-top:none;margin-top:8px;padding-top:0}
+.sec-bar{display:inline-block;width:4px;height:18px;border-radius:3px;margin-right:8px;vertical-align:middle;background:#ff9800}
+.archive-subtitle{font-size:20px}
+.sec-title-achievement{color:#ef8a1e}
+.sec-title-achievement .sec-bar{background:#ff9800}
+.sec-title-review{color:var(--sky)}
+.sec-title-review .sec-bar{background:var(--sky)}
+.sec-title-works{color:var(--purple)}
+.sec-title-works .sec-bar{background:var(--purple)}
+.archive-card,.badge-slot,.week-cell,.mood-trend-card{border-radius:16px}
+.badge-slot:hover,.week-cell:hover{transform:translateY(-2px)}
+/* 徽章墙 flex-wrap 自适应（不再死板 5 列） */
+.badge-wall{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.badge-slot{flex:1 1 84px;max-width:110px}
+.badge-slot.unlocked{border-color:rgba(102,187,106,.55);box-shadow:0 3px 12px rgba(102,187,106,.2)}
+/* ③ 作品表单三列（T06：第一排 日期auto + 任务/标题 1fr 1fr；上传+保存 flex-wrap） */
+.works-layout{display:block}
+.work-form{display:grid;grid-template-columns:auto 1fr 1fr;gap:10px;align-items:start;width:100%;max-width:100%}
+.work-form #workDate{min-width:0}
+.work-form #workNote{grid-column:1 / -1}
+/* 上传 + 保存合并为一行 flex，自动换行避免溢出（T06） */
+.work-form-actions{display:flex;gap:10px;flex-wrap:wrap;grid-column:1 / -1;align-items:end}
+.work-form-actions .upload-box{flex:1 1 240px;min-width:200px}
+.work-form-actions #saveWork{flex:1 1 160px;align-self:end;min-width:140px}
+@media(max-width:640px){
+  .work-form{grid-template-columns:1fr}
+  .work-form #workNote{grid-column:auto}
+  .work-form-actions{grid-column:auto;flex-direction:column;align-items:stretch}
+  .work-form-actions .upload-box,.work-form-actions #saveWork{flex:1 1 auto;min-width:0}
+}
+/* F 成长地图 / 积分趋势 折叠 */
+.collapse-card{margin-top:20px}
+.collapse-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.collapse-toggle{width:34px;height:34px;border-radius:50%;border:1.5px solid rgba(var(--leaf-rgb),.22);background:#fff;color:var(--leaf-dark);font-size:18px;line-height:1;display:grid;place-items:center;cursor:pointer;transition:.15s;flex-shrink:0}
+.collapse-toggle:active{transform:scale(.94)}
+.collapse-toggle.collapsed{transform:rotate(-90deg)}
+.collapse-body.collapsed{display:none}
+/* D 报告卡 */
+.sum-flower{display:flex;justify-content:center;margin:4px 0 2px}
+.sum-dims{display:flex;flex-direction:column;gap:10px;margin-top:6px;text-align:left}
+.sum-row{display:grid;grid-template-columns:84px 1fr 36px;align-items:center;gap:8px;font-size:13px;font-weight:800;color:var(--ink)}
+.sum-bar{height:12px;border-radius:6px;background:rgba(0,0,0,.06);overflow:hidden}
+.sum-bar-fill{display:block;height:100%;border-radius:6px;transition:width .5s}
+.sum-val{text-align:right;color:var(--leaf-dark)}
+.week-editor-modal .week-editor{margin:10px 0 0;background:transparent;border:none;padding:0}
 </style>
 </head>
 <body>
-
 <!-- 进场动画 Overlay -->
 <div class="splash-overlay" id="splashOverlay">
   <div class="splash-arc"></div>
@@ -759,7 +1118,6 @@ body[data-theme="starry"] {
   <div class="splash-icon">🐷</div>
   <div class="splash-title"><span>暑</span><span>假</span><span>成</span><span>长</span><span>银</span><span>行</span><span>✨</span></div>
 </div>
-
 <div class="app">
   <header class="topbar">
     <div class="brand">
@@ -769,18 +1127,18 @@ body[data-theme="starry"] {
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <span class="baby-name" id="babyName" title="点击设置名字和性别">👧 宝贝</span>
       <span class="points-pill"><span class="coin">分</span><span id="topPoints">0</span> 成长分</span>
+      <span id="streakBadge" class="streak-badge">🔥 连续 0 天</span>
       <button class="parent-btn" id="parentCenterBtn" title="家长中心" style="padding:8px 14px;border-radius:999px;background:linear-gradient(90deg,#ffca28,#ff7043);color:#fff;font-weight:800;font-size:12px;border:none;cursor:pointer;box-shadow:0 3px 10px rgba(var(--leaf-rgb),.3);transition:.15s;position:relative">👨‍💼 家长中心<span id="updateDot" style="display:none;position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:#ff3d3d;border:2px solid #fff;animation:dotPulse 1.2s infinite"></span></button>
     </div>
   </header>
-
   <!-- 主导航 4个Tab -->
   <nav class="main-tab-nav" id="mainTabNav">
     <button class="active" data-maintab="calendar">📅 日历</button>
     <button data-maintab="checkin">✓ 打卡</button>
     <button data-maintab="rewards">🎁 兑换</button>
     <button data-maintab="archive">📚 成长档案</button>
+    <button data-maintab="tree">🌳 成长树</button>
   </nav>
-
   <!-- Tab: 日历（含成长地图） -->
   <section class="panel main-tab-content" id="mtab-calendar" style="display:block">
     <div class="panel-pad">
@@ -803,26 +1161,33 @@ body[data-theme="starry"] {
         📅 <strong id="selectedDateLabel">7月1日（周三）</strong>
         <span class="badge today-badge" id="dateBadge">今天</span>
       </div>
-
-      <!-- 成长地图（嵌在日历下方） -->
-      <div style="margin-top:20px">
-        <h2 class="section-title"><span class="icon">🗺</span>成长地图
-          <span style="font-size:13px;color:var(--muted);font-weight:400;margin-left:4px">— 当日维度统计</span>
-        </h2>
-        <div class="map-grid" id="mapGrid"></div>
+      <!-- 成长地图（嵌在日历下方，可折叠 F） -->
+      <div class="collapse-card">
+        <div class="collapse-head">
+          <h2 class="section-title" style="margin:0"><span class="icon">🗺</span>成长地图
+            <span style="font-size:13px;color:var(--muted);font-weight:400;margin-left:4px">— 当日维度统计</span>
+          </h2>
+          <button class="collapse-toggle" data-collapse="map" aria-label="展开/收起" type="button">⌄</button>
+        </div>
+        <div class="collapse-body" id="mapBody">
+          <div class="map-grid" id="mapGrid"></div>
+        </div>
       </div>
-
-      <!-- 积分趋势图 -->
-      <div style="margin-top:20px;padding:16px;border-radius:12px;background:linear-gradient(135deg,rgba(255,255,255,.7),rgba(227,242,253,.3));border:1.5px solid rgba(41,182,246,.15)">
-        <h3 style="margin:0 0 12px;font-size:15px;display:flex;align-items:center;gap:6px">📈 本月积分趋势
-          <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:2px">— 本月每天</span>
-        </h3>
-        <div id="trendChart" style="display:flex;align-items:end;gap:4px;height:80px;padding:0 4px"></div>
-        <div id="trendLabels" style="display:flex;gap:4px;padding:2px 4px;font-size:10px;color:var(--muted);margin-top:2px"></div>
+      <!-- 积分趋势图（可折叠 F） -->
+      <div class="collapse-card" style="margin-top:20px;padding:16px;border-radius:12px;background:linear-gradient(135deg,rgba(255,255,255,.7),rgba(227,242,253,.3));border:1.5px solid rgba(41,182,246,.15)">
+        <div class="collapse-head" style="margin-bottom:12px">
+          <h3 style="margin:0;font-size:15px;display:flex;align-items:center;gap:6px">📈 本月积分趋势
+            <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:2px">— 本月每天</span>
+          </h3>
+          <button class="collapse-toggle" data-collapse="trend" aria-label="展开/收起" type="button">⌄</button>
+        </div>
+        <div class="collapse-body" id="trendBody">
+          <div id="trendChart" style="display:flex;align-items:end;gap:4px;height:80px;padding:0 4px"></div>
+          <div id="trendLabels" style="display:flex;gap:4px;padding:2px 4px;font-size:10px;color:var(--muted);margin-top:2px"></div>
+        </div>
       </div>
     </div>
   </section>
-
   <!-- Tab: 今日打卡 -->
   <section class="panel main-tab-content" id="mtab-checkin" style="display:none">
     <div class="panel-pad">
@@ -831,13 +1196,32 @@ body[data-theme="starry"] {
         📅 <strong id="checkinDateLabel">7月1日（周三）</strong>
         <span class="badge today-badge" id="checkinDateBadge">今天</span>
       </div>
+      <!-- 心情打卡行 -->
+      <div id="moodRow" class="mood-row">
+        <span class="mood-label">今天心情怎么样？</span>
+        <div class="mood-btns">
+          <button type="button" class="mood-btn" data-mood="happy" title="开心">😊</button>
+          <button type="button" class="mood-btn" data-mood="neutral" title="普通">😐</button>
+          <button type="button" class="mood-btn" data-mood="sad" title="难过">😢</button>
+        </div>
+        <input id="moodNote" class="mood-note" type="text" maxlength="50" placeholder="写一句小心事（可选，≤50字）" autocomplete="new-password">
+      </div>
+      <!-- 任务灵感引导卡（仅今天显示，见 renderCheckinExtras） -->
+      <div id="ideaPromptCard" class="idea-prompt-card">
+        <div class="idea-prompt-emoji">🌱</div>
+        <div class="idea-prompt-body">
+          <div class="idea-prompt-title">不知道做什么？小芽帮你挑一个</div>
+          <button id="ideaBtn" class="btn-primary idea-prompt-btn" type="button">🌟 任务灵感</button>
+        </div>
+      </div>
+      <!-- 温柔空状态卡（当天 0 打卡时显示） -->
+      <div id="zeroCheckinCard"></div>
       <div class="cat-tabs" id="catTabs"></div>
       <div id="makeupBanner" style="display:none"></div>
       <div class="tasks-grid" id="taskGrid"></div>
       <div id="taskLocked" class="empty-state" style="display:none">📌 请从日历选择可打卡的日期。</div>
     </div>
   </section>
-
   <!-- Tab: 奖励兑换 -->
   <section class="panel main-tab-content" id="mtab-rewards" style="display:none">
     <div class="panel-pad">
@@ -849,70 +1233,59 @@ body[data-theme="starry"] {
       </div>
     </div>
   </section>
-
-  <!-- Tab: 成长档案（2个页面：每周复盘 / 成长作品） -->
+  <!-- Tab: 成长档案（单页纵向：我的成就 / 每周复盘 / 成长作品） -->
   <section class="panel main-tab-content" id="mtab-archive" style="display:none">
     <div class="panel-pad">
       <h2 class="section-title"><span class="icon">📚</span>成长档案</h2>
-
-      <!-- 子导航 2个 -->
-      <div class="cat-tabs" id="archiveSubTabs" style="margin-bottom:14px">
-        <button class="active" data-asub="review">📝 每周复盘</button>
-        <button data-asub="works">🎨 成长作品</button>
+      <!-- 模块一：我的成就（仅徽章墙；成长树已移回首页藤蔓）— 本版本临时隐藏，主推成长树 -->
+      <div class="archive-block achievement-block" style="display:none">
+        <h3 class="archive-subtitle sec-title-achievement"><span class="sec-bar"></span>🌟 我的成就</h3>
+        <div id="badgeWall" class="badge-wall"></div>
       </div>
-
-      <!-- 页面：每周复盘 -->
-      <div class="archive-sub" id="asub-review" style="display:block">
-        <div class="review-grid">
-          <div class="review-card"><h3>这周我最棒的一件事是</h3><textarea id="revBest" placeholder="写下一个值得被看见的努力" autocomplete="new-password"></textarea></div>
-          <div class="review-card"><h3>这周我遇到的困难是</h3><textarea id="revHard" placeholder="困难可以被说出来" autocomplete="new-password"></textarea></div>
-          <div class="review-card"><h3>下周我想调整的是</h3><textarea id="revNext" placeholder="选择一个小改变" autocomplete="new-password"></textarea></div>
-          <div class="review-card"><h3>家长看见的进步</h3><textarea id="revParent" placeholder="这周我看见孩子的一个进步" autocomplete="new-password"></textarea></div>
-          <div class="review-card"><h3>孩子希望的支持</h3><textarea id="revSupport" placeholder="我希望爸爸妈妈继续支持我的是" autocomplete="new-password"></textarea></div>
-          <div class="review-card"><h3>复盘记录</h3><div class="review-timeline" id="reviewTimeline"></div></div>
-        </div>
-        <div style="margin-top:12px">
-          <input type="hidden" id="revEditIdx" value="-1">
-          <button class="btn-primary" id="saveReview">保存复盘</button>
+      <!-- 模块二：每周复盘（周表） -->
+      <div class="archive-block review-block">
+        <h3 class="archive-subtitle sec-title-review"><span class="sec-bar"></span>📝 每周复盘</h3>
+        <div id="weekTable"></div>
+        <!-- 本周情绪趋势 -->
+        <div class="mood-trend-card" style="margin-top:14px;padding:14px;border-radius:12px;background:linear-gradient(135deg,rgba(255,255,255,.7),rgba(252,228,236,.3));border:1.5px solid rgba(236,64,122,.15)">
+          <div id="moodTrend" class="mood-trend"></div>
         </div>
       </div>
-
-      <!-- 页面：成长作品（收集+档案合并） -->
-      <div class="archive-sub" id="asub-works" style="display:none">
-        <!-- 作品收集表单 -->
+      <!-- 模块三：成长作品（收集 + 档案合并） -->
+      <div class="archive-block works-block">
+        <h3 class="archive-subtitle sec-title-works"><span class="sec-bar"></span>🎨 成长作品</h3>
+        <div class="work-empty-guide" id="workEmptyGuide" style="display:none"></div>
         <div class="works-layout">
           <div class="work-form">
-            <select id="workTask"><option value="">-- 关联打卡任务 --</option></select>
             <input id="workDate" type="date" style="width:100%;min-height:42px;padding:10px 12px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:15px;box-sizing:border-box;outline:none;background:#fff;color:var(--ink)">
+            <select id="workTask"><option value="">-- 关联打卡任务 --</option></select>
             <input id="workTitle" placeholder="作品名称（可选）" autocomplete="new-password">
             <textarea id="workNote" placeholder="写下作品背后的故事（可选）" autocomplete="new-password" style="min-height:60px"></textarea>
-            <div class="upload-box">
-              <label for="workMedia" style="font-size:13px;color:var(--muted)">上传图片或视频</label>
-              <input id="workMedia" type="file" accept="image/*,video/*">
-              <small>支持图片(≤10MB)、视频(≤100MB)</small>
-              <div class="media-preview" id="mediaPreview"></div>
+            <div class="work-form-actions">
+              <div class="upload-box">
+                <label for="workMedia" style="font-size:13px;color:var(--muted)">上传图片或视频</label>
+                <input id="workMedia" type="file" accept="image/*,video/*">
+                <small>支持图片(≤10MB)、视频(≤100MB)</small>
+                <div class="media-preview" id="mediaPreview"></div>
+              </div>
+              <button class="btn-primary" id="saveWork">存入成长档案</button>
             </div>
-            <button class="btn-primary" id="saveWork">存入成长档案</button>
           </div>
           <div id="workDateNote" style="font-size:13px;color:var(--muted);margin-bottom:8px"></div>
         </div>
-
         <!-- 作品档案列表 -->
         <div style="margin-top:24px">
           <h3 style="font-size:16px;font-weight:900;margin-bottom:12px;color:var(--ink)">📖 作品档案</h3>
           <div class="work-archive" id="workArchive"></div>
         </div>
       </div>
-
     </div>
   </section>
+  <!-- Tab: 成长树（独立养成页面，由独立水量池驱动，与总分解耦） -->
+  <section class="panel main-tab-content" id="mtab-tree" style="display:none"></section>
 </div>
-
 <div class="firework-layer" id="fireworkLayer" aria-hidden="true"></div>
 <div class="toast" id="toast" role="status"></div>
-
-
-<script type="module" src="main.js?v=3.1.06"></script>
-
+<script type="module" src="main.js?v=3.2.00"></script>
 </body>
 </html>

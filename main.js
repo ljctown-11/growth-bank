@@ -2,20 +2,25 @@
 import { freshState, setData, setSelDate, STATE, data, TODAY_STR as STATE_TODAY_STR } from './core/state.js';
 import { loadData, saveData, getDay, calcTotalScore } from './core/data.js';
 import { TASKS, localDateStr, fmtDisplay, esc, getWeekKey, getTodayStr } from './core/helpers.js';
-import { renderAll, renderTasks, renderCalendar, renderDateLabel, renderCheckinDateLabel, toggleTask, renderPoints, renderBabyName, renderArchive, renderMap, renderTrendChart, renderReviewTimeline, showEncourageMsg, switchToCategory } from './features/render.js';
+import { renderAll, renderTasks, renderCalendar, renderDateLabel, renderCheckinDateLabel, toggleTask, renderPoints, renderRedemptions, renderBabyName, renderArchive, renderMap, renderTrendChart, showEncourageMsg, switchToCategory, renderCheckinExtras, renderMoodTrend, renderWeekTable } from './features/render.js';
 import { showPasswordModal, hasParentPassword, hashPassword, showPasswordError, dismissAutofill } from './features/password.js';
 import { getMakeupCost, canMakeupDate, isToday, isFuture, isPastLocked, canCheckIn } from './features/makeup.js';
 import { saveMedia } from './features/media.js';
 import { openParentCenter, openPasswordModal, openBackupModal, openChildrenModal, openTaskManager, checkForUpdate, switchChildFromParentCenter, deleteChild } from './features/parent-center.js';
-
+// 增量功能
+import { setMood, getMood, pickGentleMessage } from './features/mood.js';
+import { getStreak } from './features/growth-tree.js';
+// 独立「成长树」养成页面模块
+import { mountGrowthTreePage } from './features/tree-garden/index.js';
+import { renderIdeaLibrary } from './features/ideas.js';
+import { startRecording, stopRecording, saveRecording, listRecordings, playRecording, deleteRecording } from './features/voice-encourage.js';
+import { applyTheme, requestNotificationPermission, scheduleDailyReminder, clearDailyReminderFlag, checkGrowthReportDay } from './features/runtime.js';
 // ===== 常量 =====
 const MAX_IMG_MB = 10;     // 作品图片大小上限（MB）
 const MAX_VIDEO_MB = 100;  // 作品视频大小上限（MB）
-
 // ===== Init =====
 // Load data from localStorage into a local variable
 let _localData = loadData();
-
 // Load active child data on init
 if(_localData.activeChildId && _localData.activeChildId!=='default'){
   const childId = _localData.activeChildId;
@@ -41,22 +46,22 @@ if(_localData.activeChildId && _localData.activeChildId!=='default'){
     _localData = mainData;
   }
 }
-
 // Sync customRewards from main localStorage (shared across all children)
 try{
   const mainData = JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
   if(mainData.customRewards){ _localData.customRewards = mainData.customRewards; }
   if(mainData.parentPasswordHash){ _localData.parentPasswordHash = mainData.parentPasswordHash; }
 }catch(e){}
-
 // Sync loaded data into shared STATE — this makes STATE the single source of truth
 // `data` is an alias for STATE, so all modules see the same data
 setData(_localData);
 setSelDate(localDateStr(new Date()));
-
+// R1 修复：买种子/兑换后即时刷新首页总分与兑换记录（成长树模块通过事件解耦通知，避免循环依赖）
+window.addEventListener('growthbank:score-changed', () => {
+  try { renderPoints(); renderRedemptions(); } catch(e) { /* 静默回退 */ }
+});
 // Local SW version for update detection
 let localSWVersion = "";
-
 // ===== Global functions (for inline event handlers) =====
 window.applySWUpdate = async function(el){
   // 沙箱/本地环境无 service worker 时，直接刷新页面即可获取更新
@@ -79,37 +84,94 @@ window.applySWUpdate = async function(el){
     window.location.reload();
   }
 };
-
-// ===== Apply theme & render =====
-export function applyTheme(){
-  const t=data.theme||"sakura";
-  document.body.dataset.theme=t;
-  const mc=document.querySelector("meta[name=theme-color]");
-  if(mc){
-    const colors={sakura:"#ff7043",ocean:"#42a5f5",forest:"#66bb6a",sunset:"#ff9800",starry:"#7e57c2"};
-    mc.content=colors[t]||"#ff7043";
-  }
-}
-
 // ===== Event listeners =====
 // Main tabs
 document.querySelectorAll("#mainTabNav button").forEach(b=>b.addEventListener("click",()=>{
   const tab=b.dataset.maintab;
   document.querySelectorAll("#mainTabNav button").forEach(x=>x.classList.toggle("active",x.dataset.maintab===tab));
   document.querySelectorAll(".main-tab-content").forEach(x=>x.style.display=x.id==="mtab-"+tab?"block":"none");
-  if(tab==="archive")renderArchive();
-  if(tab==="checkin"){STATE.selCat="学习力";renderCheckinDateLabel();}
+  if(tab==="archive"){ renderArchive(); renderWeekTable(); renderMoodTrend(); renderWorksDropdown(); }
+  if(tab==="checkin"){renderCheckinDateLabel();renderCheckinExtras();}
+  if(tab==="tree"){ mountGrowthTreePage(); }
 }));
-
-// Archive sub-tabs
-document.querySelectorAll("#archiveSubTabs button").forEach(b=>b.addEventListener("click",()=>{
-  const sub=b.dataset.asub;
-  document.querySelectorAll("#archiveSubTabs button").forEach(x=>x.classList.toggle("active",x.dataset.asub===sub));
-  document.querySelectorAll(".archive-sub").forEach(x=>x.style.display=x.id==="asub-"+sub?"block":"none");
-  if(sub==="works"){renderArchive();renderWorksDropdown();}
-  if(sub==="review"){renderMap();renderTrendChart();renderReviewTimeline();}
-}));
-
+// ===== 家长录音鼓励区（设置宝贝信息弹层内）=====
+function setupVoiceEncourage(ov){
+  const childId = (STATE.activeChildId && STATE.activeChildId !== "default") ? STATE.activeChildId : null;
+  const recordBtn = ov.querySelector("#encRecordBtn");
+  const stopBtn = ov.querySelector("#encStopBtn");
+  const nameInput = ov.querySelector("#encNameInput");
+  const listEl = ov.querySelector("#encList");
+  const hintEl = ov.querySelector("#encHint");
+  if(!recordBtn) return;
+  function renderList(){
+    const items = listRecordings() || [];
+    if(!items.length){
+      listEl.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px">还没有录音，录一条给孩子惊喜吧 🎙️</div>';
+      return;
+    }
+    listEl.innerHTML = items.map((it, i) => `
+      <div class="enc-item" data-id="${it.id}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.8);border:1.5px solid rgba(255,112,67,.12);margin-bottom:6px">
+        <span style="font-size:18px">🔊</span>
+        <span style="flex:1;min-width:0;font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.label || ("加油语音 #" + (i + 1)))}</span>
+        <button class="enc-play" data-id="${it.id}" style="padding:4px 8px;border-radius:6px;border:none;background:rgba(41,182,246,.12);color:#1565c0;font-size:12px;cursor:pointer">▶ 试听</button>
+        <button class="enc-del" data-id="${it.id}" style="padding:4px 8px;border-radius:6px;border:none;background:rgba(239,83,80,.12);color:var(--red);font-size:12px;cursor:pointer">🗑</button>
+      </div>`).join('');
+    listEl.querySelectorAll(".enc-play").forEach(b => b.addEventListener("click", () => {
+      playRecording(b.dataset.id).catch(() => {});
+    }));
+    listEl.querySelectorAll(".enc-del").forEach(b => b.addEventListener("click", () => {
+      showPasswordModal('删除录音需家长密码验证', async () => {
+        await deleteRecording(b.dataset.id);
+        renderList();
+      });
+    }));
+  }
+  if(!childId){
+    recordBtn.disabled = true;
+    hintEl.textContent = "保存宝贝信息后即可录制语音鼓励 🌱";
+    renderList();
+    return;
+  }
+  renderList();
+  let recTimer = null;
+  let secs = 0;
+  function tick(){
+    secs++;
+    hintEl.textContent = "录制中… " + secs + "s";
+    if(secs >= 30){ try { stopBtn.click(); } catch(e){} }
+  }
+  recordBtn.addEventListener("click", async () => {
+    try{
+      await startRecording(childId);
+      recordBtn.disabled = true;
+      stopBtn.disabled = false;
+      secs = 0;
+      hintEl.textContent = "录制中… 0s";
+      recTimer = setInterval(tick, 1000);
+    }catch(err){
+      recordBtn.disabled = false;
+      stopBtn.disabled = true;
+      hintEl.textContent = "⚠️ 无法录音，打卡仍会有机器鼓励声";
+      toast("无法录音，打卡仍会有机器鼓励声");
+    }
+  });
+  stopBtn.addEventListener("click", async () => {
+    if(recTimer){ clearInterval(recTimer); recTimer = null; }
+    stopBtn.disabled = true;
+    try{
+      const blob = await stopRecording();
+      const name = (nameInput && nameInput.value || "").trim();
+      await saveRecording(childId, blob, name || undefined);
+      if(nameInput) nameInput.value = "";
+      toast("录音已保存 🎙️");
+      renderList();
+    }catch(e){
+      toast("录音保存失败");
+    }
+    recordBtn.disabled = false;
+    hintEl.textContent = "";
+  });
+}
 // Baby name click
 document.getElementById("babyName")?.addEventListener("click", function(){
   if(!data) return;
@@ -125,15 +187,25 @@ document.getElementById("babyName")?.addEventListener("click", function(){
     '<div style="text-align:left;margin-bottom:18px"><label style="display:block;margin-bottom:8px;font-weight:800;font-size:14px;color:var(--ink)">配色主题</label><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">'+
     ['sakura','ocean','forest','sunset','starry'].map(t=>`<label class="theme-opt" data-theme="${t}" style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:10px;border:2px solid ${curTheme===t?'var(--leaf)':'rgba(0,0,0,.1)'};cursor:pointer;font-size:13px;font-weight:700;transition:.15s;background:${curTheme===t?'var(--mint)':'transparent'}"><input type="radio" name="babyTheme" value="${t}" ${curTheme===t?'checked':''} style="accent-color:var(--leaf);cursor:pointer"> ${t==="sakura"?"🌸 樱花粉":t==="ocean"?"🌊 海洋蓝":t==="forest"?"🌿 森林绿":t==="sunset"?"☀️ 阳光橙":"⭐ 星夜紫"}</label>`).join('')+
     '</div></div>'+
+    '<div style="text-align:left;margin-bottom:18px"><label style="display:block;margin-bottom:8px;font-weight:800;font-size:14px;color:var(--ink)">🎙️ 家长录音鼓励</label>'+
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+      '<button id="encRecordBtn" class="btn-secondary" style="min-height:36px;padding:8px 14px">● 录制</button>'+
+      '<button id="encStopBtn" class="btn-primary" style="min-height:36px;padding:8px 14px" disabled>⏹ 停止</button>'+
+      '<input id="encNameInput" placeholder="给这条语音起个名字（可选）" autocomplete="new-password" style="flex:1;min-width:120px;min-height:36px;padding:8px 10px;border-radius:8px;border:1px solid rgba(0,0,0,.15);font-size:13px;outline:none">'+
+    '</div>'+
+    '<div id="encList" class="enc-list" style="margin-top:10px"></div>'+
+    '<div id="encHint" class="enc-hint" style="margin-top:6px;font-size:12px;color:var(--muted)"></div>'+
+    '</div>'+
     '<div class="modal-actions"><button class="btn-ghost" id="babyModalCancel">取消</button><button class="btn-primary" id="babyModalOk">确认</button></div></div>';
   document.body.appendChild(ov);
+  // 家长录音鼓励区（仅对当前 activeChildId 生效）
+  setupVoiceEncourage(ov);
   ov.querySelectorAll(".gender-opt").forEach(l=>l.addEventListener("click",function(){ov.querySelectorAll(".gender-opt").forEach(x=>x.style.borderColor="rgba(0,0,0,.1)");l.style.borderColor="var(--leaf)";l.querySelector("input").checked=true;}));
   ov.querySelectorAll(".theme-opt").forEach(l=>l.addEventListener("click",function(){ov.querySelectorAll(".theme-opt").forEach(x=>{x.style.borderColor="rgba(0,0,0,.1)";x.style.background="transparent";});l.style.borderColor="var(--leaf)";l.querySelector("input").checked=true;}));
   function doSaveAfterPassword(name, gender, theme){
     var hadActive = data.activeChildId && data.activeChildId!=="default";
     // 1) 写入当前宝宝信息到 STATE（单源真相）
     data.childName=name;data.childGender=gender;data.theme=theme;
-
     if(hadActive){
       // 更新当前已激活的宝宝元信息（名字/性别/主题）
       data.childName=name;data.childGender=gender;data.theme=theme;
@@ -144,7 +216,6 @@ document.getElementById("babyName")?.addEventListener("click", function(){
       if(!data.children) data.children=[];
       data.children.push({id:newId,name:name,gender:gender,theme:theme});
     }
-
     // 2) 同步元信息到 main.children 单一真相源，并把当前打卡数据存为该宝宝的独立快照
     try{
       var m=JSON.parse(localStorage.getItem("summerGrowthBankV2")||"{}");
@@ -164,7 +235,6 @@ document.getElementById("babyName")?.addEventListener("click", function(){
       m.parentPasswordHash = data.parentPasswordHash || m.parentPasswordHash || "";
       m.customRewards = data.customRewards || m.customRewards || {};
       localStorage.setItem("summerGrowthBankV2",JSON.stringify(m));
-
       // 把当前 STATE（含已有打卡数据）作为该宝宝的独立快照保存
       if(data.activeChildId && data.activeChildId!=="default"){
         var childKey="summerGrowthBankV2_child_"+data.activeChildId;
@@ -172,7 +242,6 @@ document.getElementById("babyName")?.addEventListener("click", function(){
         localStorage.setItem(childKey, JSON.stringify(childData));
       }
     }catch(e){}
-
     // 3) 通过 saveData() 二次兜底，确保 main 与子快照一致
     applyTheme();
     saveData();
@@ -189,95 +258,81 @@ document.getElementById("babyName")?.addEventListener("click", function(){
     switchToCategory('学习力');
     toast((hadActive?"已更新宝贝信息：":("已添加为："+(gender==="boy"?"👦":"👧")+" "+name+"宝贝")));
   }
-  function save(){
-    var name=ov.querySelector("#babyNameInput").value.trim();
-    var genderEl=ov.querySelector("input[name='babyGender']:checked");
-    var gender=genderEl?genderEl.value:"girl";
-    var themeEl=ov.querySelector("input[name='babyTheme']:checked");
-    var theme=themeEl?themeEl.value:"sakura";
-    if(!name){showEncourageMsg("请输入宝贝的名字");return;}
-    // 检查是否已设置家长密码
-    if(!hasParentPassword()){
-      showPasswordError("请先设置家长密码");
-      ov.remove();
-      dismissAutofill();
-      setTimeout(function(){ openParentCenter(); }, 300);
-      return;
+    function save(){
+      var name=ov.querySelector("#babyNameInput").value.trim();
+      var genderEl=ov.querySelector("input[name='babyGender']:checked");
+      var gender=genderEl?genderEl.value:"girl";
+      var themeEl=ov.querySelector("input[name='babyTheme']:checked");
+      var theme=themeEl?themeEl.value:"sakura";
+      if(!name){showEncourageMsg("请输入宝贝的名字");return;}
+      // 检查是否已设置家长密码
+      if(!hasParentPassword()){
+        showPasswordError("请先设置家长密码");
+        ov.remove();
+        dismissAutofill();
+        setTimeout(function(){ openParentCenter(); }, 300);
+        return;
+      }
+      // 有家长密码：先隐藏设置弹层（保留 DOM + 录音态），再弹密码键盘
+      ov.style.display='none';
+      showPasswordModal("保存宝贝信息需要家长密码确认", function(){
+        doSaveAfterPassword(name, gender, theme);
+      }, function(){
+        // 取消：恢复设置弹层，保留已填内容与录音态
+        ov.style.display='';
+      });
     }
-    // 密码确认后保存
-    showPasswordModal("保存宝贝信息需要家长密码确认", function(){
-      doSaveAfterPassword(name, gender, theme);
-    });
-  }
   ov.querySelector("#babyModalOk").addEventListener("click",save);
   ov.querySelector("#babyModalCancel").addEventListener("click",function(){ov.remove();dismissAutofill();});
   ov.addEventListener("click",function(e){if(e.target===ov){ov.remove();dismissAutofill();}});
   ov.querySelector("#babyNameInput").addEventListener("keydown",function(e){if(e.key==="Enter")save();});
 });
-
+// ===== 心情行 / 灵感按钮（静态容器，启动后绑定一次）=====
+function currentDayMood(){
+  const m = STATE.daily[STATE.selDate];
+  return m ? m.mood : undefined;
+}
+document.querySelectorAll("#moodRow .mood-btn").forEach(b => b.addEventListener("click", () => {
+  if(!STATE.childName || !STATE.childName.trim()) return;
+  const mood = b.dataset.mood;
+  const noteEl = document.getElementById("moodNote");
+  const note = noteEl ? noteEl.value : "";
+  setMood(STATE.selDate, mood, note);
+  saveData();
+  renderCheckinExtras();
+}));
+const moodNoteEl = document.getElementById("moodNote");
+moodNoteEl?.addEventListener("input", () => {
+  if(!STATE.childName || !STATE.childName.trim()) return;
+  let v = moodNoteEl.value.slice(0, 50);
+  if(v !== moodNoteEl.value) moodNoteEl.value = v;
+  setMood(STATE.selDate, currentDayMood(), v);
+  saveData();
+});
+document.getElementById("ideaBtn")?.addEventListener("click", () => {
+  if(!STATE.childName || !STATE.childName.trim()){ toast("请先设置宝贝信息哦 👆"); return; }
+  renderIdeaLibrary();
+});
+// 断卡温柔轻提示（当天首次进 App 且确有历史但连续归零）
+function maybePromptStreakBroken(){
+  if(!STATE.childName || !STATE.childName.trim()) return;
+  const key = "streakPrompt_" + STATE_TODAY_STR;
+  try{ if(sessionStorage.getItem(key)) return; }catch(e){}
+  const streak = getStreak();
+  let hasHistory = false;
+  for(const ds in STATE.daily){
+    const day = STATE.daily[ds];
+    if(day && day.tasks && Object.values(day.tasks).some(t => t && t.done)){ hasHistory = true; break; }
+  }
+  if(streak === 0 && hasHistory){
+    try{ sessionStorage.setItem(key, "1"); }catch(e){}
+    toast(pickGentleMessage("streakBroken", { streak }));
+  }
+}
 // Parent center button
 document.getElementById("parentCenterBtn")?.addEventListener("click", openParentCenter);
-
-// ===== Review save =====
-document.getElementById("saveReview")?.addEventListener("click", () => {
-  // 前置校验：必须有宝贝信息
-  if(!STATE.childName || !STATE.childName.trim()){
-    toast("请先设置宝贝信息哦 👆");
-    return;
-  }
-  const now = new Date();
-  const rev = {
-    date: `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`,
-    best: document.getElementById("revBest").value.trim(),
-    hard: document.getElementById("revHard").value.trim(),
-    next: document.getElementById("revNext").value.trim(),
-    parent: document.getElementById("revParent").value.trim(),
-    support: document.getElementById("revSupport").value.trim(),
-    editIdx: document.getElementById("revEditIdx")?.value ? parseInt(document.getElementById("revEditIdx").value) : -1
-  };
-  // 至少填写任意一项（5个字段都可作为有效内容）
-  if(!rev.best && !rev.hard && !rev.next && !rev.parent && !rev.support){ toast("请至少填写一项复盘内容"); return; }
-
-  const wk = getWeekKey(rev.date);
-  if(rev.editIdx >= 0 && rev.editIdx < STATE.reviews.length){
-    // 编辑模式：就地更新内容，保留首条 date 锚点与 weekKey
-    const old = STATE.reviews[rev.editIdx];
-    STATE.reviews[rev.editIdx] = {
-      ...old,
-      best: rev.best, hard: rev.hard, next: rev.next,
-      parent: rev.parent, support: rev.support, weekKey: old.weekKey || wk
-    };
-    toast("复盘已更新 ✏️");
-  } else {
-    // 同周 upsert：按 weekKey 查找同周记录，存在则更新内容（保留最早 date 锚点），否则新增
-    const existIdx = STATE.reviews.findIndex(r => r.weekKey === wk);
-    if(existIdx >= 0){
-      const old = STATE.reviews[existIdx];
-      STATE.reviews[existIdx] = {
-        ...old,
-        best: rev.best, hard: rev.hard, next: rev.next,
-        parent: rev.parent, support: rev.support, weekKey: wk
-      };
-      toast("本周复盘已更新 ✏️");
-    } else {
-      rev.weekKey = wk;
-      STATE.reviews.unshift(rev);
-      toast("复盘已保存，看见进步就是最好的成长。");
-    }
-  }
-
-  // 清空编辑状态
-  const editIdxInput = document.getElementById("revEditIdx");
-  if(editIdxInput) editIdxInput.value = "";
-
-  saveData();
-  ["revBest","revHard","revNext","revParent","revSupport"].forEach(id => document.getElementById(id).value = "");
-  renderReviewTimeline();
-});
-
 // ===== Works =====
 let workFile = null;
-
 function fileToDataURL(file){
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -286,12 +341,10 @@ function fileToDataURL(file){
     r.readAsDataURL(file);
   });
 }
-
 function getWorkDate(){
   const inp = document.getElementById("workDate");
   return (inp && inp.value) ? inp.value : getTodayStr();
 }
-
 function renderWorksDropdown(){
   const s = document.getElementById("workTask");
   if(!s) return;
@@ -306,7 +359,6 @@ function renderWorksDropdown(){
   const note = document.getElementById("workDateNote");
   if(note) note.textContent = "作品将关联到：" + wd;
 }
-
 document.getElementById("workMedia")?.addEventListener("change", e => {
   const f = e.target.files[0];
   workFile = f || null;
@@ -319,9 +371,7 @@ document.getElementById("workMedia")?.addEventListener("change", e => {
   else if(f.type.startsWith("audio/")) p.innerHTML = `<audio src="${url}" controls style="width:100%"></audio>`;
   else p.innerHTML = `<div style="padding:12px">已选择：${esc(f.name)}</div>`;
 });
-
 document.getElementById("workDate")?.addEventListener("change", renderWorksDropdown);
-
 document.getElementById("saveWork")?.addEventListener("click", async () => {
   // 前置校验：必须有宝贝信息
   if(!STATE.childName || !STATE.childName.trim()){
@@ -332,7 +382,6 @@ document.getElementById("saveWork")?.addEventListener("click", async () => {
   const title = document.getElementById("workTitle").value.trim();
   const note = document.getElementById("workNote").value.trim();
   if(!tid){ toast("请先选择关联的打卡任务"); return; }
-
   const wd = getWorkDate();
   const day = getDay(wd);
   const allTasks = [...(STATE.modifiedDefaultTasks||[]), ...(STATE.customTasks||[])];
@@ -347,13 +396,11 @@ document.getElementById("saveWork")?.addEventListener("click", async () => {
     dateDisplay: fmtDisplay(new Date(wd + "T00:00:00")),
     hasMedia: !!workFile
   };
-
   // 去重：同一作品（id 相同）不重复写入
   if(day.artworks.some(a => a.id === artwork.id)){
     toast("该作品已存入档案");
     return;
   }
-
   // 文件大小校验（图片 ≤10MB，视频 ≤100MB）后再读取
   if(workFile){
     const sizeMB = workFile.size / (1024 * 1024);
@@ -378,7 +425,6 @@ document.getElementById("saveWork")?.addEventListener("click", async () => {
       artwork.hasMedia = false;
     }
   }
-
   day.artworks.unshift(artwork);
   saveData();
   document.getElementById("workTask").value = "";
@@ -391,7 +437,6 @@ document.getElementById("saveWork")?.addEventListener("click", async () => {
   toast("作品已存入成长档案 📁");
   renderAll();
 });
-
 // ===== Toast =====
 window.toast = function(msg){
   let t=document.getElementById("globalToast");
@@ -410,13 +455,10 @@ window.toast = function(msg){
     setTimeout(()=>{t.style.display='none';},300);
   },2500);
 };
-
 // 暴露全局
 window.renderWorksDropdown = renderWorksDropdown;
-
 // ===== Auto-save =====
 window.addEventListener("beforeunload", ()=>{ try{saveData();}catch(e){} });
-
 // ===== Splash animation =====
 (function(){
   var ov=document.getElementById('splashOverlay');
@@ -431,7 +473,6 @@ window.addEventListener("beforeunload", ()=>{ try{saveData();}catch(e){} });
     });
   },3050);
 })();
-
 // ===== Auto-check update =====
 async function autoCheckUpdate(){
   await navigator.serviceWorker.ready.catch(()=>{});
@@ -452,104 +493,14 @@ async function autoCheckUpdate(){
     }
   }catch(e){}
 }
-
-// ===== Daily reminder =====
-export function requestNotificationPermission(){
-  if(!("Notification" in window))return;
-  // 只在新用户首次访问时请求一次，已授权或已拒绝就不再打扰
-  if(Notification.permission==="granted")return;
-  if(Notification.permission==="denied")return;
-  // 用 sessionStorage 记录是否已提示过，刷新页面不再重复弹授权弹窗
-  if(sessionStorage.getItem("_notiAsked")==="1")return;
-  Notification.requestPermission().then(p=>{
-    if(p==="granted"){
-      sessionStorage.setItem("_notiAsked","1");
-      toast("打卡提醒已开启 🔔");
-    } else {
-      sessionStorage.setItem("_notiAsked","1");
-    }
-  });
-}
-
-export function scheduleDailyReminder(){
-  if(!("Notification" in window)||Notification.permission!=="granted")return;
-  const now=new Date();const target=new Date(now.getFullYear(),now.getMonth(),now.getDate(),20,30,0);
-  if(target<=now)target.setDate(target.getDate()+1);
-  const delay=target-now;  const checkId="checkinRemind_"+STATE_TODAY_STR;
-  if(data.remindersSent&&data.remindersSent[checkId])return;
-  setTimeout(()=>{
-    const todayScore=calcTotalScore();
-    if(todayScore===0){
-      const notification=new Notification("暑假成长积分银行",{body:"今天还没打卡哦！完成一个小任务就能存入成长积分 🌟",icon:"icon-512.png",badge:"icon-512.png"});
-      notification.onclick=()=>window.focus();
-    if(!data.remindersSent)data.remindersSent={};
-    data.remindersSent[checkId]=true;saveData();
-    }
-    scheduleDailyReminder();
-  },delay);
-}
-
-export function clearDailyReminderFlag(){
-  const todayKey="checkinRemind_"+STATE_TODAY_STR;
-  if(data.remindersSent&&data.remindersSent[todayKey]){delete data.remindersSent[todayKey];saveData();}
-}
-
-// ===== Growth report =====
-function generateGrowthReport(){
-  const allTasks=[...TASKS, ...(data.modifiedDefaultTasks||[]), ...(data.customTasks||[])];
-  const activeCats=[...new Set(allTasks.map(t=>t.cat))];
-  const stats={totalDays:0,checkInDays:0,totalScore:0,catScores:{},totalTasks:0,doneTasks:0,workCount:0,rewardCount:0,redemptions:[]};
-  activeCats.forEach(c=>stats.catScores[c]=0);
-  for(const ds in data.daily){
-    const day=data.daily[ds];let dayScore=0;
-    for(const tid in day.tasks){stats.totalTasks++;if(day.tasks[tid].done){dayScore+=day.tasks[tid].pts;stats.doneTasks++;}}
-    if(dayScore>0){stats.checkInDays++;stats.totalScore+=dayScore;}
-    stats.totalDays++;
-    allTasks.forEach(t=>{if(day.tasks[t.id]&&day.tasks[t.id].done&&stats.catScores[t.cat]!==undefined)stats.catScores[t.cat]+=t.pts;});
-    if(day.artworks)stats.workCount+=day.artworks.length;
-  }
-  stats.redemptions=data.redemptions;stats.rewardCount=data.redemptions.length;
-  return {date:STATE_TODAY_STR,stats,childName:data.childName||"宝贝",generatedAt:new Date().toISOString()};
-}
-
-function renderGrowthReport(report){
-  const ov=document.createElement("div");ov.className="modal-overlay";ov.style.zIndex="1000";
-  const s=report.stats;
-  const topPct=s.totalTasks>0?Math.round(s.doneTasks/s.totalTasks*100):0;
-  const catBars=Object.entries(s.catScores).map(([cat,pts])=>{
-    const pct=s.totalScore>0?Math.round(pts/s.totalScore*100):0;
-    return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="width:50px;font-size:12px;font-weight:800;color:var(--ink)">${cat}</span><div style="flex:1;height:10px;border-radius:5px;background:rgba(0,0,0,.06);overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--leaf),var(--rose));border-radius:5px;transition:width .5s"></div></div><span style="font-size:12px;font-weight:900;color:var(--leaf-dark)">${pts}分 (${pct}%)</span></div>`;
-  }).join("");
-  ov.innerHTML=`<div class="modal-box" style="max-width:500px;max-height:85vh;overflow:auto"><div style="text-align:center;margin-bottom:16px"><div style="font-size:40px;margin-bottom:6px">🏆</div><h3 style="margin:0">成长报告</h3><p style="color:var(--muted);font-size:13px;margin-top:4px">${report.date} · ${report.childName}宝贝</p></div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px"><div style="text-align:center;padding:12px 8px;border-radius:10px;background:linear-gradient(135deg,#fff8e1,#fce4ec)"><div style="font-size:24px;font-weight:900;color:var(--leaf-dark)">${s.totalScore}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">总积分</div></div><div style="text-align:center;padding:12px 8px;border-radius:10px;background:linear-gradient(135deg,#e8f5e9,#e3f2fd)"><div style="font-size:24px;font-weight:900;color:var(--lime)">${s.checkInDays}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">打卡天数</div></div><div style="text-align:center;padding:12px 8px;border-radius:10px;background:linear-gradient(135deg,#e3f2fd,#ede7f6)"><div style="font-size:24px;font-weight:900;color:var(--sky)">${topPct}%</div><div style="font-size:11px;color:var(--muted);margin-top:2px">任务完成率</div></div><div style="text-align:center;padding:12px 8px;border-radius:10px;background:linear-gradient(135deg,#ede7f6,#fce4ec)"><div style="font-size:24px;font-weight:900;color:var(--purple)">${s.workCount}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">作品数量</div></div></div><div style="margin-bottom:18px"><h4 style="margin:0 0 10px;font-size:14px">📊 各维度积分占比</h4>${catBars}</div>${s.rewardCount>0?`<div style="margin-bottom:16px"><h4 style="margin:0 0 8px;font-size:14px">🎁 兑换记录</h4>${s.redemptions.slice(0,8).map(r=>`<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px dashed rgba(0,0,0,.08)"><span>${esc(r.reward||r.desc||'兑换')}</span><span style="color:var(--rose);font-weight:800">-${r.cost}分</span></div>`).join('')}</div>`:'<div style="color:var(--muted);font-size:12px;text-align:center">暂无兑换记录</div>'}
-    <div style="text-align:center;margin-top:16px"><button class="btn-primary" id="growthReportClose" style="min-height:36px;padding:8px 32px">关闭</button></div>
-  </div>`;
-  document.body.appendChild(ov);
-  ov.querySelector("#growthReportClose").addEventListener("click", ()=>ov.remove());
-  ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
-}
-
-export function checkGrowthReportDay(){
-  const today=STATE_TODAY_STR;
-  if(today.endsWith("-07-30")||today.endsWith("-08-31")){
-    const reportKey=localDateStr(new Date(today+"T00:00:00"));
-    if(!data.reports||!data.reports[reportKey]){
-      const report=generateGrowthReport();
-      if(!data.reports)data.reports={};
-      data.reports[reportKey]=report;saveData();
-      setTimeout(()=>renderGrowthReport(report),1500);
-    }else{setTimeout(()=>renderGrowthReport(data.reports[reportKey]),1500);}
-  }
-}
-
 // ===== SW Register =====
-const SW_VERSION = 'summer-growth-bank-v3.1.06';
-
+const SW_VERSION = 'summer-growth-bank-v3.2.00';
 if('serviceWorker' in navigator){
   // 先 unregister 旧版 SW
   navigator.serviceWorker.getRegistrations().then(regs=>{
     regs.forEach(r=>r.unregister());
   });
-  navigator.serviceWorker.register("sw.js?v=3.1.06").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=3.2.00").then(reg=>{
     // 注册成功后设置版本号，供检查更新使用
     window.localSWVersion = SW_VERSION;
     if(reg.waiting){
@@ -562,7 +513,6 @@ if('serviceWorker' in navigator){
     }
   }).catch(()=>{});
 }
-
 // ===== Boot =====
 applyTheme();
 renderBabyName();
@@ -570,6 +520,7 @@ renderBabyName();
 const _wd = document.getElementById("workDate");
 if(_wd && !_wd.value) _wd.value = getTodayStr();
 renderAll();
+maybePromptStreakBroken();
 clearDailyReminderFlag();
 requestNotificationPermission();
 scheduleDailyReminder();

@@ -3,7 +3,6 @@
 // 统一「中心浮层」提示，供补卡余额不足（warn）、密码验证成功（ok）等场景复用。
 // 颜色取自 CSS 变量 --ok / --warn / --err（在 index.html 的 :root 与 5 套主题中定义），
 // JS 零写死，保证 5 主题下都能解析为对应语义色（绿 / 橙 / 红）。
-
 /**
  * 在屏幕正中弹出一条高亮提示，duration 毫秒后自动淡出并移除。
  * @param {'ok'|'warn'|'err'} type 提示类型，决定背景语义色
@@ -15,7 +14,6 @@ export function showCenterToast(type, text, duration = 1400){
   const t = (type === 'warn' || type === 'err') ? type : 'ok';
   // 背景色取自对应 CSS 变量
   const bgVar = t === 'ok' ? 'var(--ok)' : (t === 'warn' ? 'var(--warn)' : 'var(--err)');
-
   const el = document.createElement("div");
   el.className = "center-toast center-toast-" + t;
   el.style.cssText =
@@ -26,13 +24,11 @@ export function showCenterToast(type, text, duration = 1400){
     "opacity:0;transition:opacity .18s ease,transform .18s ease;pointer-events:none;";
   el.textContent = text;
   document.body.appendChild(el);
-
   // 淡入
   requestAnimationFrame(() => {
     el.style.opacity = "1";
     el.style.transform = "translate(-50%,-50%) scale(1)";
   });
-
   // duration 后淡出并移除
   setTimeout(() => {
     el.style.opacity = "0";
@@ -40,5 +36,36 @@ export function showCenterToast(type, text, duration = 1400){
     setTimeout(() => {
       if(el.parentNode) el.parentNode.removeChild(el);
     }, 220);
+  }, duration);
+}
+/**
+ * 在屏幕正中弹出一条「结果横幅」：更大、更醒目，成功绿 / 失败红，带图标与标题。
+ * 用于合成种子等需要明显成功/失败反馈的场景。
+ * @param {'success'|'fail'} type 结果类型
+ * @param {string} text 主文案
+ * @param {number} [duration=1800] 显示时长（毫秒）
+ */
+export function showResultBanner(type, text, duration = 1800){
+  const ok = type === 'success';
+  const bg = ok ? 'linear-gradient(135deg,#43a047,#66bb6a)' : 'linear-gradient(135deg,#e53935,#ef5350)';
+  const icon = ok ? '🎉' : '💔';
+  const el = document.createElement('div');
+  el.className = 'result-banner result-banner-' + (ok ? 'ok' : 'fail');
+  el.style.cssText =
+    'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);' +
+    'z-index:10000;min-width:240px;max-width:84vw;padding:22px 28px;border-radius:18px;' +
+    'color:#fff;text-align:center;font-weight:800;box-shadow:0 12px 40px rgba(0,0,0,.3);' +
+    'background:' + bg + ';opacity:0;transition:opacity .2s ease,transform .2s ease;pointer-events:none;';
+  el.innerHTML = '<div style="font-size:40px;line-height:1;margin-bottom:8px;">' + icon + '</div>' +
+    '<div style="font-size:17px;line-height:1.5;">' + text + '</div>';
+  document.body.appendChild(el);
+  requestAnimationFrame(() => {
+    el.style.opacity = '1';
+    el.style.transform = 'translate(-50%,-50%) scale(1)';
+  });
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'translate(-50%,-50%) scale(.9)';
+    setTimeout(() => { if(el.parentNode) el.parentNode.removeChild(el); }, 240);
   }, duration);
 }
