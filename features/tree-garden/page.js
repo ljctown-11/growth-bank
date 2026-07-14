@@ -21,6 +21,7 @@ import {
 } from './inventory.js';
 import { renderTreeStage } from './tree-svg.js';
 import { renderTreeCanvas, mountTreeCanvases, TREE_RENDERER } from './tree-canvas.js';
+import { preloadTreeSprite, whenSpriteLoaded } from './tree-sprite.js';
 import { openSeedShop } from './seed-shop.js';
 import { playWatering, playStageBloom, playHarvestFireworks } from './fx.js';
 // ===== 动画调度状态（模块级，跨重渲染保持）=====
@@ -46,14 +47,14 @@ function renderTreeCard(tree){
   // 阶段舞台：按 TREE_RENDERER 选择 Canvas（默认）或回退 SVG
   const stageInner = TREE_RENDERER === 'svg'
     ? renderTreeStage(tree.species, tree.grade, info.idx)
-    : `<canvas class="gt-tree-canvas" data-tree-id="${tree.id}" data-species="${tree.species}" width="100%" height="100%" role="img" aria-label="${emoji} ${name} 成长树${info.stage}"></canvas>`;
+    : `<canvas class="gt-tree-canvas gt-tree-loading" data-tree-id="${tree.id}" data-species="${tree.species}" width="100%" height="100%" role="img" aria-label="${emoji} ${name} 成长树${info.stage}"></canvas>`;
   // 浇水按钮禁用条件：待浇水池为空，或该树已繁茂（繁茂树无需再浇水）
   const waterEmpty = STATE.growthTree.pendingWater <= 0;
   const lush = info.idx >= 4;
   const waterDisabled = waterEmpty || lush;
-  // 浇水壶：复用已抠图的图片壶（assets/watering-can-new.png），不再手绘 SVG / 按树种变色
+  // 浇水壶：复用已抠图的图片壶（assets/watering-can-new.webp），不再手绘 SVG / 按树种变色
   const waterBtn = `<button class="gt-card-water-btn${waterDisabled ? ' disabled' : ''}" data-tree-id="${tree.id}" type="button" aria-label="浇水"${waterDisabled ? ' aria-disabled="true"' : ''}>
-    <img class="gt-can-img" src="assets/watering-can-new.png" alt="浇水壶" draggable="false"/>
+    <img class="gt-can-img" src="assets/watering-can-new.webp" alt="浇水壶" draggable="false"/>
   </button>`;
   // 单棵进度条：逻辑复用 scoreToTreeStage（单一来源），内嵌于卡片
   const pct = Math.round(info.pct * 100);
@@ -154,6 +155,21 @@ export function renderGrowthTreePage(){
     </div>`;
   // DOM 已就绪后挂载 Canvas（每棵 .gt-tree-canvas 独立初始化，rAF 由 Controller 管理）
   if (TREE_RENDERER === 'canvas') mountTreeCanvases(root);
+  // 进页预加载：立即开始下载当前阶段精灵图（提前于首次 draw 的懒加载），加载完成后去掉占位
+  STATE.growthTree.activeTrees.forEach(tree => {
+    const idx = scoreToTreeStage(tree.water, tree.grade).idx;
+    preloadTreeSprite(tree.species, idx);
+    if (TREE_RENDERER === 'canvas') {
+      const canvas = root.querySelector(`.gt-tree-canvas[data-tree-id="${tree.id}"]`);
+      if (canvas) {
+        // 图片 onload 后由 _loadListeners 触发：去掉 .gt-tree-loading 占位
+        // （controller 内部 onTreeSpriteLoad 已负责重绘，此处只管移除占位类）
+        whenSpriteLoaded(tree.species, idx, () => {
+          canvas.classList.remove('gt-tree-loading');
+        });
+      }
+    }
+  });
   // 阶段切换 / 浇水动画调度（首屏仅初始化 _lastStageIdx，不播动画）
   scheduleTreeAnimations(root);
   // 蝴蝶随机漫游：在树绘制区内自由飞行（重渲染前先自我清理）

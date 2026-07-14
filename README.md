@@ -86,7 +86,7 @@ summer-growth-bank/
 │   ├── growth-tree.js      # 旧成长树阶段定义（已弃用，迁移至 tree-garden）
 │   ├── ideas.js / mood.js / runtime.js / voice-encourage.js / mascot.js
 │   └── tree-garden/        # 成长树独立页（water / inventory / tree-canvas / tree-sprite / page / fx / seed-shop / index）
-├── assets/                 # 图片资源（含 tree-sprites/ 各物种 stage 0–4 精灵图、浇水壶 PNG）
+├── assets/                 # 图片资源（含 tree-sprites/ 各物种 stage 0–4 精灵图 WebP、浇水壶 WebP）
 ├── tests/                  # Vitest 单元测试 + QA
 ├── docs/                   # 架构 / PRD / 时序图（mermaid）
 ├── scripts/                # 构建/数据 Python 脚本

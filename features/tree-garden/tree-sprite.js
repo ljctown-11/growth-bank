@@ -25,11 +25,11 @@
 // 5 档成长阶段对应的精灵图路径（按顺序 stage 0..4）。
 //   pine-0 → 种子   pine-1 → 发芽   pine-2 → 长叶   pine-3 → 年轻松树   pine-4 → 成熟松树
 export const PINE_SPRITE_PATHS = [
-  'assets/tree-sprites/pine/pine-0.png',
-  'assets/tree-sprites/pine/pine-1.png',
-  'assets/tree-sprites/pine/pine-2.png',
-  'assets/tree-sprites/pine/pine-3.png',
-  'assets/tree-sprites/pine/pine-4.png',
+  'assets/tree-sprites/pine/pine-0.webp',
+  'assets/tree-sprites/pine/pine-1.webp',
+  'assets/tree-sprites/pine/pine-2.webp',
+  'assets/tree-sprites/pine/pine-3.webp',
+  'assets/tree-sprites/pine/pine-4.webp',
 ];
 
 // 各档精灵图「可见树底」在图高中的比例（实测 5 张透明 PNG 的 alpha 包围盒反推）。
@@ -40,11 +40,11 @@ export const PINE_BASE_FRAC = [0.651, 0.732, 0.903, 0.942, 0.942];
 // =====================================================================
 
 export const APPLE_SPRITE_PATHS = [
-  'assets/tree-sprites/apple/apple-0.png',
-  'assets/tree-sprites/apple/apple-1.png',
-  'assets/tree-sprites/apple/apple-2.png',
-  'assets/tree-sprites/apple/apple-3.png',
-  'assets/tree-sprites/apple/apple-4.png',
+  'assets/tree-sprites/apple/apple-0.webp',
+  'assets/tree-sprites/apple/apple-1.webp',
+  'assets/tree-sprites/apple/apple-2.webp',
+  'assets/tree-sprites/apple/apple-3.webp',
+  'assets/tree-sprites/apple/apple-4.webp',
 ];
 
 // 各档「可见树底」比例（量自透明 PNG 的 alpha 包围盒；越靠后越小=底部透明留白越多）
@@ -61,11 +61,11 @@ export const APPLE_BASE_CX_FRAC = [0.4906, 0.5000, 0.5186, 0.4956, 0.4859];
 // =====================================================================
 
 export const SAKURA_SPRITE_PATHS = [
-  'assets/tree-sprites/sakura/sakura-0.png',
-  'assets/tree-sprites/sakura/sakura-1.png',
-  'assets/tree-sprites/sakura/sakura-2.png',
-  'assets/tree-sprites/sakura/sakura-3.png',
-  'assets/tree-sprites/sakura/sakura-4.png',
+  'assets/tree-sprites/sakura/sakura-0.webp',
+  'assets/tree-sprites/sakura/sakura-1.webp',
+  'assets/tree-sprites/sakura/sakura-2.webp',
+  'assets/tree-sprites/sakura/sakura-3.webp',
+  'assets/tree-sprites/sakura/sakura-4.webp',
 ];
 
 export const SAKURA_BASE_FRAC = [0.9914, 0.9955, 0.9971, 0.997, 0.9971]; // 真实树底行（与松树同算法）
@@ -80,11 +80,11 @@ export const SAKURA_BASE_CX_FRAC = [0.4848, 0.4892, 0.4902, 0.5206, 0.5131];
 // =====================================================================
 
 export const ORANGE_SPRITE_PATHS = [
-  'assets/tree-sprites/orange/orange-0.png',
-  'assets/tree-sprites/orange/orange-1.png',
-  'assets/tree-sprites/orange/orange-2.png',
-  'assets/tree-sprites/orange/orange-3.png',
-  'assets/tree-sprites/orange/orange-4.png',
+  'assets/tree-sprites/orange/orange-0.webp',
+  'assets/tree-sprites/orange/orange-1.webp',
+  'assets/tree-sprites/orange/orange-2.webp',
+  'assets/tree-sprites/orange/orange-3.webp',
+  'assets/tree-sprites/orange/orange-4.webp',
 ];
 
 export const ORANGE_BASE_FRAC = [0.9946, 0.8972, 0.9968, 0.997, 0.994]; // [1]去掉发芽图左下角种子后重测的真实树底行
@@ -219,6 +219,49 @@ export function getTreeSprite(species, stageIdx) {
  */
 export function getPineSprite(stageIdx) {
   return getTreeSprite('pine', stageIdx);
+}
+
+/**
+ * 进页预加载：进入成长树页面时立即触发当前阶段精灵图下载（把「用到才懒加载」提前到进页时开始），
+ * 与 getTreeSprite 等价（内部即调用它），返回该 Image 元素供调用方按需使用。
+ * 仅「提前开始下载」，不触发浇水 / 阶段动画。
+ * @param {string} species 物种 key（pine/apple/sakura/orange；其它按 pine 处理）
+ * @param {number} stageIdx 0–4
+ * @returns {HTMLImageElement|null}
+ */
+export function preloadTreeSprite(species, stageIdx) {
+  return getTreeSprite(species, stageIdx);
+}
+
+/**
+ * 注册「某物种某阶段精灵图加载完成」回调（进页预加载配套骨架屏用）。
+ *  - 若所需图片已缓存且已加载完成（complete 且 naturalWidth>0），立即同步触发 cb 并直接返回；
+ *  - 否则注册到 _loadListeners（与 onTreeSpriteLoad 共用同一集合），待任意精灵图 onload 后
+ *    检查本图是否就绪，就绪则触发 cb 并自我注销（避免监听器泄漏）。
+ * @param {string} species 物种 key
+ * @param {number} stageIdx 0–4
+ * @param {() => void} cb 加载完成回调（用于去掉 .gt-tree-loading 占位类）
+ * @returns {() => void} 注销函数
+ */
+export function whenSpriteLoaded(species, stageIdx, cb) {
+  const sp = normalizeSpriteSpecies(species);
+  const cfg = SPRITE_SPECIES_CONFIG[sp];
+  const idx = clampStageIdx(stageIdx, cfg.paths.length);
+  const cached = _cache[sp] && _cache[sp][idx];
+  // 已缓存且已加载完成：立即同步回调（如二次进页、图片已就绪）
+  if (cached && cached.complete && cached.naturalWidth > 0) {
+    try { cb(); } catch (e) { /* 单个回调异常不影响其余 */ }
+    return () => {};
+  }
+  // 否则注册到 _loadListeners，待任意精灵图 onload 后检查本图是否就绪
+  const off = onTreeSpriteLoad(() => {
+    const img = (_cache[sp] && _cache[sp][idx]) || null;
+    if (img && img.complete && img.naturalWidth > 0) {
+      try { cb(); } catch (e) { /* 单个回调异常不影响其余 */ }
+      off(); // 触发一次后自我注销，避免泄漏
+    }
+  });
+  return off;
 }
 
 /**

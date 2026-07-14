@@ -1,24 +1,24 @@
-const CACHE_NAME = 'summer-growth-bank-v3.2.00';
+const CACHE_NAME = 'summer-growth-bank-v3.2.01';
 const ASSETS = [
   '/', 'index.html', 'main.js?v=3.2.00', 'manifest.json', 'icon-512.png',
-  'assets/watering-can-new.png', // 浇水壶图片（成长树浇水动画，已抠图透明 PNG）
+  'assets/watering-can-new.webp', // 浇水壶图片（成长树浇水动画，已抠图透明 WebP）
   'core/state.js?v=3.2.00', 'core/data.js?v=3.2.00', 'core/helpers.js?v=3.2.00',
   'features/render.js?v=3.2.00', 'features/password.js?v=3.2.00', 'features/makeup.js?v=3.2.00',
   'features/media.js?v=3.2.00', 'features/parent-center.js?v=3.2.00',
-  // 松树精灵图（手绘位图，pine 物种 canvas 渲染路线）：stage 0..4 固化资源（透明 PNG）
-  'assets/tree-sprites/pine/pine-0.png', 'assets/tree-sprites/pine/pine-1.png',
-  'assets/tree-sprites/pine/pine-2.png', 'assets/tree-sprites/pine/pine-3.png',
-  'assets/tree-sprites/pine/pine-4.png',
+  // 松树精灵图（手绘位图，pine 物种 canvas 渲染路线）：stage 0..4 固化资源（透明 WebP）
+  'assets/tree-sprites/pine/pine-0.webp', 'assets/tree-sprites/pine/pine-1.webp',
+  'assets/tree-sprites/pine/pine-2.webp', 'assets/tree-sprites/pine/pine-3.webp',
+  'assets/tree-sprites/pine/pine-4.webp',
   // 苹果 / 樱花 / 橙子精灵图（apple/sakura/orange 物种 canvas 渲染路线，同 pine 管线）：stage 0..4
-  'assets/tree-sprites/apple/apple-0.png', 'assets/tree-sprites/apple/apple-1.png',
-  'assets/tree-sprites/apple/apple-2.png', 'assets/tree-sprites/apple/apple-3.png',
-  'assets/tree-sprites/apple/apple-4.png',
-  'assets/tree-sprites/sakura/sakura-0.png', 'assets/tree-sprites/sakura/sakura-1.png',
-  'assets/tree-sprites/sakura/sakura-2.png', 'assets/tree-sprites/sakura/sakura-3.png',
-  'assets/tree-sprites/sakura/sakura-4.png',
-  'assets/tree-sprites/orange/orange-0.png', 'assets/tree-sprites/orange/orange-1.png',
-  'assets/tree-sprites/orange/orange-2.png', 'assets/tree-sprites/orange/orange-3.png',
-  'assets/tree-sprites/orange/orange-4.png'
+  'assets/tree-sprites/apple/apple-0.webp', 'assets/tree-sprites/apple/apple-1.webp',
+  'assets/tree-sprites/apple/apple-2.webp', 'assets/tree-sprites/apple/apple-3.webp',
+  'assets/tree-sprites/apple/apple-4.webp',
+  'assets/tree-sprites/sakura/sakura-0.webp', 'assets/tree-sprites/sakura/sakura-1.webp',
+  'assets/tree-sprites/sakura/sakura-2.webp', 'assets/tree-sprites/sakura/sakura-3.webp',
+  'assets/tree-sprites/sakura/sakura-4.webp',
+  'assets/tree-sprites/orange/orange-0.webp', 'assets/tree-sprites/orange/orange-1.webp',
+  'assets/tree-sprites/orange/orange-2.webp', 'assets/tree-sprites/orange/orange-3.webp',
+  'assets/tree-sprites/orange/orange-4.webp'
 ];
 
 self.addEventListener('install', event => {
