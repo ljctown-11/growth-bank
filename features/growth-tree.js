@@ -6,6 +6,7 @@
 import { STATE } from '../core/state.js';
 import { getDay, calcTotalScore } from '../core/data.js';
 import { CATEGORIES, getTodayStr } from '../core/helpers.js';
+import { openModal } from '../features/modal.js';
 
 // ===== 纯函数部分 =====
 
@@ -155,13 +156,35 @@ export function renderStreak(){
   }
 }
 
-// 维度徽章 4 级阈值：0–9 Lv1 / 10–24 Lv2 / 25–49 Lv3 / 50+ Lv4
-export function badgeLevel(score){
+// 维度徽章 5 级阈值（按各维度 60 天预估总量校准：L2=20% / L3=40% / L4=65% / L5=90%）
+// 探索力/实践力按最慢 1分/天(总量60)校准，保证暑假必解锁 L5
+export const BADGE_THRESHOLDS = {
+  '学习力': [0, 60, 120, 195, 270],
+  '运动力': [0, 60, 120, 195, 270],
+  '自控力': [0, 36, 72, 117, 162],
+  '探索力': [0, 12, 24, 39, 54],
+  '实践力': [0, 12, 24, 39, 54],
+};
+
+export function badgeLevel(cat, score){
+  const t = BADGE_THRESHOLDS[cat] || [0, 21, 51, 101, 189];
   const s = Number(score) || 0;
-  if(s >= 50) return 4;
-  if(s >= 25) return 3;
-  if(s >= 10) return 2;
+  for(let lv = t.length - 1; lv >= 1; lv--){
+    if(s >= t[lv]) return lv + 1;
+  }
   return 1;
+}
+
+/**
+ * 位图徽章路径。5 个维度（学习力、运动力、自控力、探索力、实践力）
+ * 均提供正方形 WebP 实物徽章（按等级），维度名与文件夹名完全一致。
+ * 路径统一为 assets/badges/{维度}/L{level}.webp。
+ * @param {string} cat 维度名（与 CATEGORIES.title 一致）
+ * @param {1|2|3|4|5} level
+ * @returns {string}
+ */
+export function badgeImagePath(cat, level){
+  return `assets/badges/${cat}/L${level}.webp`;
 }
 
 // 5 维配色（走 CSS 变量，暗色可见）
@@ -264,8 +287,25 @@ export function badgeSVG(cat, level){
   </svg>`;
 }
 
+export function openBadgeLightbox(cat, level, score){
+  const p = badgeImagePath(cat, level);
+  const media = p
+    ? `<img class="badge-lightbox__img" src="${p}" alt="${cat} Lv${level}">`
+    : `<div class="badge-lightbox__svg">${badgeSVG(cat, level)}</div>`;
+  openModal('badge-preview', () => `
+    <div class="modal-box badge-lightbox">
+      <button class="badge-lightbox__close" data-modal-close aria-label="关闭">×</button>
+      <div class="badge-lightbox__media">${media}</div>
+      <div class="badge-lightbox__info">
+        <div class="badge-lightbox__title">${cat}</div>
+        <div class="badge-lightbox__sub">Lv${level} · ${score} 分</div>
+      </div>
+    </div>
+  `);
+}
+
 /**
- * 渲染维度徽章墙到 #badgeWall（5 槽位 4 级 SVG），null 安全。
+ * 渲染维度徽章墙到 #badgeWall（5 槽位 5 级；学习力用位图，其余沿用 SVG），null 安全。
  */
 export function renderBadges(){
   const el = document.getElementById('badgeWall');
@@ -273,12 +313,32 @@ export function renderBadges(){
   const scores = computeDimensionScores(STATE.daily);
   el.innerHTML = CATEGORIES.map(c => {
     const s = scores[c.title] || 0;
-    const level = badgeLevel(s);
-    const unlocked = level >= 2;
-    return `<div class="badge-slot lv${level}${unlocked ? ' unlocked' : ' locked'}" title="${c.title}：${s}分 · Lv${level}">
-      <div class="badge-icon">${badgeSVG(c.title, level)}</div>
+    const level = badgeLevel(c.title, s);
+    const unlocked = s > 0;
+    const path = badgeImagePath(c.title, level);
+    let iconInner;
+    if(path){
+      // 学习力：渲染横版位图，加载失败时降级为 SVG 盾牌
+      iconInner = `<img class="badge-img" src="${path}" alt="${c.title} Lv${level}" loading="lazy"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+       <div class="badge-svg-fallback" style="display:none">${badgeSVG(c.title, level)}</div>`;
+    } else {
+      // 其他维度：沿用 SVG 盾牌
+      iconInner = badgeSVG(c.title, level);
+    }
+    return `<div class="badge-slot lv${level}${unlocked ? ' unlocked' : ' locked'}" title="${c.title}：${s}分 · Lv${level}" data-cat="${c.title}" data-level="${level}" data-score="${s}">
+      <div class="badge-icon">${iconInner}</div>
       <div class="badge-label">${c.title}</div>
       <div class="badge-score">${s}分 · Lv${level}</div>
     </div>`;
   }).join('');
+
+  if(!el._badgeWired){
+    el._badgeWired = true;
+    el.addEventListener('click', (e) => {
+      const slot = e.target.closest('.badge-slot');
+      if(!slot) return;
+      openBadgeLightbox(slot.dataset.cat, Number(slot.dataset.level), Number(slot.dataset.score));
+    });
+  }
 }

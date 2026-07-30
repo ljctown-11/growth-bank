@@ -13,7 +13,7 @@ import { showResultBanner } from '../toast-center.js';
 import {
   scoreToTreeStage, TREE_STAGE_NAMES, grantDailyWater,
   grantEffortWater, grantStreakWater, revokeEffortWater, pourWater,
-  getDisplayPendingWater,
+  getDisplayPendingWater, treeThresholds,
 } from './water.js';
 import {
   getInventory, plantSeed, plantFruitAsSeed, redeemFruit, harvestTree,
@@ -124,6 +124,39 @@ function renderActions(){
     <button class="btn-secondary gt-inv-btn" type="button">🎒 背包</button>
   </div>`;
 }
+// ===== 各阶段需水说明（5分种 / 10分种，默认折叠，隐蔽）=====
+// 数据全部引用 treeThresholds（单一真相源），不硬编码阈值数字；
+// 本阶增量 = th[i] - th[i-1]，与阈值保持同步。
+function renderStageGuide(){
+  const t5 = treeThresholds(5);
+  const t10 = treeThresholds(10);
+  const stageEmoji = ['🌱', '🌿', '🍃', '🌸', '🌳']; // 阶段图标，与 TREE_STAGE_NAMES 一一对应
+  // 相邻阶段跃迁行：种子→发芽、发芽→长叶、长叶→开花、开花→繁茂（共 4 段）
+  const rows = TREE_STAGE_NAMES.slice(1).map((toName, i) => {
+    const fromName = TREE_STAGE_NAMES[i];
+    const from = stageEmoji[i];
+    const to = stageEmoji[i + 1];
+    const cum5 = t5[i + 1], cum10 = t10[i + 1];
+    const inc5 = t5[i + 1] - t5[i], inc10 = t10[i + 1] - t10[i];
+    return `<tr>
+      <td class="gt-sg-stage">${from} ${fromName} → ${to} ${toName}</td>
+      <td>累计 ${cum5} · 本阶 ${inc5}</td>
+      <td>累计 ${cum10} · 本阶 ${inc10}</td>
+    </tr>`;
+  }).join('');
+  return `<details class="gt-stage-guide">
+    <summary class="gt-sg-summary">💡 各阶段需水说明（点击展开）</summary>
+    <div class="gt-sg-body">
+      <table class="gt-sg-table">
+        <thead>
+          <tr><th>阶段跃迁</th><th>5分种子（累计/本阶）</th><th>10分种子（累计/本阶）</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p class="gt-sg-note">「累计」= 进入该阶段所需的总水滴；「本阶」= 上一阶段长到现在所需的水滴。</p>
+    </div>
+  </details>`;
+}
 /**
  * 渲染成长树独立页面到 #mtab-tree（null 安全；未设宝贝整页禁用）。
  * 进入页面时发放「每日浇水礼」(+1 进待浇水池，全局 1/天幂等)。
@@ -152,6 +185,7 @@ export function renderGrowthTreePage(){
       ${renderStage()}
       ${renderStats()}
       ${renderActions()}
+      ${renderStageGuide()}
     </div>`;
   // DOM 已就绪后挂载 Canvas（每棵 .gt-tree-canvas 独立初始化，rAF 由 Controller 管理）
   if (TREE_RENDERER === 'canvas') mountTreeCanvases(root);

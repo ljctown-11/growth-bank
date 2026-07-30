@@ -1,4 +1,4 @@
-const CACHE_NAME = 'summer-growth-bank-v3.2.01';
+const CACHE_NAME = 'summer-growth-bank-v3.2.02';
 const ASSETS = [
   '/', 'index.html', 'main.js?v=3.2.00', 'manifest.json', 'icon-512.png',
   'assets/watering-can-new.webp', // 浇水壶图片（成长树浇水动画，已抠图透明 WebP）
@@ -18,7 +18,18 @@ const ASSETS = [
   'assets/tree-sprites/sakura/sakura-4.webp',
   'assets/tree-sprites/orange/orange-0.webp', 'assets/tree-sprites/orange/orange-1.webp',
   'assets/tree-sprites/orange/orange-2.webp', 'assets/tree-sprites/orange/orange-3.webp',
-  'assets/tree-sprites/orange/orange-4.webp'
+  'assets/tree-sprites/orange/orange-4.webp',
+  // 五维徽章位图（学习力/运动力/自控力/探索力/实践力，各 L1..L5），预缓存后点击秒开
+  'assets/badges/学习力/L1.webp', 'assets/badges/学习力/L2.webp', 'assets/badges/学习力/L3.webp',
+  'assets/badges/学习力/L4.webp', 'assets/badges/学习力/L5.webp',
+  'assets/badges/运动力/L1.webp', 'assets/badges/运动力/L2.webp', 'assets/badges/运动力/L3.webp',
+  'assets/badges/运动力/L4.webp', 'assets/badges/运动力/L5.webp',
+  'assets/badges/自控力/L1.webp', 'assets/badges/自控力/L2.webp', 'assets/badges/自控力/L3.webp',
+  'assets/badges/自控力/L4.webp', 'assets/badges/自控力/L5.webp',
+  'assets/badges/探索力/L1.webp', 'assets/badges/探索力/L2.webp', 'assets/badges/探索力/L3.webp',
+  'assets/badges/探索力/L4.webp', 'assets/badges/探索力/L5.webp',
+  'assets/badges/实践力/L1.webp', 'assets/badges/实践力/L2.webp', 'assets/badges/实践力/L3.webp',
+  'assets/badges/实践力/L4.webp', 'assets/badges/实践力/L5.webp'
 ];
 
 self.addEventListener('install', event => {

@@ -8,7 +8,8 @@ const PORT = Number(process.env.PORT || 3000);
 
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
-  '.css': 'text/css', '.json': 'application/json', '.png': 'image/png',
+  '.css': 'text/css', '.json': 'application/json',   '.png': 'image/png',
+  '.webp': 'image/webp',
   '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json',
   '.woff': 'font/woff', '.woff2': 'font/woff2', '.txt': 'text/plain'
 };
@@ -44,7 +45,10 @@ const server = http.createServer(async (req, res) => {
 
     const buf = await readFile(filePath);
     const type = MIME[extname(filePath)] || 'application/octet-stream';
-    res.writeHead(200, { 'Content-Type': type + ';charset=utf-8' });
+    // 静态资源长缓存（hash/版本化文件名），HTML 走 no-cache 以便及时更新
+    const isHtml = extname(filePath) === '.html';
+    const cacheCtrl = isHtml ? 'no-cache' : 'public, max-age=31536000, immutable';
+    res.writeHead(200, { 'Content-Type': type + ';charset=utf-8', 'Cache-Control': cacheCtrl });
     res.end(buf);
   } catch (e) {
     res.writeHead(500);

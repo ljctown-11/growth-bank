@@ -803,6 +803,20 @@ body[data-theme="starry"] {
 .badge-slot.unlocked{background:linear-gradient(160deg,rgba(255,248,225,.95),rgba(252,228,236,.6));border-color:rgba(255,193,7,.5);box-shadow:0 3px 12px rgba(255,193,7,.18)}
 .badge-slot.locked{filter:grayscale(70%);opacity:.7}
 .badge-icon{font-size:26px;line-height:1}
+/* 位图徽章（学习力）：横版 WebP 自适应高度，不再强制正方形；加载失败降级 SVG */
+.badge-icon{display:flex;align-items:center;justify-content:center;width:100%;}
+.badge-img{width:100%;height:auto;display:block;border-radius:8px;box-shadow:0 2px 8px rgba(124,77,255,.18);}
+.badge-svg-fallback{width:48px;height:48px;}
+.badge-lightbox{max-width:440px;position:relative;}
+.badge-lightbox__media{display:flex;justify-content:center;padding:6px 0 2px;}
+.badge-lightbox__img{width:100%;max-width:380px;height:auto;border-radius:12px;object-fit:contain;box-shadow:0 6px 22px rgba(124,77,255,.22);}
+.badge-lightbox__svg{width:200px;height:200px;display:flex;align-items:center;justify-content:center;}
+.badge-lightbox__svg svg{width:100%;height:100%;}
+.badge-lightbox__info{text-align:center;margin-top:10px;}
+.badge-lightbox__title{font-size:18px;font-weight:600;}
+.badge-lightbox__sub{color:var(--muted);font-size:14px;margin-top:4px;}
+.badge-lightbox__close{position:absolute;top:10px;right:12px;width:32px;height:32px;border:none;border-radius:50%;background:rgba(0,0,0,.06);font-size:20px;line-height:1;cursor:pointer;color:var(--muted);}
+.badge-lightbox__close:hover{background:rgba(0,0,0,.12);}
 .badge-label{font-size:12px;font-weight:800;color:var(--ink)}
 .badge-progress{width:100%;height:6px;border-radius:3px;background:rgba(0,0,0,.07);overflow:hidden}
 .badge-bar{height:100%;background:linear-gradient(90deg,var(--leaf),var(--rose));border-radius:3px;transition:width .5s}
@@ -1010,6 +1024,19 @@ body[data-theme="starry"]{ --vine-stem:#66bb6a; --vine-leaf:#aed581; --vine-flow
 /* 底部操作栏 */
 .gt-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .gt-actions .btn-primary,.gt-actions .btn-secondary{flex:1;min-width:120px}
+/* 各阶段需水说明（默认折叠，隐蔽） */
+.gt-stage-guide{background:rgba(255,255,255,.6);border:1.5px solid rgba(255,112,67,.16);border-radius:12px;padding:4px 12px;font-size:13px;color:var(--ink)}
+.gt-sg-summary{cursor:pointer;font-weight:800;padding:8px 0;list-style:none;user-select:none}
+.gt-sg-summary::-webkit-details-marker{display:none}
+.gt-sg-summary::before{content:"▸";display:inline-block;margin-right:6px;color:var(--muted);transition:transform .15s}
+.gt-stage-guide[open] .gt-sg-summary::before{transform:rotate(90deg)}
+.gt-sg-body{padding:4px 0 10px}
+.gt-sg-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.gt-sg-table th,.gt-sg-table td{padding:6px 8px;text-align:left;border-bottom:1px solid rgba(0,0,0,.06)}
+.gt-sg-table th{font-weight:800;color:var(--muted)}
+.gt-sg-table tbody tr:last-child td{border-bottom:none}
+.gt-sg-stage{font-weight:700}
+.gt-sg-note{margin:6px 0 0;font-size:11.5px;color:var(--muted);line-height:1.5}
 /* 种子小铺 / 背包弹层 */
 .gt-seed-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:14px}
 .gt-seed-card{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 10px;border-radius:14px;background:linear-gradient(135deg,rgba(255,255,255,.85),rgba(252,228,236,.4));border:1.5px solid rgba(255,112,67,.16)}
@@ -1242,7 +1269,7 @@ body[data-theme="starry"]{ --vine-stem:#66bb6a; --vine-leaf:#aed581; --vine-flow
     <div class="panel-pad">
       <h2 class="section-title"><span class="icon">📚</span>成长档案</h2>
       <!-- 模块一：我的成就（仅徽章墙；成长树已移回首页藤蔓）— 本版本临时隐藏，主推成长树 -->
-      <div class="archive-block achievement-block" style="display:none">
+      <div class="archive-block achievement-block">
         <h3 class="archive-subtitle sec-title-achievement"><span class="sec-bar"></span>🌟 我的成就</h3>
         <div id="badgeWall" class="badge-wall"></div>
       </div>

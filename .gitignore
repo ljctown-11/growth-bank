@@ -5,3 +5,9 @@ die code/
 tests/
 公众号文章/
 训练记录数据/
+成长树更新_公众号文章/
+
+# Python 缓存与临时诊断产物（不进仓库）
+scripts/__pycache__/
+*.pyc
+scripts/diag-out/
