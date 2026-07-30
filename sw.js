@@ -1,10 +1,9 @@
 const CACHE_NAME = 'summer-growth-bank-v3.2.02';
 const ASSETS = [
-  '/', 'index.html', 'main.js?v=3.2.00', 'manifest.json', 'icon-512.png',
-  'assets/watering-can-new.webp', // 浇水壶图片（成长树浇水动画，已抠图透明 WebP）
-  'core/state.js?v=3.2.00', 'core/data.js?v=3.2.00', 'core/helpers.js?v=3.2.00',
-  'features/render.js?v=3.2.00', 'features/password.js?v=3.2.00', 'features/makeup.js?v=3.2.00',
-  'features/media.js?v=3.2.00', 'features/parent-center.js?v=3.2.00',
+  '/', 'index.html', 'main.js?v=3.2.02', 'manifest.json', 'icon-512.png',
+  'core/state.js?v=3.2.02', 'core/data.js?v=3.2.02', 'core/helpers.js?v=3.2.02',
+  'features/render.js?v=3.2.02', 'features/password.js?v=3.2.02', 'features/makeup.js?v=3.2.02',
+  'features/media.js?v=3.2.02', 'features/parent-center.js?v=3.2.02',
   // 松树精灵图（手绘位图，pine 物种 canvas 渲染路线）：stage 0..4 固化资源（透明 WebP）
   'assets/tree-sprites/pine/pine-0.webp', 'assets/tree-sprites/pine/pine-1.webp',
   'assets/tree-sprites/pine/pine-2.webp', 'assets/tree-sprites/pine/pine-3.webp',

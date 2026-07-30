@@ -340,6 +340,16 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
   .brand p{font-size:10px}
   .brand-mark{width:34px;height:34px;font-size:16px}
   .parent-btn{padding:6px 10px;font-size:11px}
+  .topbar{flex-wrap:nowrap;align-items:center}
+  .brand p{display:none}
+  .brand h1{font-size:14px}
+  .brand-mark{width:32px;height:32px;font-size:15px}
+  .baby-name,.points-pill,.streak-badge{white-space:nowrap}
+  .parent-btn-label{display:none}
+  .main-tab-nav{position:static;top:auto}
+  .gt-tree-card{min-width:0;max-width:none;width:100%}
+  .gt-tree-stage{height:160px}
+  .gt-stage{min-height:auto;padding:4px 0}
   .cal-nav button{width:28px;height:28px;font-size:12px}
   .modal-overlay{padding:10px}
   .modal-box{padding:18px 14px;border-radius:14px}
@@ -1155,11 +1165,11 @@ body[data-theme="starry"]{ --vine-stem:#66bb6a; --vine-leaf:#aed581; --vine-flow
       <div class="brand-mark" aria-hidden="true">🐷</div>
       <div><h1>暑假成长积分银行</h1><p>记录每一点努力，看见每一次成长</p></div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <div class="topbar-right" style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap">
       <span class="baby-name" id="babyName" title="点击设置名字和性别">👧 宝贝</span>
       <span class="points-pill"><span class="coin">分</span><span id="topPoints">0</span> 成长分</span>
       <span id="streakBadge" class="streak-badge">🔥 连续 0 天</span>
-      <button class="parent-btn" id="parentCenterBtn" title="家长中心" style="padding:8px 14px;border-radius:999px;background:linear-gradient(90deg,#ffca28,#ff7043);color:#fff;font-weight:800;font-size:12px;border:none;cursor:pointer;box-shadow:0 3px 10px rgba(var(--leaf-rgb),.3);transition:.15s;position:relative">👨‍💼 家长中心<span id="updateDot" style="display:none;position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:#ff3d3d;border:2px solid #fff;animation:dotPulse 1.2s infinite"></span></button>
+      <button class="parent-btn" id="parentCenterBtn" title="家长中心" style="padding:8px 14px;border-radius:999px;background:linear-gradient(90deg,#ffca28,#ff7043);color:#fff;font-weight:800;font-size:12px;border:none;cursor:pointer;box-shadow:0 3px 10px rgba(var(--leaf-rgb),.3);transition:.15s;position:relative">👨‍💼<span class="parent-btn-label"> 家长中心</span><span id="updateDot" style="display:none;position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:#ff3d3d;border:2px solid #fff;animation:dotPulse 1.2s infinite"></span></button>
     </div>
   </header>
   <!-- 主导航 4个Tab -->
@@ -1317,6 +1327,6 @@ body[data-theme="starry"]{ --vine-stem:#66bb6a; --vine-leaf:#aed581; --vine-flow
 </div>
 <div class="firework-layer" id="fireworkLayer" aria-hidden="true"></div>
 <div class="toast" id="toast" role="status"></div>
-<script type="module" src="main.js?v=3.2.00"></script>
+<script type="module" src="main.js?v=3.2.02"></script>
 </body>
 </html>
