@@ -157,12 +157,12 @@ export function renderStreak(){
 }
 
 // 维度徽章 5 级阈值（按各维度 60 天预估总量校准：L2=20% / L3=40% / L4=65% / L5=90%）
-// 探索力/实践力按最慢 1分/天(总量60)校准，保证暑假必解锁 L5
+// 实践力按最慢 1分/天(总量60)校准，保证暑假必解锁 L5
 export const BADGE_THRESHOLDS = {
   '学习力': [0, 60, 120, 195, 270],
   '运动力': [0, 60, 120, 195, 270],
   '自控力': [0, 36, 72, 117, 162],
-  '探索力': [0, 12, 24, 39, 54],
+  '探索力': [0, 36, 72, 117, 162],
   '实践力': [0, 12, 24, 39, 54],
 };
 
@@ -292,16 +292,59 @@ export function openBadgeLightbox(cat, level, score){
   const media = p
     ? `<img class="badge-lightbox__img" src="${p}" alt="${cat} Lv${level}">`
     : `<div class="badge-lightbox__svg">${badgeSVG(cat, level)}</div>`;
+  // 已获得徽章：带 data-lv 可点击放大，当前级高亮 active
+  const unlockedSlots = Array.from({length: level}, (_, i) => {
+    const lv = i + 1;
+    const src = badgeImagePath(cat, lv);
+    return `<div class="badge-slot lv${lv} unlocked${lv === level ? ' active' : ''}" data-lv="${lv}">
+      <div class="badge-icon"><img class="badge-img" src="${src}" alt="${cat} Lv${lv}" loading="lazy"></div>
+      <div class="badge-label">Lv${lv}</div>
+    </div>`;
+  }).join('');
+  // 下一级锁定徽章（level<5 时追加 1 枚，通用锁图标，不露真实徽章图，不可点击）
+  let lockedSlot = '';
+  if(level < 5){
+    const nextLv = level + 1;
+    const t = BADGE_THRESHOLDS[cat] || [0, 21, 51, 101, 189];
+    const need = Math.max(0, t[level] - (Number(score) || 0)); // t[level] 即 Lv(nextLv) 阈值
+    const lockSvg = `<svg class="badge-lock" viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11 V8 a4 4 0 0 1 8 0 v3"/></svg>`;
+    lockedSlot = `<div class="badge-slot lv${nextLv} locked">
+      <div class="badge-icon">${lockSvg}</div>
+      <div class="badge-label">Lv${nextLv}</div>
+      <div class="badge-need">还差 ${need} 分</div>
+    </div>`;
+  }
+  const collection = unlockedSlots + lockedSlot;
   openModal('badge-preview', () => `
     <div class="modal-box badge-lightbox">
       <button class="badge-lightbox__close" data-modal-close aria-label="关闭">×</button>
       <div class="badge-lightbox__media">${media}</div>
+      <div class="badge-lightbox__collection">${collection}</div>
       <div class="badge-lightbox__info">
         <div class="badge-lightbox__title">${cat}</div>
         <div class="badge-lightbox__sub">Lv${level} · ${score} 分</div>
       </div>
     </div>
-  `);
+  `, {
+    onMount(overlay){
+      // 已获得小徽章点击 → 顶部英雄大图切换 + 副标题更新 + active 高亮切换
+      const slots = overlay.querySelectorAll('.badge-lightbox__collection .badge-slot.unlocked[data-lv]');
+      slots.forEach(slot => {
+        slot.addEventListener('click', () => {
+          const lv = Number(slot.dataset.lv) || 1;
+          const heroImg = overlay.querySelector('.badge-lightbox__media img');
+          if(heroImg){
+            heroImg.src = badgeImagePath(cat, lv);
+            heroImg.alt = `${cat} Lv${lv}`;
+          }
+          const sub = overlay.querySelector('.badge-lightbox__sub');
+          if(sub) sub.textContent = `Lv${lv} · ${score} 分`;
+          slots.forEach(s => s.classList.remove('active'));
+          slot.classList.add('active');
+        });
+      });
+    },
+  });
 }
 
 /**

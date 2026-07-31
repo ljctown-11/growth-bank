@@ -819,14 +819,28 @@ body[data-theme="starry"] {
 .badge-svg-fallback{width:48px;height:48px;}
 .badge-lightbox{max-width:440px;position:relative;}
 .badge-lightbox__media{display:flex;justify-content:center;padding:6px 0 2px;}
-.badge-lightbox__img{width:100%;max-width:380px;height:auto;border-radius:12px;object-fit:contain;box-shadow:0 6px 22px rgba(124,77,255,.22);}
-.badge-lightbox__svg{width:200px;height:200px;display:flex;align-items:center;justify-content:center;}
+.badge-lightbox__img{width:100%;max-width:380px;height:auto;border-radius:12px;object-fit:contain;box-shadow:0 6px 22px rgba(124,77,255,.22);animation:badge-glow-pulse 2.6s ease-in-out infinite;}
+@keyframes badge-glow-pulse{
+  0%,100%{filter:drop-shadow(0 0 6px rgba(124,77,255,.35));}
+  50%{filter:drop-shadow(0 0 18px rgba(124,77,255,.7));}
+}
+.badge-lightbox__svg{width:200px;height:200px;display:flex;align-items:center;justify-content:center;animation:badge-glow-pulse 2.6s ease-in-out infinite;}
 .badge-lightbox__svg svg{width:100%;height:100%;}
 .badge-lightbox__info{text-align:center;margin-top:10px;}
 .badge-lightbox__title{font-size:18px;font-weight:600;}
 .badge-lightbox__sub{color:var(--muted);font-size:14px;margin-top:4px;}
 .badge-lightbox__close{position:absolute;top:10px;right:12px;width:32px;height:32px;border:none;border-radius:50%;background:rgba(0,0,0,.06);font-size:20px;line-height:1;cursor:pointer;color:var(--muted);}
 .badge-lightbox__close:hover{background:rgba(0,0,0,.12);}
+.badge-lightbox__collection{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:14px}
+.badge-lightbox__collection .badge-slot{flex:0 0 76px;padding:10px 4px;background:rgba(255,255,255,.85)}
+.badge-lightbox__collection .badge-label{font-size:11px}
+.badge-lightbox__collection .badge-img{width:100%;height:auto;border-radius:8px;display:block}
+.badge-lightbox__collection .badge-slot.unlocked{cursor:pointer;transition:transform .15s}
+.badge-lightbox__collection .badge-slot.unlocked:hover{transform:translateY(-2px)}
+.badge-slot.active{outline:2px solid #7c4dff;outline-offset:2px;box-shadow:0 4px 16px rgba(124,77,255,.35)}
+.badge-slot.locked{opacity:.55;filter:grayscale(1)}
+.badge-lock{color:#9a9a9a;display:block;margin:0 auto}
+.badge-need{font-size:10px;color:#e07a3f;font-weight:700;margin-top:3px}
 .badge-label{font-size:12px;font-weight:800;color:var(--ink)}
 .badge-progress{width:100%;height:6px;border-radius:3px;background:rgba(0,0,0,.07);overflow:hidden}
 .badge-bar{height:100%;background:linear-gradient(90deg,var(--leaf),var(--rose));border-radius:3px;transition:width .5s}
@@ -1327,6 +1341,6 @@ body[data-theme="starry"]{ --vine-stem:#66bb6a; --vine-leaf:#aed581; --vine-flow
 </div>
 <div class="firework-layer" id="fireworkLayer" aria-hidden="true"></div>
 <div class="toast" id="toast" role="status"></div>
-<script type="module" src="main.js?v=3.2.02"></script>
+<script type="module" src="main.js?v=3.2.03"></script>
 </body>
 </html>
