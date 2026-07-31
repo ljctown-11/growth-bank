@@ -149,7 +149,7 @@ export function renderBabyName(){
   if(!el) return;
   const name = STATE.childName || "宝贝";
   const gender = STATE.childGender || "girl";
-  el.innerHTML = `${gender==="boy"?"👦":"👧"} ${esc(name)}`;
+  el.innerHTML = `${gender==="boy"?"👦":"👧"} <span class="tb-label">${esc(name)}</span>`;
 }
 
 // ===== 积分显示 =====

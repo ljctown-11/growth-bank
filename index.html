@@ -91,12 +91,13 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
 .main-tab-nav button{padding:10px 14px;border-radius:999px;color:#7a6050;background:rgba(255,255,255,.8);border:2px solid rgba(var(--leaf-rgb),.12);font-weight:800;white-space:nowrap;font-size:14px;transition:.15s;flex-shrink:0}
 .main-tab-nav button.active{color:#fff;background:linear-gradient(90deg,var(--leaf),var(--rose));border-color:transparent;box-shadow:0 4px 14px rgba(var(--leaf-rgb),.3)}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0;position:sticky;top:0;z-index:20;background:rgba(255,251,245,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
-.brand{display:flex;align-items:center;gap:8px}
+.brand{display:flex;align-items:center;gap:8px;min-width:0}
+.brand>div{min-width:0}
 .brand-mark{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--brand-grad);border:2.5px solid #fff;box-shadow:0 3px 12px rgba(var(--leaf-rgb),.35);position:relative;flex-shrink:0;font-size:20px}
 .brand-mark::before,.brand-mark::after{content:"";position:absolute;border-radius:999px}
 .brand-mark::before{width:0;height:0}
 .brand-mark::after{width:0;height:0}
-.brand h1{margin:0;font-size:20px;line-height:1.15}
+.brand h1{margin:0;font-size:20px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .brand p{margin:2px 0 0;color:var(--muted);font-size:11px}
 .points-pill{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:var(--pill-bg);box-shadow:0 2px 10px rgba(var(--leaf-rgb),.18),inset 0 0 0 1.5px var(--pill-border);font-weight:800;white-space:nowrap;font-size:15px}
 .baby-name{display:inline-flex;align-items:center;gap:4px;padding:6px 12px 6px 8px;border-radius:999px;background:rgba(255,255,255,.7);border:2px dashed var(--baby-name-border);font-size:12px;font-weight:800;color:var(--baby-name-color);cursor:pointer;transition:.2s;white-space:nowrap;user-select:none;-webkit-user-select:none}
@@ -339,14 +340,26 @@ html,body{touch-action:pan-y;overscroll-behavior:contain}
   .brand h1{font-size:15px}
   .brand p{font-size:10px}
   .brand-mark{width:34px;height:34px;font-size:16px}
-  .parent-btn{padding:6px 10px;font-size:11px}
-  .topbar{flex-wrap:nowrap;align-items:center}
+  .parent-btn{padding:6px 9px;font-size:11px}
+  /* 顶栏：品牌横排不竖排，右侧紧凑且始终可见，溢出时可横滑兜底 */
+  .topbar{flex-wrap:nowrap;align-items:center;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .topbar::-webkit-scrollbar{display:none}
+  .brand{flex:0 1 auto;min-width:0}
   .brand p{display:none}
-  .brand h1{font-size:14px}
+  .brand h1{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .brand-mark{width:32px;height:32px;font-size:15px}
+  .topbar-right{flex:0 0 auto;gap:5px!important}
   .baby-name,.points-pill,.streak-badge{white-space:nowrap}
+  /* 顶栏文字标签在手机上隐藏，仅保留 emoji + 数字 */
+  .tb-label{display:none}
+  .baby-name{padding:5px 8px;gap:0}
+  .baby-name::after{display:none}
+  .points-pill{padding:5px 9px;gap:4px}
+  .streak-badge{padding:5px 9px;font-size:13px}
   .parent-btn-label{display:none}
+  /* 主导航：非吸顶防遮挡，"成长档案/成长树"缩为"档案/树" */
   .main-tab-nav{position:static;top:auto}
+  .tab-long{display:none}
   .gt-tree-card{min-width:0;max-width:none;width:100%}
   .gt-tree-stage{height:160px}
   .gt-stage{min-height:auto;padding:4px 0}
@@ -817,7 +830,7 @@ body[data-theme="starry"] {
 .badge-icon{display:flex;align-items:center;justify-content:center;width:100%;}
 .badge-img{width:100%;height:auto;display:block;border-radius:8px;box-shadow:0 2px 8px rgba(124,77,255,.18);}
 .badge-svg-fallback{width:48px;height:48px;}
-.badge-lightbox{max-width:440px;position:relative;}
+.badge-lightbox{max-width:440px;position:relative;max-height:90vh;overflow-y:auto;overscroll-behavior:contain;}
 .badge-lightbox__media{display:flex;justify-content:center;padding:6px 0 2px;}
 .badge-lightbox__img{width:100%;max-width:380px;height:auto;border-radius:12px;object-fit:contain;box-shadow:0 6px 22px rgba(124,77,255,.22);animation:badge-glow-pulse 2.6s ease-in-out infinite;}
 @keyframes badge-glow-pulse{
@@ -876,9 +889,20 @@ body[data-theme="starry"] {
   .badge-slot{padding:8px 2px}
   .badge-icon{font-size:20px}
   .badge-label{font-size:10px}
-  .streak-badge{font-size:13px;padding:6px 10px}
+  .streak-badge{font-size:13px;padding:5px 9px}
   .mood-row{padding:8px}
   .mood-btn{width:36px;height:36px;font-size:18px}
+  /* 徽章灯箱手机适配：一屏内看完英雄大图 + 等级收藏栏（放在基础样式之后以保留光晕动画） */
+  .badge-lightbox{max-height:88vh;max-width:none;width:100%}
+  .badge-lightbox__img{max-height:38vh;max-width:280px}
+  .badge-lightbox__svg{width:150px;height:150px}
+  .badge-lightbox__collection{gap:6px;margin-top:10px}
+  .badge-lightbox__collection .badge-slot{flex:0 0 54px;padding:6px 2px}
+  .badge-lightbox__collection .badge-label{font-size:10px}
+  .badge-lightbox__info{margin-top:8px}
+  .badge-lightbox__title{font-size:16px}
+  .badge-lightbox__sub{font-size:13px}
+  .badge-lightbox__close{top:6px;right:6px;width:28px;height:28px;font-size:18px}
 }
 /* ===== 任务灵感引导卡（B2/B6） ===== */
 .idea-prompt-card{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,rgba(255,243,224,.92),rgba(252,228,236,.7));border:1.5px dashed rgba(255,112,67,.4);margin-bottom:14px}
@@ -992,7 +1016,7 @@ body[data-theme="starry"]{ --vine-stem:#66bb6a; --vine-leaf:#aed581; --vine-flow
 .gt-tree-canvas.gt-tree-loading{animation:gt-tree-breath 1.4s ease-in-out infinite}
 @keyframes gt-tree-breath{0%,100%{opacity:.35}50%{opacity:.72}}
 @media (prefers-reduced-motion:reduce){.gt-tree-canvas.gt-tree-loading{animation:none;opacity:.5}}
-.gt-tree-name{margin-top:6px;font-weight:900;color:var(--leaf-dark);font-size:15px}
+.gt-tree-name{margin-top:6px;font-weight:900;color:var(--leaf-dark);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 /* 单棵卡片右上角浇水按钮（洒水壶图形，绝对定位叠加于卡片右上角） */
 .gt-card-water-btn{position:absolute;top:10px;right:10px;z-index:3;display:flex;align-items:center;justify-content:center;border:none;background:transparent;padding:0;box-shadow:none;cursor:pointer;transition:transform .15s ease}
 .gt-card-water-btn:hover{transform:scale(1.05)}
@@ -1181,7 +1205,7 @@ body[data-theme="starry"]{ --vine-stem:#66bb6a; --vine-leaf:#aed581; --vine-flow
     </div>
     <div class="topbar-right" style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap">
       <span class="baby-name" id="babyName" title="点击设置名字和性别">👧 宝贝</span>
-      <span class="points-pill"><span class="coin">分</span><span id="topPoints">0</span> 成长分</span>
+      <span class="points-pill"><span class="coin">分</span><span id="topPoints">0</span><span class="tb-label"> 成长分</span></span>
       <span id="streakBadge" class="streak-badge">🔥 连续 0 天</span>
       <button class="parent-btn" id="parentCenterBtn" title="家长中心" style="padding:8px 14px;border-radius:999px;background:linear-gradient(90deg,#ffca28,#ff7043);color:#fff;font-weight:800;font-size:12px;border:none;cursor:pointer;box-shadow:0 3px 10px rgba(var(--leaf-rgb),.3);transition:.15s;position:relative">👨‍💼<span class="parent-btn-label"> 家长中心</span><span id="updateDot" style="display:none;position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:#ff3d3d;border:2px solid #fff;animation:dotPulse 1.2s infinite"></span></button>
     </div>
@@ -1191,8 +1215,8 @@ body[data-theme="starry"]{ --vine-stem:#66bb6a; --vine-leaf:#aed581; --vine-flow
     <button class="active" data-maintab="calendar">📅 日历</button>
     <button data-maintab="checkin">✓ 打卡</button>
     <button data-maintab="rewards">🎁 兑换</button>
-    <button data-maintab="archive">📚 成长档案</button>
-    <button data-maintab="tree">🌳 成长树</button>
+    <button data-maintab="archive">📚 <span class="tab-long">成长</span>档案</button>
+    <button data-maintab="tree">🌳 <span class="tab-long">成长</span>树</button>
   </nav>
   <!-- Tab: 日历（含成长地图） -->
   <section class="panel main-tab-content" id="mtab-calendar" style="display:block">

@@ -149,7 +149,7 @@ export function morningGlorySVG(size = 96){
 export function renderStreak(){
   const n = getStreak();
   const badge = document.getElementById('streakBadge');
-  if(badge) badge.textContent = `🔥 连续 ${n} 天`;
+  if(badge) badge.innerHTML = `🔥 <span class="tb-label">连续 </span>${n}<span class="tb-label"> 天</span>`;
   const info = document.getElementById('streakInfo');
   if(info){
     info.innerHTML = `<div class="streak-num">🔥 ${n}</div><div class="streak-sub">连续打卡天数</div>`;
