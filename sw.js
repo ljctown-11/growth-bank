@@ -1,4 +1,4 @@
-const CACHE_NAME = 'summer-growth-bank-v3.2.03';
+const CACHE_NAME = 'summer-growth-bank-v3.2.04';
 const ASSETS = [
   '/', 'index.html', 'main.js?v=3.2.03', 'manifest.json', 'icon-512.png',
   'core/state.js?v=3.2.03', 'core/data.js?v=3.2.03', 'core/helpers.js?v=3.2.03',
@@ -28,7 +28,9 @@ const ASSETS = [
   'assets/badges/探索力/L1.webp', 'assets/badges/探索力/L2.webp', 'assets/badges/探索力/L3.webp',
   'assets/badges/探索力/L4.webp', 'assets/badges/探索力/L5.webp',
   'assets/badges/实践力/L1.webp', 'assets/badges/实践力/L2.webp', 'assets/badges/实践力/L3.webp',
-  'assets/badges/实践力/L4.webp', 'assets/badges/实践力/L5.webp'
+  'assets/badges/实践力/L4.webp', 'assets/badges/实践力/L5.webp',
+  // 浇水壶按钮位图（成长树卡片右上角，透明 WebP）
+  'assets/watering-can-new.webp'
 ];
 
 self.addEventListener('install', event => {
