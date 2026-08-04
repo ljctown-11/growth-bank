@@ -831,13 +831,35 @@ body[data-theme="starry"] {
 .badge-img{width:100%;height:auto;display:block;border-radius:8px;box-shadow:0 2px 8px rgba(124,77,255,.18);}
 .badge-svg-fallback{width:48px;height:48px;}
 .badge-lightbox{max-width:440px;position:relative;max-height:90vh;overflow-y:auto;overscroll-behavior:contain;}
-.badge-lightbox__media{display:flex;justify-content:center;padding:6px 0 2px;}
-.badge-lightbox__img{width:100%;max-width:380px;height:auto;border-radius:12px;object-fit:contain;box-shadow:0 6px 22px rgba(124,77,255,.22);animation:badge-glow-pulse 2.6s ease-in-out infinite;}
-@keyframes badge-glow-pulse{
-  0%,100%{filter:drop-shadow(0 0 6px rgba(124,77,255,.35));}
-  50%{filter:drop-shadow(0 0 18px rgba(124,77,255,.7));}
+.badge-lightbox__media{display:flex;justify-content:center;align-items:center;padding:6px 0 2px;position:relative;overflow:hidden;min-height:340px;}
+/* 金色旋转放射光芒（sunburst）：垫在英雄大图之后，营造聚光灯打在勋章上的仪式感 */
+.badge-lightbox__media::before{
+  content:"";
+  position:absolute;left:50%;top:50%;
+  width:200%;aspect-ratio:1;
+  transform:translate(-50%,-50%) rotate(var(--rays-angle,0deg));
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255,241,184,.8) 0%, rgba(255,241,184,0) 55%),
+    repeating-conic-gradient(from 0deg,
+      rgba(255,210,74,0) 0deg,
+      rgba(255,210,74,.4) 6deg,
+      rgba(255,210,74,0) 12deg);
+  z-index:0;
+  pointer-events:none;
+  will-change:transform;
+  backface-visibility:hidden;
+  animation:badge-rays-rotate 8s linear infinite;
 }
-.badge-lightbox__svg{width:200px;height:200px;display:flex;align-items:center;justify-content:center;animation:badge-glow-pulse 2.6s ease-in-out infinite;}
+@keyframes badge-rays-rotate{
+  to{transform:translate(-50%,-50%) rotate(360deg);}
+}
+.badge-lightbox__img{width:100%;max-width:240px;height:auto;border-radius:12px;object-fit:contain;position:relative;z-index:1;box-shadow:0 6px 22px rgba(255,193,7,.22);animation:badge-gold-glow 3s ease-in-out infinite;}
+.badge-lightbox__svg{width:200px;height:200px;display:flex;align-items:center;justify-content:center;position:relative;z-index:1;animation:badge-gold-glow 3s ease-in-out infinite;}
+/* 金色辉光：温和的金色呼吸，取代原紫色呼吸 */
+@keyframes badge-gold-glow{
+  0%,100%{filter:drop-shadow(0 0 8px rgba(255,193,7,.45));}
+  50%{filter:drop-shadow(0 0 20px rgba(255,193,7,.85));}
+}
 .badge-lightbox__svg svg{width:100%;height:100%;}
 .badge-lightbox__info{text-align:center;margin-top:10px;}
 .badge-lightbox__title{font-size:18px;font-weight:600;}
@@ -863,6 +885,21 @@ body[data-theme="starry"] {
 .badge-slot.lv2{border-color:rgba(255,193,7,.42)}
 .badge-slot.lv3{border-color:rgba(255,152,0,.5);box-shadow:0 3px 12px rgba(255,152,0,.16)}
 .badge-slot.lv4{border-color:rgba(171,71,188,.55);box-shadow:0 4px 16px rgba(171,71,188,.22)}
+/* 五维徽章升级说明弹窗 + 入口按钮（档案页头部 + 灯箱内） */
+.achievement-head{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.achievement-head .archive-subtitle{margin:0;}
+.badge-guide{max-width:460px;position:relative;padding:20px 22px;}
+.badge-guide__title{font-size:18px;font-weight:700;margin:0 0 10px;}
+.badge-guide__intro{font-size:14px;line-height:1.7;margin:0 0 14px;}
+.badge-guide__table{width:100%;border-collapse:collapse;font-size:13px;}
+.badge-guide__table th,.badge-guide__table td{padding:8px 6px;text-align:center;border-bottom:1px solid rgba(0,0,0,.07);}
+.badge-guide__table th{color:var(--muted);font-weight:700;}
+.badge-guide__table td:first-child{text-align:left;font-weight:700;}
+.badge-guide__note,.badge-guide__hint{font-size:13px;line-height:1.7;color:var(--muted);margin:12px 0 0;}
+.badge-guide-btn{margin-left:auto;padding:6px 12px;border:none;border-radius:999px;background:linear-gradient(90deg,var(--leaf),var(--rose));color:#fff;font-weight:700;font-size:13px;cursor:pointer;}
+.badge-guide-btn:hover{filter:brightness(1.05);}
+.badge-guide-link{margin-top:10px;padding:6px 14px;border:none;border-radius:999px;background:linear-gradient(90deg,var(--leaf),var(--rose));color:#fff;font-weight:700;font-size:13px;cursor:pointer;}
+.badge-guide-link:hover{filter:brightness(1.05);}
 /* 家长录音区 */
 .enc-list{display:flex;flex-direction:column;gap:6px}
 .enc-item{transition:.15s}
@@ -894,7 +931,7 @@ body[data-theme="starry"] {
   .mood-btn{width:36px;height:36px;font-size:18px}
   /* 徽章灯箱手机适配：一屏内看完英雄大图 + 等级收藏栏（放在基础样式之后以保留光晕动画） */
   .badge-lightbox{max-height:88vh;max-width:none;width:100%}
-  .badge-lightbox__img{max-height:38vh;max-width:280px}
+  .badge-lightbox__img{max-height:38vh;max-width:200px}
   .badge-lightbox__svg{width:150px;height:150px}
   .badge-lightbox__collection{gap:6px;margin-top:10px}
   .badge-lightbox__collection .badge-slot{flex:0 0 54px;padding:6px 2px}
@@ -1318,7 +1355,10 @@ body[data-theme="starry"]{ --vine-stem:#66bb6a; --vine-leaf:#aed581; --vine-flow
       <h2 class="section-title"><span class="icon">📚</span>成长档案</h2>
       <!-- 模块一：我的成就（仅徽章墙；成长树已移回首页藤蔓）— 本版本临时隐藏，主推成长树 -->
       <div class="archive-block achievement-block">
-        <h3 class="archive-subtitle sec-title-achievement"><span class="sec-bar"></span>🌟 我的成就</h3>
+        <div class="achievement-head">
+          <h3 class="archive-subtitle sec-title-achievement"><span class="sec-bar"></span>🌟 我的成就</h3>
+          <button class="badge-guide-btn" id="badgeGuideBtn" type="button">📖 徽章升级说明</button>
+        </div>
         <div id="badgeWall" class="badge-wall"></div>
       </div>
       <!-- 模块二：每周复盘（周表） -->
@@ -1365,6 +1405,6 @@ body[data-theme="starry"]{ --vine-stem:#66bb6a; --vine-leaf:#aed581; --vine-flow
 </div>
 <div class="firework-layer" id="fireworkLayer" aria-hidden="true"></div>
 <div class="toast" id="toast" role="status"></div>
-<script type="module" src="main.js?v=3.2.03"></script>
+<script type="module" src="main.js?v=3.2.04"></script>
 </body>
 </html>

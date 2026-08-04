@@ -1,9 +1,9 @@
 const CACHE_NAME = 'summer-growth-bank-v3.2.04';
 const ASSETS = [
-  '/', 'index.html', 'main.js?v=3.2.03', 'manifest.json', 'icon-512.png',
-  'core/state.js?v=3.2.03', 'core/data.js?v=3.2.03', 'core/helpers.js?v=3.2.03',
-  'features/render.js?v=3.2.03', 'features/password.js?v=3.2.03', 'features/makeup.js?v=3.2.03',
-  'features/media.js?v=3.2.03', 'features/parent-center.js?v=3.2.03',
+  '/', 'index.html', 'main.js?v=3.2.04', 'manifest.json', 'icon-512.png',
+  'core/state.js?v=3.2.04', 'core/data.js?v=3.2.04', 'core/helpers.js?v=3.2.04',
+  'features/render.js?v=3.2.04', 'features/password.js?v=3.2.04', 'features/makeup.js?v=3.2.04',
+  'features/media.js?v=3.2.04', 'features/parent-center.js?v=3.2.04',
   // 松树精灵图（手绘位图，pine 物种 canvas 渲染路线）：stage 0..4 固化资源（透明 WebP）
   'assets/tree-sprites/pine/pine-0.webp', 'assets/tree-sprites/pine/pine-1.webp',
   'assets/tree-sprites/pine/pine-2.webp', 'assets/tree-sprites/pine/pine-3.webp',

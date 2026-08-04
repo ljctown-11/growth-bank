@@ -494,13 +494,13 @@ async function autoCheckUpdate(){
   }catch(e){}
 }
 // ===== SW Register =====
-const SW_VERSION = 'summer-growth-bank-v3.2.03';
+const SW_VERSION = 'summer-growth-bank-v3.2.04';
 if('serviceWorker' in navigator){
   // 先 unregister 旧版 SW
   navigator.serviceWorker.getRegistrations().then(regs=>{
     regs.forEach(r=>r.unregister());
   });
-  navigator.serviceWorker.register("sw.js?v=3.2.03").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=3.2.04").then(reg=>{
     // 注册成功后设置版本号，供检查更新使用
     window.localSWVersion = SW_VERSION;
     if(reg.waiting){

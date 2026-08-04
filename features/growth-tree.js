@@ -156,11 +156,11 @@ export function renderStreak(){
   }
 }
 
-// 维度徽章 5 级阈值（按各维度 60 天预估总量校准：L2=20% / L3=40% / L4=65% / L5=90%）
+// 维度徽章 5 级阈值（按各维度 60 天预估总量校准；学习力/运动力本次下调，更易达成）
 // 实践力按最慢 1分/天(总量60)校准，保证暑假必解锁 L5
 export const BADGE_THRESHOLDS = {
-  '学习力': [0, 60, 120, 195, 270],
-  '运动力': [0, 60, 120, 195, 270],
+  '学习力': [0, 50, 100, 160, 220],
+  '运动力': [0, 50, 100, 160, 220],
   '自控力': [0, 36, 72, 117, 162],
   '探索力': [0, 36, 72, 117, 162],
   '实践力': [0, 12, 24, 39, 54],
@@ -323,6 +323,7 @@ export function openBadgeLightbox(cat, level, score){
       <div class="badge-lightbox__info">
         <div class="badge-lightbox__title">${cat}</div>
         <div class="badge-lightbox__sub">Lv${level} · ${score} 分</div>
+        <button class="badge-guide-link" type="button">📖 怎么升级？</button>
       </div>
     </div>
   `, {
@@ -343,6 +344,8 @@ export function openBadgeLightbox(cat, level, score){
           slot.classList.add('active');
         });
       });
+      // 灯箱内一键查看升级说明（叠加在 badge-preview 之上，符合 openModal 单例叠加语义）
+      overlay.querySelector('.badge-guide-link')?.addEventListener('click', openBadgeGuide);
     },
   });
 }
@@ -384,4 +387,35 @@ export function renderBadges(){
       openBadgeLightbox(slot.dataset.cat, Number(slot.dataset.level), Number(slot.dataset.score));
     });
   }
+
+  // 档案页「徽章升级说明」入口按钮（独立守卫，不依赖 badgeWall 的守卫）
+  const guideBtn = document.getElementById('badgeGuideBtn');
+  if(guideBtn && !guideBtn._wired){ guideBtn._wired = true; guideBtn.addEventListener('click', openBadgeGuide); }
+}
+
+/**
+ * 打开「五维徽章升级说明」弹窗。
+ * 表格由 BADGE_THRESHOLDS 动态生成，调阈值时弹窗自动同步，无需硬编码。
+ */
+export function openBadgeGuide(){
+  const dims = [
+    {key:'学习力', icon:'📚'}, {key:'运动力', icon:'🏃'},
+    {key:'自控力', icon:'🧘'}, {key:'探索力', icon:'🔍'}, {key:'实践力', icon:'🛠️'},
+  ];
+  const levels = ['L1','L2','L3','L4','L5'];
+  const head = '<tr><th>维度</th>' + levels.map(l=>`<th>${l}</th>`).join('') + '</tr>';
+  const rows = dims.map(d=>{
+    const t = BADGE_THRESHOLDS[d.key] || [0,0,0,0,0];
+    return `<tr><td>${d.icon} ${d.key}</td>` + t.map(v=>`<td>${v}</td>`).join('') + '</tr>';
+  }).join('');
+  openModal('badge-guide', () => `
+    <div class="modal-box badge-guide">
+      <button class="badge-lightbox__close" data-modal-close aria-label="关闭">×</button>
+      <h3 class="badge-guide__title">🌟 五维徽章升级说明</h3>
+      <p class="badge-guide__intro">成长银行里有 5 大维度——学习力、运动力、自控力、探索力、实践力，每个维度各有一排从 L1 到 L5 的徽章。孩子平时打卡攒下的积分，会自动点亮对应的等级，攒够就亮。</p>
+      <table class="badge-guide__table"><thead>${head}</thead><tbody>${rows}</tbody></table>
+      <p class="badge-guide__note">积分达到（含等于）该级门槛，徽章即点亮。例如学习力攒满 220 分 → 点亮最高级 L5 🏆。</p>
+      <p class="badge-guide__hint">门槛按暑假约 60 天全勤预估总量校准：实践力门槛最低，保证暑假必解锁 L5；本次仅下调了学习力与运动力的阈值，更容易达成。</p>
+    </div>
+  `, {});
 }
